@@ -1,0 +1,8 @@
+{
+  "id": "w1",
+  "userId": "u1",
+  "balance": 1500.5,
+  "transactions": [
+    {"id": "r1", "type": "ad_reward", "amount": 100, "status": "completed", "timestamp": "2025-09-17T10:00:00Z"}
+  ]
+}
