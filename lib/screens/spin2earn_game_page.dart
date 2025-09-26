@@ -25,18 +25,17 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   // Confetti controller
   late ConfettiController _confettiController;
   
-  // Prize items
+  // Prize items (9 segments as specified)
   final List<String> prizes = [
-    '1 CNE',
-    'Try Again',
-    '5 CNE',
-    'Try Again',
-    '10 CNE',
-    'Try Again',
-    '25 CNE',
-    'Bonus Spin',
-    '50 CNE',
-    'Try Again',
+    '1,000 CNE',  // 1% chance
+    '500 CNE',    // 4% chance
+    '200 CNE',    // 10% chance
+    '100 CNE',    // 20% chance
+    '50 CNE',     // 30% chance
+    '10 CNE',     // 5% chance
+    'NFT',        // 10% chance
+    'NFT',        // 10% chance  
+    'NFT',        // 10% chance
   ];
   
   @override
@@ -54,13 +53,14 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   }
   
   Color _getPrizeColor(String prize) {
-    if (prize.contains('50 CNE')) return Colors.amber;
-    if (prize.contains('25 CNE')) return Colors.orange;
-    if (prize.contains('10 CNE')) return Colors.green;
-    if (prize.contains('5 CNE')) return Colors.blue;
-    if (prize.contains('1 CNE')) return Colors.purple;
-    if (prize.contains('Bonus Spin')) return Colors.pink;
-    return Colors.grey; // Try Again
+    if (prize.contains('1,000 CNE')) return const Color(0xFFFFD700); // Gold
+    if (prize.contains('500 CNE')) return const Color(0xFFFF6B35); // Orange-red
+    if (prize.contains('200 CNE')) return const Color(0xFF9B59B6); // Purple
+    if (prize.contains('100 CNE')) return const Color(0xFF3498DB); // Blue
+    if (prize.contains('50 CNE')) return const Color(0xFF2ECC71); // Green
+    if (prize.contains('10 CNE')) return const Color(0xFFE67E22); // Orange
+    if (prize == 'NFT') return const Color(0xFFE91E63); // Pink
+    return Colors.grey;
   }
   
   void _spinWheel() {
@@ -86,18 +86,17 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   }
   
   int _getWeightedRandomIndex() {
-    // Prize probabilities (higher weight = more likely)
+    // Prize probabilities matching your specification
     final weights = [
-      10, // 1 CNE (10% chance)
-      30, // Try Again (30% chance)
-      15, // 5 CNE (15% chance)
-      25, // Try Again (25% chance)
-      8,  // 10 CNE (8% chance)
-      20, // Try Again (20% chance)
-      5,  // 25 CNE (5% chance)
-      3,  // Bonus Spin (3% chance)
-      2,  // 50 CNE (2% chance)
-      15, // Try Again (15% chance)
+      1,  // 1,000 CNE (1% chance)
+      4,  // 500 CNE (4% chance)
+      10, // 200 CNE (10% chance)
+      20, // 100 CNE (20% chance)
+      30, // 50 CNE (30% chance)
+      5,  // 10 CNE (5% chance)
+      10, // NFT (10% chance)
+      10, // NFT (10% chance)
+      10, // NFT (10% chance)
     ];
     
     final totalWeight = weights.fold(0, (sum, weight) => sum + weight);
@@ -122,21 +121,19 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   
   void _processPrizeResult(String prize) {
     if (prize.contains('CNE')) {
-      // Extract CNE amount
-      final amount = int.tryParse(prize.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      // Extract CNE amount (handle commas in numbers like 1,000)
+      final amountStr = prize.replaceAll(RegExp(r'[^0-9,]'), '').replaceAll(',', '');
+      final amount = int.tryParse(amountStr) ?? 0;
       setState(() {
         _userCNE += amount;
       });
       _saveGameData();
       _showResultDialog(prize, 'Congratulations! You won $amount CNE!', true);
-    } else if (prize == 'Bonus Spin') {
-      setState(() {
-        _dailySpinsUsed = (_dailySpinsUsed - 1).clamp(0, _maxDailySpins);
-      });
-      _saveGameData();
-      _showResultDialog(prize, 'Lucky! You got a bonus spin!', true);
+    } else if (prize == 'NFT') {
+      // NFT win - no CNE added but still a win
+      _showResultDialog(prize, '🎨 Amazing! You won an NFT!\n\nYour NFT will be sent to your wallet soon.', true);
     } else {
-      // Try Again
+      // Should not happen with new prize structure, but keeping as fallback
       _showResultDialog(prize, 'Better luck next time! Try your next spin.', false);
     }
   }
