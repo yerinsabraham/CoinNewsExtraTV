@@ -21,6 +21,7 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   // Fortune wheel controller
   StreamController<int> controller = StreamController<int>();
   int _lastSelectedIndex = 0;
+  bool _isSpinning = false;
   
   // Confetti controller
   late ConfettiController _confettiController;
@@ -76,6 +77,7 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     
     setState(() {
       _dailySpinsUsed++;
+      _isSpinning = true;
     });
     
     // Save the updated spin count
@@ -114,6 +116,11 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   }
   
   void _handleSpinResult() {
+    // Reset spinning state
+    setState(() {
+      _isSpinning = false;
+    });
+    
     // Use the stored selected index
     final prize = prizes[_lastSelectedIndex];
     _processPrizeResult(prize);
@@ -369,7 +376,7 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
                     width: 300,
                     height: 300,
                     child: FortuneWheel(
-                      selected: controller.stream,
+                      selected: _isSpinning ? controller.stream : Stream.empty(),
                       items: [
                         for (int i = 0; i < prizes.length; i++) 
                           FortuneItem(
@@ -406,9 +413,9 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: remainingSpins > 0 ? _spinWheel : null,
+                      onPressed: (remainingSpins > 0 && !_isSpinning) ? _spinWheel : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: remainingSpins > 0 
+                        backgroundColor: (remainingSpins > 0 && !_isSpinning)
                             ? const Color(0xFF006833) 
                             : Colors.grey,
                         foregroundColor: Colors.white,
@@ -417,7 +424,11 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
                         ),
                       ),
                       child: Text(
-                        remainingSpins > 0 ? 'SPIN NOW!' : 'No Spins Left',
+                        _isSpinning 
+                            ? 'SPINNING...' 
+                            : remainingSpins > 0 
+                                ? 'SPIN NOW!' 
+                                : 'No Spins Left',
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
