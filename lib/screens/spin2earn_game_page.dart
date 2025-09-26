@@ -19,7 +19,7 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
   int _maxDailySpins = 3;
   
   // Fortune wheel controller
-  StreamController<int> controller = StreamController<int>();
+  StreamController<int> controller = StreamController<int>.broadcast();
   int _lastSelectedIndex = 0;
   bool _isSpinning = false;
   
@@ -44,6 +44,15 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     _loadGameData();
+  }
+  
+  Stream<int> get wheelStream {
+    if (_isSpinning) {
+      return controller.stream;
+    } else {
+      // Return a stream that never emits values
+      return const Stream<int>.empty();
+    }
   }
   
   @override
@@ -375,35 +384,68 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
                   Container(
                     width: 300,
                     height: 300,
-                    child: FortuneWheel(
-                      selected: _isSpinning ? controller.stream : Stream.empty(),
-                      items: [
-                        for (int i = 0; i < prizes.length; i++) 
-                          FortuneItem(
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              child: Text(
-                                prizes[i],
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                    child: _isSpinning 
+                      ? FortuneWheel(
+                          key: ValueKey('spinning'),
+                          selected: controller.stream,
+                          animateFirst: true,
+                          items: [
+                            for (int i = 0; i < prizes.length; i++) 
+                              FortuneItem(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(
+                                    prizes[i],
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
+                                style: FortuneItemStyle(
+                                  color: _getPrizeColor(prizes[i]),
+                                  borderColor: Colors.white,
+                                  borderWidth: 2,
+                                ),
                               ),
-                            ),
-                            style: FortuneItemStyle(
-                              color: _getPrizeColor(prizes[i]),
-                              borderColor: Colors.white,
-                              borderWidth: 2,
-                            ),
-                          ),
-                      ],
-                      onAnimationEnd: () {
-                        // Handle spin result
-                        _handleSpinResult();
-                      },
-                    ),
+                          ],
+                          onAnimationEnd: () {
+                            // Handle spin result
+                            _handleSpinResult();
+                          },
+                        )
+                      : FortuneWheel(
+                          key: ValueKey('static'),
+                          selected: const Stream<int>.empty(),
+                          animateFirst: false,
+                          items: [
+                            for (int i = 0; i < prizes.length; i++) 
+                              FortuneItem(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(
+                                    prizes[i],
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                style: FortuneItemStyle(
+                                  color: _getPrizeColor(prizes[i]),
+                                  borderColor: Colors.white,
+                                  borderWidth: 2,
+                                ),
+                              ),
+                          ],
+                          onAnimationEnd: () {
+                            // No action for static wheel
+                          },
+                        ),
                   ),
                   
                   const SizedBox(height: 24),
