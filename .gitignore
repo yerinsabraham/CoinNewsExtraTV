@@ -55,8 +55,9 @@ yarn-error.log*
 .env
 !.env.template
 
-# Package locks (optional - uncomment if you want to exclude them)
-# package-lock.json
+# Package locks (exclude them to avoid conflicts)
+package-lock.json
+**/package-lock.json
 
 # Temporary files
 temp-*/
