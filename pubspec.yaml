@@ -24,6 +24,7 @@ dependencies:
   flutter_fortune_wheel: ^1.3.1
   confetti: ^0.7.0
   carousel_slider: ^4.2.1
+  lottie: ^3.1.0
 
 flutter:
   uses-material-design: true
@@ -33,6 +34,14 @@ flutter:
     - assets/images/
     - assets/svgs/
     - assets/fonts/
+    - assets/avatars/
+    - assets/play-extra/
+    - assets/play-extra/battle-icons/
+    - assets/play-extra/characters/
+    - assets/play-extra/coins/
+    - assets/play-extra/weapons/
+    - assets/play-extra/wheels/
+    - assets/play-extra/lottie/
 
   fonts:
     - family: Lato

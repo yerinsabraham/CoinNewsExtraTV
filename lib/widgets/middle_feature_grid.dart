@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class MiddleFeatureGrid extends StatelessWidget {
   const MiddleFeatureGrid({super.key});
@@ -80,12 +79,10 @@ class MiddleFeatureGrid extends StatelessWidget {
               ),
               _buildGridItem(
                 context,
-                icon: FeatherIcons.link2,
-                label: 'Blockchain',
+                icon: FeatherIcons.play,
+                label: 'Play Extra',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Blockchain fintech coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/play-extra');
                 },
               ),
               _buildGridItem(

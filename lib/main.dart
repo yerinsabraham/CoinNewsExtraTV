@@ -15,13 +15,19 @@ import 'screens/extra_ai_chat.dart';
 import 'screens/news_page.dart';
 import 'screens/notification_screen.dart';
 import 'screens/explore_page.dart';
-import 'screens/spin2earn_game_page.dart'; 
+import 'screens/spin2earn_game_page.dart';
+import 'play_extra/screens/play_extra_main.dart';
+import 'play_extra/services/play_extra_service.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Play Extra service
+  await PlayExtraService().initialize();
+  
   runApp(const Watch2EarnApp());
 }
 
@@ -75,6 +81,8 @@ class Watch2EarnApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const ExplorePage());
             case '/spin2earn':
               return MaterialPageRoute(builder: (_) => const Spin2EarnGamePage());
+            case '/play-extra':
+              return MaterialPageRoute(builder: (_) => const PlayExtraMain());
             default:
               return MaterialPageRoute(builder: (_) => const LoginScreen());
           }
