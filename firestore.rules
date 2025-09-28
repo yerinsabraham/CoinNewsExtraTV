@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read/write their own user documents
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Rooms collection - read-only for authenticated users
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admins should modify rooms
+    }
+    
+    // Rounds collection - users can read rounds they participate in
+    match /rounds/{roundId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+    }
+    
+    // Joins collection - users can read their own joins
+    match /joins/{joinId} {
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.uid;
+    }
+    
+    // Battle results - read-only for participants
+    match /battle_results/{resultId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions can write results
+    }
+  }
+}
