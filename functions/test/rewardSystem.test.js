@@ -415,7 +415,6 @@ describe('Reward Logic Framework Tests', () => {
             expect(duration).to.be.lessThan(1000); // Should complete in under 1 second
         });
     });
-});
 
 // Mock test runner if this file is executed directly
 if (require.main === module) {

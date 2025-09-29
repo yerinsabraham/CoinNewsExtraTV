@@ -1,7 +1,6 @@
 // Test file for Admin System
 // This is a temporary test file to verify admin functionality
 
-import 'package:flutter/material.dart';
 import 'services/admin_service.dart';
 import 'models/admin_models.dart';
 
@@ -28,18 +27,23 @@ class AdminSystemTest {
     try {
       AdminContent testContent = AdminContent(
         id: 'test-banner-1',
-        type: AdminContentType.banner,
+        type: ContentTypes.banner,
         title: 'Test Banner',
         description: 'This is a test banner created by admin system',
         imageUrl: 'https://via.placeholder.com/400x200/006833/FFFFFF?text=Test+Banner',
+        data: {},
         isActive: true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         createdBy: 'admin-test',
       );
       
-      await AdminService.createContent(testContent);
-      print('Test content created successfully');
+      String? contentId = await AdminService.addContent(testContent);
+      if (contentId != null) {
+        print('Test content created successfully with ID: $contentId');
+      } else {
+        print('Failed to create test content');
+      }
     } catch (e) {
       print('Error creating test content: $e');
     }
@@ -47,7 +51,7 @@ class AdminSystemTest {
     // Test 4: Retrieve content
     print('\nTest 4: Retrieve Content');
     try {
-      List<AdminContent> banners = await AdminService.getContentByType(AdminContentType.banner);
+      List<AdminContent> banners = await AdminService.getContent(type: ContentTypes.banner);
       print('Retrieved ${banners.length} banners');
       for (var banner in banners) {
         print('Banner: ${banner.title} - Active: ${banner.isActive}');

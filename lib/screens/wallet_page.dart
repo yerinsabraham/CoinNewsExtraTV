@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/banner_ad_widget.dart';
 import '../services/user_balance_service.dart';
 
 class WalletPage extends StatefulWidget {

@@ -6,7 +6,6 @@ import '../widgets/ads_carousel.dart';
 import '../services/user_balance_service.dart';
 import '../services/reward_service.dart';
 import 'video_player_page.dart';
-import 'quiz_page.dart';
 
 class EarningPage extends StatefulWidget {
   const EarningPage({super.key});
