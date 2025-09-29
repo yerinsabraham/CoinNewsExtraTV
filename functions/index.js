@@ -12,6 +12,33 @@ const {
     Hbar 
 } = require("@hashgraph/sdk");
 
+// Import reward engine
+const {
+    getHalvingTier,
+    getRewardAmount,
+    applyReward,
+    validateAntiAbuse,
+    queueTransfer,
+    publishToHCS: publishRewardToHCS,
+    roundToCNEPrecision
+} = require("./src/rewards/rewardEngine");
+
+// Import lock manager
+const {
+    processTokenUnlocks,
+    forceUnlockTokens,
+    getUserLocksSummary,
+    getSystemLocksStats
+} = require("./src/rewards/lockManager");
+
+// Import Hedera transfers
+const {
+    processPendingTransfers,
+    getTransferQueueStats,
+    retryFailedTransfers,
+    cleanupOldTransfers
+} = require("./src/rewards/hederaTransfers");
+
 // Initialize Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
@@ -459,6 +486,852 @@ exports.autoCreateRounds = onSchedule({
         
     } catch (error) {
         console.error("❌ Error in auto-create rounds:", error);
+    }
+});
+
+// ===== REWARD SYSTEM CLOUD FUNCTIONS =====
+
+// Initialize reward configuration
+exports.initRewardConfig = onRequest({ cors: true }, async (req, res) => {
+    try {
+        const { initializeRewardConfiguration } = require('./init-reward-config');
+        await initializeRewardConfiguration();
+        
+        res.json({
+            success: true,
+            message: 'Reward configuration initialized successfully'
+        });
+    } catch (error) {
+        console.error('Error initializing reward config:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Cloud Function: Process Video Watch Reward (Live Videos - 10 min segments)
+exports.processLiveWatchReward = onCall({ cors: true }, async (request) => {
+    try {
+        const { videoId, sessionId, watchDuration } = request.data;
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        // Validate minimum watch duration (10 minutes = 600 seconds)
+        if (watchDuration < 600) {
+            throw new Error('Insufficient watch time - minimum 10 minutes required');
+        }
+
+        // Anti-abuse: validate watch session
+        await validateWatchSession(sessionId, watchDuration);
+
+        // Calculate how many 10-minute segments completed
+        const segments = Math.floor(watchDuration / 600);
+        const idempotencyKey = `live_${uid}_${videoId}_${segments}`;
+
+        const reward = await applyReward(uid, 'live_10min', {
+            video_id: videoId,
+            session_id: sessionId,
+            watch_duration: watchDuration,
+            segments_completed: segments
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            segments_rewarded: segments,
+            message: `Rewarded for ${segments} segments (${watchDuration} seconds total)`
+        };
+
+    } catch (error) {
+        console.error('Error processing live watch reward:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Process Video Watch Reward (Other Videos - 25% completion)
+exports.processVideoWatchReward = onCall({ cors: true }, async (request) => {
+    try {
+        const { videoId, watchedPercentage, totalDuration } = request.data;
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        if (watchedPercentage < 0.25) {
+            throw new Error('Insufficient watch percentage - minimum 25% required');
+        }
+
+        const idempotencyKey = `video_${uid}_${videoId}_25pct`;
+
+        const reward = await applyReward(uid, 'other_25pct', {
+            video_id: videoId,
+            watched_percentage: watchedPercentage,
+            total_duration: totalDuration
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            message: `Rewarded for watching ${Math.round(watchedPercentage * 100)}% of video`
+        };
+
+    } catch (error) {
+        console.error('Error processing video watch reward:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Process Ad View Reward
+exports.processAdViewReward = onCall({ cors: true }, async (request) => {
+    try {
+        const { adId, adProvider, completionToken, adDuration } = request.data;
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify ad completion (in production, validate with 3rd party provider)
+        if (!completionToken) {
+            throw new Error('Invalid ad completion - no completion token');
+        }
+
+        const idempotencyKey = `ad_${uid}_${adId}_${completionToken}`;
+
+        const reward = await applyReward(uid, 'ad_view', {
+            ad_id: adId,
+            ad_provider: adProvider,
+            completion_token: completionToken,
+            ad_duration: adDuration
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            message: 'Ad view reward processed successfully'
+        };
+
+    } catch (error) {
+        console.error('Error processing ad view reward:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Process Signup Bonus
+exports.processSignupBonus = onCall({ cors: true }, async (request) => {
+    try {
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify this is a new user (check creation timestamp)
+        const userRecord = await admin.auth().getUser(uid);
+        const accountAge = Date.now() - new Date(userRecord.metadata.creationTime).getTime();
+
+        if (accountAge > 24 * 60 * 60 * 1000) { // More than 24 hours old
+            throw new Error('Signup bonus expired - must claim within 24 hours of registration');
+        }
+
+        const idempotencyKey = `signup_${uid}`;
+
+        const reward = await applyReward(uid, 'signup_bonus', {
+            account_created: userRecord.metadata.creationTime,
+            user_email: userRecord.email || null
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            message: 'Signup bonus processed successfully'
+        };
+
+    } catch (error) {
+        console.error('Error processing signup bonus:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Process Referral Bonus
+exports.processReferralBonus = onCall({ cors: true }, async (request) => {
+    try {
+        const { referredUserId } = request.data;
+        const referrerUid = request.auth?.uid;
+
+        if (!referrerUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Validate referral relationship
+        await validateReferral(referrerUid, referredUserId);
+
+        const idempotencyKey = `referral_${referrerUid}_${referredUserId}`;
+
+        const reward = await applyReward(referrerUid, 'referral_bonus', {
+            referred_user: referredUserId,
+            referrer_user: referrerUid
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            message: 'Referral bonus processed successfully'
+        };
+
+    } catch (error) {
+        console.error('Error processing referral bonus:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Claim Daily Airdrop
+exports.claimDailyAirdrop = onCall({ cors: true }, async (request) => {
+    try {
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        const today = new Date().toISOString().split('T')[0]; // UTC date
+
+        // Check if already claimed today
+        const userDoc = await admin.firestore().doc(`users/${uid}`).get();
+        const userData = userDoc.data();
+
+        if (userData?.daily_claimed_at === today) {
+            throw new Error('Daily airdrop already claimed today');
+        }
+
+        const idempotencyKey = `daily_${uid}_${today}`;
+
+        // Update claim date first
+        await admin.firestore().doc(`users/${uid}`).set({
+            daily_claimed_at: today
+        }, { merge: true });
+
+        const reward = await applyReward(uid, 'daily_airdrop', {
+            claim_date: today
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            message: 'Daily airdrop claimed successfully',
+            next_claim_available: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        };
+
+    } catch (error) {
+        console.error('Error processing daily airdrop:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Process Social Follow Reward
+exports.processSocialFollowReward = onCall({ cors: true }, async (request) => {
+    try {
+        const { platform, accountHandle, verificationToken } = request.data;
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        // In production, validate social follow with OAuth or API verification
+        if (!verificationToken) {
+            throw new Error('Social follow verification required');
+        }
+
+        const idempotencyKey = `social_${uid}_${platform}_${accountHandle}`;
+
+        const reward = await applyReward(uid, 'social_follow', {
+            platform,
+            account_handle: accountHandle,
+            verification_token: verificationToken
+        }, idempotencyKey);
+
+        return {
+            success: true,
+            reward,
+            message: `Social follow reward for ${platform} processed successfully`
+        };
+
+    } catch (error) {
+        console.error('Error processing social follow reward:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Get User Reward Balance
+exports.getUserRewardBalance = onCall({ cors: true }, async (request) => {
+    try {
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        const userDoc = await admin.firestore().doc(`users/${uid}`).get();
+        
+        if (!userDoc.exists) {
+            return {
+                success: true,
+                balance: {
+                    available_balance: 0,
+                    locked_balance: 0,
+                    total_earned: 0,
+                    locks: []
+                }
+            };
+        }
+
+        const userData = userDoc.data();
+
+        // Calculate unlockable amounts
+        const now = new Date();
+        let unlockableAmount = 0;
+        const upcomingUnlocks = [];
+
+        if (userData.locks) {
+            userData.locks.forEach(lock => {
+                const unlockDate = new Date(lock.unlockAt);
+                if (unlockDate <= now) {
+                    unlockableAmount += lock.amount;
+                } else {
+                    upcomingUnlocks.push({
+                        amount: lock.amount,
+                        unlockAt: lock.unlockAt,
+                        source: lock.source,
+                        daysRemaining: Math.ceil((unlockDate - now) / (24 * 60 * 60 * 1000))
+                    });
+                }
+            });
+        }
+
+        return {
+            success: true,
+            balance: {
+                available_balance: userData.available_balance || 0,
+                locked_balance: userData.locked_balance || 0,
+                total_earned: userData.total_earned || 0,
+                unlockable_amount: unlockableAmount,
+                upcoming_unlocks: upcomingUnlocks,
+                daily_claimed_at: userData.daily_claimed_at,
+                wallet_address: userData.wallet_address
+            }
+        };
+
+    } catch (error) {
+        console.error('Error getting user reward balance:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Get Reward System Status
+exports.getRewardSystemStatus = onCall({ cors: true }, async (request) => {
+    try {
+        const [metricsDoc, systemDoc, halvingDoc] = await Promise.all([
+            admin.firestore().doc('metrics/totals').get(),
+            admin.firestore().doc('config/system').get(),
+            admin.firestore().doc('config/halving').get()
+        ]);
+
+        const metrics = metricsDoc.data() || {};
+        const system = systemDoc.data() || {};
+        const halving = halvingDoc.data() || {};
+
+        const currentUserCount = metrics.user_count || 0;
+        const currentTier = getHalvingTier(currentUserCount);
+
+        return {
+            success: true,
+            status: {
+                rewards_active: !system.rewards_paused,
+                network: system.network || 'testnet',
+                current_user_count: currentUserCount,
+                current_tier: currentTier,
+                total_distributed: metrics.total_distributed || 0,
+                total_locked: metrics.total_locked || 0,
+                daily_distribution: metrics.daily_distribution || 0,
+                event_stats: metrics.event_stats || {},
+                current_reward_amounts: halving.mapping ? halving.mapping[currentTier.toString()] : null
+            }
+        };
+
+    } catch (error) {
+        console.error('Error getting reward system status:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Helper function to validate watch sessions
+async function validateWatchSession(sessionId, watchDuration) {
+    // In production, validate against session tracking data
+    // For now, basic validation
+    if (!sessionId || watchDuration < 60) {
+        throw new Error('Invalid watch session');
+    }
+    
+    // TODO: Implement proper session validation
+    // - Check for excessive skipping
+    // - Verify continuous watch time
+    // - Detect bot behavior
+    
+    return true;
+}
+
+// Helper function to validate referrals
+async function validateReferral(referrerUid, referredUserId) {
+    // Prevent self-referral
+    if (referrerUid === referredUserId) {
+        throw new Error('Self-referral not allowed');
+    }
+
+    // Check if referred user has minimum activity (7 days)
+    const referredUser = await admin.auth().getUser(referredUserId);
+    const accountAge = Date.now() - new Date(referredUser.metadata.creationTime).getTime();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+    if (accountAge < sevenDays) {
+        throw new Error('Referred user must be active for at least 7 days');
+    }
+
+    // Check for existing referral relationship
+    const existingReferral = await admin.firestore()
+        .collection('rewards_log')
+        .where('uid', '==', referrerUid)
+        .where('event_type', '==', 'referral_bonus')
+        .where('event_metadata.referred_user', '==', referredUserId)
+        .limit(1)
+        .get();
+
+    if (!existingReferral.empty) {
+        throw new Error('Referral bonus already claimed for this user');
+    }
+
+    return true;
+}
+
+// ===== TOKEN LOCKING SYSTEM =====
+
+// Scheduled function to unlock tokens (runs daily at midnight UTC)
+exports.processTokenUnlocks = onSchedule({
+    schedule: '0 0 * * *', // Daily at midnight UTC
+    timeZone: 'UTC'
+}, async (context) => {
+    try {
+        console.log('🕐 Starting scheduled token unlock process...');
+        const result = await processTokenUnlocks();
+        console.log('✅ Scheduled token unlock completed:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Scheduled token unlock failed:', error);
+        throw error;
+    }
+});
+
+// Cloud Function: Manual Token Unlock (Admin Only)
+exports.forceUnlockTokens = onCall({ cors: true }, async (request) => {
+    try {
+        const { targetUserId, lockId, reason } = request.data;
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        const result = await forceUnlockTokens(adminUid, targetUserId, lockId, reason);
+
+        return {
+            success: true,
+            result,
+            message: 'Tokens force unlocked successfully'
+        };
+
+    } catch (error) {
+        console.error('Error in force unlock tokens:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Get User Locks Summary
+exports.getUserLocksSummary = onCall({ cors: true }, async (request) => {
+    try {
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new Error('Authentication required');
+        }
+
+        const summary = await getUserLocksSummary(uid);
+
+        return {
+            success: true,
+            locks_summary: summary
+        };
+
+    } catch (error) {
+        console.error('Error getting user locks summary:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Get System Locks Statistics (Admin Only)
+exports.getSystemLocksStats = onCall({ cors: true }, async (request) => {
+    try {
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists) {
+            throw new Error('Admin access required');
+        }
+
+        const stats = await getSystemLocksStats();
+
+        return {
+            success: true,
+            locks_stats: stats
+        };
+
+    } catch (error) {
+        console.error('Error getting system locks stats:', error);
+        throw new Error(error.message);
+    }
+});
+
+// ===== ADMIN CONTROLS =====
+
+// Cloud Function: Override Reward Amount (Admin Only)
+exports.overrideRewardAmount = onCall({ cors: true }, async (request) => {
+    try {
+        const { eventType, newAmount, durationHours, reason } = request.data;
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists) {
+            throw new Error('Admin access required');
+        }
+
+        const expiresAt = new Date(Date.now() + (durationHours * 60 * 60 * 1000));
+
+        await admin.firestore().doc('config/reward_overrides').set({
+            [eventType]: {
+                override_amount: newAmount,
+                expires_at: expiresAt,
+                reason,
+                admin_user: adminUid,
+                created_at: admin.firestore.FieldValue.serverTimestamp()
+            }
+        }, { merge: true });
+
+        // Log the override action
+        await admin.firestore().collection('admin_actions').add({
+            action: 'reward_override',
+            admin_user: adminUid,
+            event_type: eventType,
+            new_amount: newAmount,
+            duration_hours: durationHours,
+            reason,
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+            success: true,
+            message: `Reward override set for ${eventType}`,
+            expires_at: expiresAt.toISOString()
+        };
+
+    } catch (error) {
+        console.error('Error setting reward override:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Pause/Resume Rewards (Super Admin Only)
+exports.pauseRewards = onCall({ cors: true }, async (request) => {
+    try {
+        const { reason } = request.data;
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify super admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists || !adminDoc.data().isSuperAdmin) {
+            throw new Error('Super admin permissions required');
+        }
+
+        await admin.firestore().doc('config/system').update({
+            rewards_paused: true,
+            pause_reason: reason,
+            paused_by: adminUid,
+            paused_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Log the pause action
+        await admin.firestore().collection('admin_actions').add({
+            action: 'pause_rewards',
+            admin_user: adminUid,
+            reason,
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+            success: true,
+            message: 'All rewards paused successfully'
+        };
+
+    } catch (error) {
+        console.error('Error pausing rewards:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Resume Rewards (Super Admin Only)
+exports.resumeRewards = onCall({ cors: true }, async (request) => {
+    try {
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify super admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists || !adminDoc.data().isSuperAdmin) {
+            throw new Error('Super admin permissions required');
+        }
+
+        await admin.firestore().doc('config/system').update({
+            rewards_paused: false,
+            pause_reason: admin.firestore.FieldValue.delete(),
+            resumed_by: adminUid,
+            resumed_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Log the resume action
+        await admin.firestore().collection('admin_actions').add({
+            action: 'resume_rewards',
+            admin_user: adminUid,
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+            success: true,
+            message: 'Rewards resumed successfully'
+        };
+
+    } catch (error) {
+        console.error('Error resuming rewards:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Get System Health (Admin Dashboard)
+exports.getSystemHealth = onCall({ cors: true }, async (request) => {
+    try {
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists) {
+            throw new Error('Admin access required');
+        }
+
+        const [metricsDoc, systemDoc, overridesDoc] = await Promise.all([
+            admin.firestore().doc('metrics/totals').get(),
+            admin.firestore().doc('config/system').get(),
+            admin.firestore().doc('config/reward_overrides').get()
+        ]);
+
+        const metrics = metricsDoc.data() || {};
+        const system = systemDoc.data() || {};
+        const overrides = overridesDoc.data() || {};
+
+        // Calculate distribution rate (last 24 hours)
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentRewards = await admin.firestore()
+            .collection('rewards_log')
+            .where('created_at', '>=', yesterday)
+            .get();
+
+        const last24hDistribution = recentRewards.docs.reduce((sum, doc) => 
+            sum + (doc.data().amount || 0), 0);
+
+        // Check pending transfers
+        const pendingTransfers = await admin.firestore()
+            .collection('pending_transfers')
+            .where('status', '==', 'PENDING')
+            .get();
+
+        return {
+            success: true,
+            system_health: {
+                system_status: {
+                    rewards_active: !system.rewards_paused,
+                    network: system.network || 'testnet',
+                    migration_in_progress: system.migration_in_progress || false
+                },
+                metrics: {
+                    total_users: metrics.user_count || 0,
+                    current_tier: getHalvingTier(metrics.user_count || 0),
+                    total_distributed: metrics.total_distributed || 0,
+                    total_locked: metrics.total_locked || 0,
+                    last_24h_distribution: last24hDistribution
+                },
+                operations: {
+                    pending_transfers: pendingTransfers.size,
+                    active_overrides: Object.keys(overrides).filter(key => key !== 'created_at').length,
+                    last_unlock_run: metrics.last_unlock_run
+                },
+                event_stats: metrics.event_stats || {}
+            }
+        };
+
+    } catch (error) {
+        console.error('Error getting system health:', error);
+        throw new Error(error.message);
+    }
+});
+
+// ===== HEDERA TRANSFER QUEUE SYSTEM =====
+
+// Scheduled function to process pending transfers (runs every 10 minutes)
+exports.processPendingTransfers = onSchedule({
+    schedule: '*/10 * * * *', // Every 10 minutes
+    timeZone: 'UTC'
+}, async (context) => {
+    try {
+        console.log('🕐 Starting scheduled transfer processing...');
+        const result = await processPendingTransfers();
+        console.log('✅ Scheduled transfer processing completed:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Scheduled transfer processing failed:', error);
+        throw error;
+    }
+});
+
+// Cloud Function: Get Transfer Queue Statistics (Admin Only)
+exports.getTransferQueueStats = onCall({ cors: true }, async (request) => {
+    try {
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists) {
+            throw new Error('Admin access required');
+        }
+
+        const stats = await getTransferQueueStats();
+
+        return {
+            success: true,
+            transfer_stats: stats
+        };
+
+    } catch (error) {
+        console.error('Error getting transfer queue stats:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Retry Failed Transfers (Admin Only)
+exports.retryFailedTransfers = onCall({ cors: true }, async (request) => {
+    try {
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new Error('Authentication required');
+        }
+
+        // Verify admin permissions
+        const adminDoc = await admin.firestore().doc(`admins/${adminUid}`).get();
+        if (!adminDoc.exists) {
+            throw new Error('Admin access required');
+        }
+
+        const result = await retryFailedTransfers();
+
+        // Log admin action
+        await admin.firestore().collection('admin_actions').add({
+            action: 'retry_failed_transfers',
+            admin_user: adminUid,
+            transfers_retried: result.retried,
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+            success: true,
+            result,
+            message: `${result.retried} failed transfers queued for retry`
+        };
+
+    } catch (error) {
+        console.error('Error retrying failed transfers:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Scheduled function to cleanup old transfers (runs daily)
+exports.cleanupOldTransfers = onSchedule({
+    schedule: '0 2 * * *', // Daily at 2 AM UTC
+    timeZone: 'UTC'
+}, async (context) => {
+    try {
+        console.log('🕐 Starting scheduled transfer cleanup...');
+        const result = await cleanupOldTransfers();
+        console.log('✅ Scheduled transfer cleanup completed:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Scheduled transfer cleanup failed:', error);
+        throw error;
+    }
+});
+
+// Manual transfer processing (for testing or emergency)
+exports.processTransfersNow = onRequest({ cors: true }, async (req, res) => {
+    try {
+        console.log('🚀 Manual transfer processing requested...');
+        const result = await processPendingTransfers();
+        
+        res.json({
+            success: true,
+            message: 'Transfer processing completed',
+            result
+        });
+    } catch (error) {
+        console.error('❌ Manual transfer processing failed:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 });
 

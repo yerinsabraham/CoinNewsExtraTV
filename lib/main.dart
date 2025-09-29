@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'provider/user_provider.dart';
 import 'provider/admin_provider.dart';
+import 'services/user_balance_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -41,6 +42,7 @@ class Watch2EarnApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => UserBalanceService()..listenToAuthChanges()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

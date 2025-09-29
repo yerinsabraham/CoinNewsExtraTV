@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/reward_service.dart';
+import '../services/user_balance_service.dart';
 import 'home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -16,8 +19,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   bool _loading = false;
   String? _usernameError;
+  bool _showReferralField = false;
 
   Future<bool> _checkUsernameAvailable(String username) async {
     try {
@@ -98,9 +103,15 @@ class _SignupScreenState extends State<SignupScreen> {
         await credential.user?.updateDisplayName(_nameController.text.trim());
       }
       
+      // Initialize user rewards and claim signup bonus
+      await _initializeNewUserRewards();
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Signup successful ✅")),
+          const SnackBar(
+            content: Text("Signup successful! Welcome bonus awarded! ✅"),
+            backgroundColor: Color(0xFF006833),
+          ),
         );
         Navigator.pushReplacement(
           context,
@@ -120,15 +131,57 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  // Initialize new user rewards
+  Future<void> _initializeNewUserRewards() async {
+    try {
+      // Initialize user rewards system
+      await RewardService.initializeUserRewards();
+      
+      // Claim signup bonus
+      await RewardService.claimSignupBonus();
+      
+      // Use referral code if provided
+      final referralCode = _referralCodeController.text.trim();
+      if (referralCode.isNotEmpty) {
+        await RewardService.useReferralCode(referralCode: referralCode);
+      }
+      
+      // Initialize the balance service
+      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+      await balanceService.initialize();
+    } catch (e) {
+      debugPrint('Error initializing user rewards: $e');
+    }
+  }
+
   Future<void> _googleSignIn() async {
     setState(() => _loading = true);
     try {
-      await AuthService.signInWithGoogle();
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+      final userCredential = await AuthService.signInWithGoogle();
+      if (userCredential != null) {
+        // Check if this is a new user
+        final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+        
+        if (isNewUser) {
+          // Initialize rewards for new Google sign-in users
+          await _initializeNewUserRewards();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Welcome! Signup bonus awarded! ✅"),
+                backgroundColor: Color(0xFF006833),
+              ),
+            );
+          }
+        }
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -237,6 +290,68 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  
+                  // Referral code section
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showReferralField = !_showReferralField;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF006833).withOpacity(0.1),
+                        border: Border.all(color: const Color(0xFF006833).withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.card_giftcard,
+                            color: Color(0xFF006833),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _showReferralField 
+                                  ? 'Enter referral code for bonus tokens' 
+                                  : 'Have a referral code? Tap for bonus!',
+                              style: const TextStyle(
+                                color: Color(0xFF006833),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            _showReferralField ? Icons.expand_less : Icons.expand_more,
+                            color: const Color(0xFF006833),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  if (_showReferralField) ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _referralCodeController,
+                      style: const TextStyle(fontSize: 16),
+                      decoration: InputDecoration(
+                        labelText: "Referral Code (Optional)",
+                        hintText: "Enter your friend's referral code",
+                        prefixIcon: const Icon(Icons.people),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        helperText: "Get extra CNE tokens when you use a referral code!",
+                      ),
+                    ),
+                  ],
+                  
                   const SizedBox(height: 32),
                   if (_loading)
                     const Center(child: CircularProgressIndicator())

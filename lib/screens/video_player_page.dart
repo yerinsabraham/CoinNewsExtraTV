@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
+import '../services/reward_service.dart';
+import '../services/user_balance_service.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoId;
@@ -29,6 +33,17 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   bool _isDisliked = false;
   bool _isSubscribed = false;
   bool _showDescription = false;
+  
+  // Reward tracking
+  Timer? _watchTimer;
+  int _watchedSeconds = 0;
+  bool _rewardClaimed = false;
+  bool _isClaimingReward = false;
+  double _currentRewardAmount = 0.0;
+  
+  // Watch progress tracking
+  Duration _videoDuration = Duration.zero;
+  Duration _currentPosition = Duration.zero;
 
   // Sample recommended videos
   final List<Map<String, dynamic>> _recommendedVideos = [
@@ -53,29 +68,135 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void initState() {
     super.initState();
+    _initializeVideoPlayer();
+    _loadCurrentRewardAmount();
+    _startWatchTracking();
+  }
+
+  void _initializeVideoPlayer() {
     // Use a default YouTube video ID for demo
     _controller = YoutubePlayerController(
-      initialVideoId: 'p4kmPtTU4lw', // Default video for demo
+      initialVideoId: widget.videoId.isNotEmpty ? widget.videoId : 'p4kmPtTU4lw',
       flags: const YoutubePlayerFlags(
         autoPlay: true,
         mute: false,
       ),
     );
+
+    // Listen to player events
+    _controller.addListener(_onPlayerStateChanged);
+  }
+
+  void _onPlayerStateChanged() {
+    if (mounted) {
+      final duration = _controller.metadata.duration;
+      final position = _controller.value.position;
+      
+      setState(() {
+        _videoDuration = duration;
+        _currentPosition = position;
+      });
+      
+      // Check if reward should be enabled (watched at least 70%)
+      if (!_rewardClaimed && _videoDuration.inSeconds > 0) {
+        final watchPercentage = _currentPosition.inSeconds / _videoDuration.inSeconds;
+        if (watchPercentage >= 0.7) {
+          setState(() {
+            // Reward is now claimable
+          });
+        }
+      }
+    }
+  }
+
+  void _startWatchTracking() {
+    _watchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_controller.value.isPlaying) {
+        _watchedSeconds++;
+      }
+    });
+  }
+
+  Future<void> _loadCurrentRewardAmount() async {
+    final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+    setState(() {
+      _currentRewardAmount = balanceService.rewardAmounts.videoReward;
+    });
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onPlayerStateChanged);
     _controller.dispose();
+    _watchTimer?.cancel();
     super.dispose();
   }
 
-  void _claimReward() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Congratulations! You earned \$${widget.reward.toStringAsFixed(1)}!'),
-        backgroundColor: const Color(0xFF006833),
-      ),
-    );
+  Future<void> _claimReward() async {
+    if (_rewardClaimed || _isClaimingReward) return;
+
+    // Check if watched enough (at least 70% or minimum 30 seconds)
+    final minWatchTime = 30;
+    final requiredWatchPercentage = 0.7;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0 
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+        : 0.0;
+
+    if (_watchedSeconds < minWatchTime && actualWatchPercentage < requiredWatchPercentage) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Watch more to claim your reward!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isClaimingReward = true;
+    });
+
+    try {
+      final result = await RewardService.claimVideoReward(
+        videoId: widget.videoId,
+        watchDurationSeconds: _watchedSeconds,
+        totalDurationSeconds: _videoDuration.inSeconds,
+      );
+
+      if (result != null && result['success'] == true) {
+        final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+        await balanceService.processRewardClaim(result);
+
+        setState(() {
+          _rewardClaimed = true;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Video reward claimed! +${result['rewardAmount']} CNE'),
+            backgroundColor: const Color(0xFF006833),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result?['message'] ?? 'Failed to claim reward'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error claiming reward'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    setState(() {
+      _isClaimingReward = false;
+    });
   }
 
   @override
@@ -251,20 +372,26 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       ],
                     ),
                   ),
-                  // Earn reward section
+                  // Enhanced earn reward section
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF006833).withOpacity(0.1),
-                      border: Border.all(color: const Color(0xFF006833)),
+                      color: _rewardClaimed 
+                          ? Colors.green.withOpacity(0.1)
+                          : const Color(0xFF006833).withOpacity(0.1),
+                      border: Border.all(
+                        color: _rewardClaimed 
+                            ? Colors.green 
+                            : const Color(0xFF006833)
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          color: Color(0xFF006833),
+                        Icon(
+                          _rewardClaimed ? Icons.check_circle : Icons.monetization_on,
+                          color: _rewardClaimed ? Colors.green : const Color(0xFF006833),
                           size: 24,
                         ),
                         const SizedBox(width: 12),
@@ -272,35 +399,78 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Watch & Earn',
+                              Text(
+                                _rewardClaimed ? 'Reward Claimed!' : 'Watch & Earn',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: _rewardClaimed ? Colors.green : Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
-                              Text(
-                                'Complete this video to earn \$${widget.reward.toStringAsFixed(1)}',
-                                style: TextStyle(
-                                  color: Colors.grey[300],
-                                  fontSize: 14,
+                              if (_rewardClaimed)
+                                Text(
+                                  'You earned ${_currentRewardAmount.toStringAsFixed(1)} CNE tokens!',
+                                  style: TextStyle(
+                                    color: Colors.green[300],
+                                    fontSize: 14,
+                                  ),
+                                )
+                              else
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Earn ${_currentRewardAmount.toStringAsFixed(1)} CNE tokens',
+                                      style: TextStyle(
+                                        color: Colors.grey[300],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _buildWatchProgress(),
+                                  ],
                                 ),
-                              ),
                             ],
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: _claimReward,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF006833),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
+                        if (_rewardClaimed)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
+                            child: const Text(
+                              'Claimed',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        else
+                          ElevatedButton(
+                            onPressed: _canClaimReward() ? _claimReward : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _canClaimReward() 
+                                  ? const Color(0xFF006833) 
+                                  : Colors.grey[600],
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: _isClaimingReward
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Text('Claim'),
                           ),
-                          child: const Text('Claim'),
-                        ),
                       ],
                     ),
                   ),
@@ -492,6 +662,71 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           ),
         ],
       ),
+    );
+  }
+
+  // Check if reward can be claimed
+  bool _canClaimReward() {
+    if (_rewardClaimed) return false;
+    
+    final minWatchTime = 30; // seconds
+    final requiredWatchPercentage = 0.7;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0 
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+        : 0.0;
+
+    return _watchedSeconds >= minWatchTime || actualWatchPercentage >= requiredWatchPercentage;
+  }
+
+  // Build watch progress indicator
+  Widget _buildWatchProgress() {
+    final minWatchTime = 30;
+    final requiredWatchPercentage = 0.7;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0 
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+        : 0.0;
+
+    // Use the higher of time-based or percentage-based progress
+    final timeProgress = (_watchedSeconds / minWatchTime).clamp(0.0, 1.0);
+    final percentageProgress = actualWatchPercentage / requiredWatchPercentage;
+    final progress = timeProgress > percentageProgress ? timeProgress : percentageProgress;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: LinearProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                backgroundColor: Colors.grey[600],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress >= 1.0 ? const Color(0xFF006833) : Colors.orange,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${(progress * 100).toInt()}%',
+              style: TextStyle(
+                color: progress >= 1.0 ? const Color(0xFF006833) : Colors.orange,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          progress >= 1.0 
+              ? 'Ready to claim!' 
+              : 'Watch ${(minWatchTime - _watchedSeconds).clamp(0, minWatchTime)}s more or ${((requiredWatchPercentage - actualWatchPercentage) * 100).toInt()}% more',
+          style: TextStyle(
+            color: progress >= 1.0 ? const Color(0xFF006833) : Colors.grey[400],
+            fontSize: 11,
+          ),
+        ),
+      ],
     );
   }
 }
