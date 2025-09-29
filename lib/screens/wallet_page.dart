@@ -3,9 +3,14 @@ import 'package:provider/provider.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../services/user_balance_service.dart';
 
-class WalletPage extends StatelessWidget {
+class WalletPage extends StatefulWidget {
   const WalletPage({super.key});
 
+  @override
+  State<WalletPage> createState() => _WalletPageState();
+}
+
+class _WalletPageState extends State<WalletPage> {
   @override
   Widget build(BuildContext context) {
     return Consumer<UserBalanceService>(
@@ -252,6 +257,7 @@ class WalletPage extends StatelessWidget {
                 ],
               ),
             ),
+          ),
         );
       },
     );
