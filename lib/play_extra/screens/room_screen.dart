@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/play_extra_service.dart';
+import '../services/countdown_timer_service.dart';
 import '../models/game_models.dart';
 
 class RoomScreen extends StatefulWidget {
@@ -14,24 +15,41 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   final PlayExtraService _gameService = PlayExtraService();
+  final CountdownTimerService _timerService = CountdownTimerService();
   final Map<String, TextEditingController> _stakeControllers = {};
   final Map<String, String> _selectedColors = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _gameService.addListener(_onGameStateChanged);
+    _timerService.addListener(_onTimerStateChanged);
+    _initializeRooms();
+  }
+
+  Future<void> _initializeRooms() async {
+    // Ensure the services are initialized
+    await _gameService.initialize();
+    await _timerService.initialize();
     
     // Initialize controllers for each room
     for (final room in _gameService.battleRooms) {
       _stakeControllers[room.id] = TextEditingController(text: room.minStake.toString());
       _selectedColors[room.id] = 'blue';
     }
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _gameService.removeListener(_onGameStateChanged);
+    _timerService.removeListener(_onTimerStateChanged);
     for (final controller in _stakeControllers.values) {
       controller.dispose();
     }
@@ -39,6 +57,12 @@ class _RoomScreenState extends State<RoomScreen> {
   }
 
   void _onGameStateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onTimerStateChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -100,23 +124,108 @@ class _RoomScreenState extends State<RoomScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Info Card
-            _buildInfoCard(),
-            const SizedBox(height: 20),
-            
-            // Battle Rooms
-            ..._gameService.battleRooms.map((room) => Column(
-              children: [
-                _buildBattleRoomCard(room, gameState),
-                const SizedBox(height: 16),
-              ],
-            )).toList(),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading Battle Rooms...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Info Card
+                  _buildInfoCard(),
+                  const SizedBox(height: 20),
+                  
+                  // Battle Rooms
+                  if (_gameService.battleRooms.isEmpty)
+                    _buildNoRoomsCard()
+                  else
+                    ..._gameService.battleRooms.map((room) => Column(
+                      children: [
+                        _buildBattleRoomCard(room, gameState),
+                        const SizedBox(height: 16),
+                      ],
+                    )).toList(),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildNoRoomsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.red.withOpacity(0.2),
+            Colors.red.withOpacity(0.1),
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red, width: 2),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 32,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No Battle Rooms Available',
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Unable to load battle rooms from Firebase.\nCheck your internet connection and Firebase setup.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+              });
+              _initializeRooms();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }
@@ -174,20 +283,27 @@ class _RoomScreenState extends State<RoomScreen> {
     final selectedColor = _selectedColors[room.id]!;
     final canAfford = gameState.coins >= room.minStake;
     
+    // Get round info from timer service
+    final activeRound = _timerService.getActiveRound(room.id);
+    final isRoundActive = _timerService.isRoundActive(room.id);
+    final timeRemaining = _timerService.getFormattedTimeRemaining(room.id);
+    final roundStatusText = _timerService.getRoundStatusText(room.id);
+    final roundStatusColor = _timerService.getRoundStatusColor(room.id);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: canAfford ? room.color : Colors.red.withOpacity(0.5),
+          color: isRoundActive && canAfford ? room.color : Colors.red.withOpacity(0.5),
           width: 2,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Room Header
+          // Room Header with Countdown
           Row(
             children: [
               Container(
@@ -227,7 +343,75 @@ class _RoomScreenState extends State<RoomScreen> {
                   ],
                 ),
               ),
+              // Countdown Timer
+              if (isRoundActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timer, color: Colors.orange, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeRemaining,
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Round Status Banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: roundStatusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: roundStatusColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isRoundActive ? Icons.people : Icons.timer_off,
+                  color: roundStatusColor,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    roundStatusText,
+                    style: TextStyle(
+                      color: roundStatusColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+                if (activeRound != null && activeRound.players.isNotEmpty)
+                  Text(
+                    '${activeRound.players.length} joined',
+                    style: TextStyle(
+                      color: roundStatusColor.withOpacity(0.8),
+                      fontSize: 12,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           
@@ -325,9 +509,9 @@ class _RoomScreenState extends State<RoomScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _joinBattle(room),
+                onPressed: isRoundActive ? () => _joinTimedBattle(room) : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: room.color,
+                  backgroundColor: isRoundActive ? room.color : Colors.grey[700],
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -337,10 +521,13 @@ class _RoomScreenState extends State<RoomScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.casino, size: 20),
+                    Icon(
+                      isRoundActive ? Icons.casino : Icons.timer_off,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      'Join Battle',
+                      isRoundActive ? 'Join Round' : 'Round Closed',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -470,11 +657,12 @@ class _RoomScreenState extends State<RoomScreen> {
     );
   }
 
-  Future<void> _joinBattle(BattleRoom room) async {
+  Future<void> _joinTimedBattle(BattleRoom room) async {
     final stakeController = _stakeControllers[room.id]!;
     final stakeAmount = int.tryParse(stakeController.text) ?? room.minStake;
     final selectedColor = _selectedColors[room.id]!;
 
+    // Validation
     if (stakeAmount < room.minStake || stakeAmount > room.maxStake) {
       _showError('Stake must be between ${room.minStake} and ${room.maxStake} CNE coins');
       return;
@@ -485,26 +673,66 @@ class _RoomScreenState extends State<RoomScreen> {
       return;
     }
 
+    if (!_timerService.isRoundActive(room.id)) {
+      _showError('No active round available. Wait for the next round to start.');
+      return;
+    }
+
+    // Show loading dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          backgroundColor: Colors.black87,
+          content: Row(
+            children: [
+              CircularProgressIndicator(color: Colors.orange),
+              SizedBox(width: 16),
+              Text(
+                'Joining round...',
+                style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     try {
-      await _gameService.joinBattle(room.id, stakeAmount, selectedColor);
+      // Use the timer service to join the round
+      final result = await _timerService.joinRound(room.id, stakeAmount, selectedColor);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Joined ${room.name}! Ready to battle.'),
-            backgroundColor: const Color(0xFF006833),
-            action: SnackBarAction(
-              label: 'Battle Now',
-              textColor: Colors.white,
-              onPressed: () {
-                widget.onNavigateToBattle?.call();
-              },
+        Navigator.of(context).pop(); // Close loading dialog
+        
+        if (result['success']) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Joined ${room.name}! Waiting for round to start...'),
+              backgroundColor: const Color(0xFF006833),
+              action: SnackBarAction(
+                label: 'Watch Battle',
+                textColor: Colors.white,
+                onPressed: () {
+                  widget.onNavigateToBattle?.call();
+                },
+              ),
             ),
-          ),
-        );
+          );
+          
+          // Update game state with new coin balance
+          await _gameService.spendCoins(stakeAmount);
+          
+        } else {
+          _showError(result['error'] ?? 'Failed to join round');
+        }
       }
     } catch (e) {
-      _showError(e.toString());
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        _showError(e.toString());
+      }
     }
   }
 

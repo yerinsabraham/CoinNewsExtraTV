@@ -30,6 +30,43 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
+  Future<void> _showExitConfirmation(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Quit Game',
+          style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
+        ),
+        content: const Text(
+          'Do you want to quit this game? Your progress will be saved.',
+          style: TextStyle(color: Colors.white70, fontFamily: 'Lato'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey, fontFamily: 'Lato'),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Quit',
+              style: TextStyle(color: Colors.red, fontFamily: 'Lato'),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      Navigator.of(context).pop();
+    }
+  }
+
   Future<void> _clearActivities() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -96,7 +133,7 @@ class _StatsScreenState extends State<StatsScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => _showExitConfirmation(context),
             icon: const Icon(
               Icons.exit_to_app,
               color: Colors.red,

@@ -1,10 +1,13 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../services/play_extra_service.dart';
+import '../services/countdown_timer_service.dart';
 import '../models/game_models.dart';
 
 class BattleScreen extends StatefulWidget {
-  const BattleScreen({Key? key}) : super(key: key);
+  final VoidCallback? onNavigateToRooms;
+  
+  const BattleScreen({Key? key, this.onNavigateToRooms}) : super(key: key);
 
   @override
   State<BattleScreen> createState() => _BattleScreenState();
@@ -12,6 +15,7 @@ class BattleScreen extends StatefulWidget {
 
 class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMixin {
   final PlayExtraService _gameService = PlayExtraService();
+  final CountdownTimerService _timerService = CountdownTimerService();
   
   late AnimationController _wheelAnimationController;
   late Animation<double> _wheelAnimation;
@@ -26,6 +30,10 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
     _gameService.addListener(_onGameStateChanged);
+    _timerService.addListener(_onTimerStateChanged);
+    
+    // Initialize timer service to ensure it's listening to rounds
+    _timerService.initialize();
     
     _wheelAnimationController = AnimationController(
       duration: const Duration(seconds: 4),
@@ -59,12 +67,19 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
   @override
   void dispose() {
     _gameService.removeListener(_onGameStateChanged);
+    _timerService.removeListener(_onTimerStateChanged);
     _wheelAnimationController.dispose();
     _arrowAnimationController.dispose();
     super.dispose();
   }
 
   void _onGameStateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onTimerStateChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -153,16 +168,24 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            if (gameState.isInBattle) ...[
-              // Battle in Progress
+            // Always show the real-time round status and countdown
+            _buildRoundStatusCard(),
+            const SizedBox(height: 20),
+            
+            // Always show battle wheel and players if there are active players
+            if (_getAllActivePlayers().isNotEmpty) ...[
+              // Battle Wheel (shows current active battle)
               _buildBattleWheel(),
               const SizedBox(height: 20),
               _buildLivePlayerList(),
-            ] else ...[
-              // No Battle
-              _buildNoBattleCard(),
               const SizedBox(height: 20),
-              _buildMockBattlePreview(),
+              
+              // Show spin button only if user is in battle
+              if (gameState.isInBattle)
+                _buildSpinButton(),
+            ] else ...[
+              // Live Battle Preview (when user is not in battle)
+              _buildLiveBattlePreview(),
             ],
           ],
         ),
@@ -171,7 +194,28 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
   }
 
   Widget _buildBattleWheel() {
-    final totalStake = _mockPlayers.fold(0, (sum, player) => sum + player.stakeAmount);
+    final totalStake = _getAllActivePlayers().fold(0, (sum, player) => sum + player.stakeAmount);
+    
+    // Get current room info from the current player
+    final currentPlayer = _gameService.gameState.currentPlayer;
+    final roomId = currentPlayer?.roomName?.toLowerCase().replaceAll(' room', '') ?? 'rookie';
+    
+    // Get round information from timer service
+    final activeRound = _timerService.getActiveRound(roomId);
+    final isRoundActive = _timerService.isRoundActive(roomId);
+    final timeRemaining = _timerService.getFormattedTimeRemaining(roomId);
+    final secondsRemaining = _timerService.getSecondsRemaining(roomId);
+    
+    // Determine battle status
+    String battleStatus;
+    Color statusColor;
+    if (isRoundActive && activeRound != null) {
+      battleStatus = _isSpinning ? 'Battle in Progress!' : 'Round Active - Join Now!';
+      statusColor = Colors.orange;
+    } else {
+      battleStatus = 'Waiting for Next Round';
+      statusColor = Colors.grey;
+    }
     
     return Container(
       width: double.infinity,
@@ -179,20 +223,78 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange, width: 2),
+        border: Border.all(color: statusColor, width: 2),
       ),
       child: Column(
         children: [
           Text(
-            _isSpinning ? 'Battle in Progress!' : 'Ready to Spin',
-            style: const TextStyle(
-              color: Colors.white,
+            battleStatus,
+            style: TextStyle(
+              color: statusColor,
               fontSize: 20,
               fontWeight: FontWeight.bold,
               fontFamily: 'Lato',
             ),
           ),
           const SizedBox(height: 8),
+          
+          // Show countdown timer when round is not active
+          if (!isRoundActive && secondsRemaining <= 0) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blue.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.schedule, color: Colors.blue, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Next round will start soon...',
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          
+          // Show active round countdown
+          if (isRoundActive && activeRound != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.orange.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.timer, color: Colors.orange, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Round ends in: $timeRemaining',
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           
           Text(
             'Total Stake Pool: $totalStake CNE coins',
@@ -250,37 +352,6 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
           ),
           
           const SizedBox(height: 24),
-          
-          if (!_isSpinning && _winningColor == null)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _spinWheel,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.play_circle_filled, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'SPIN THE WHEEL!',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             
           if (_isSpinning)
             const Row(
@@ -334,7 +405,7 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
               ],
             ),
             child: CustomPaint(
-              painter: WheelPainter(players: _mockPlayers),
+              painter: WheelPainter(players: _getAllActivePlayers()),
             ),
           ),
         );
@@ -343,9 +414,17 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
   }
 
   Widget _buildWinResult() {
-    final winner = _mockPlayers.firstWhere((p) => p.avatarColor == _winningColor);
+    final activePlayers = _getAllActivePlayers();
+    if (activePlayers.isEmpty) {
+      return Container(); // No active players, no results to show
+    }
+    
+    final winner = activePlayers.firstWhere(
+      (p) => p.avatarColor == _winningColor,
+      orElse: () => activePlayers.first,
+    );
     final isCurrentPlayerWinner = winner.id == _gameService.gameState.currentPlayer?.id;
-    final totalWinnings = _mockPlayers.fold(0, (sum, player) => sum + player.stakeAmount);
+    final totalWinnings = activePlayers.fold(0, (sum, player) => sum + player.stakeAmount);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
@@ -539,14 +618,66 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
           ),
           const SizedBox(height: 16),
           
-          ...(_mockPlayers.asMap().entries.map((entry) {
-            final index = entry.key;
-            final player = entry.value;
-            return _buildPlayerCard(player, index);
-          })),
+          ..._buildPlayersList(),
         ],
       ),
     );
+  }
+
+  List<Player> _getAllActivePlayers() {
+    final allPlayers = <Player>[];
+    for (final round in _timerService.activeRounds.values) {
+      allPlayers.addAll(round.players);
+    }
+    return allPlayers;
+  }
+
+  List<Widget> _buildPlayersList() {
+    final allPlayers = _getAllActivePlayers();
+    
+    if (allPlayers.isEmpty) {
+      return [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[600]!),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.people_outline, color: Colors.grey[400], size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'No Active Players',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Join a round from the Rooms tab to see players here',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 12,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+    
+    return allPlayers.asMap().entries.map((entry) {
+      final index = entry.key;
+      final player = entry.value;
+      return _buildPlayerCard(player, index);
+    }).toList();
   }
 
   Widget _buildPlayerCard(Player player, int index) {
@@ -661,6 +792,32 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
   }
 
   Widget _buildNoBattleCard() {
+    // Check all rooms for any active rounds or upcoming rounds
+    final rooms = ['rookie', 'pro', 'elite'];
+    String nextRoundInfo = '';
+    String? earliestRoom;
+    int shortestWait = 999999;
+    
+    for (final roomId in rooms) {
+      final isActive = _timerService.isRoundActive(roomId);
+      final timeRemaining = _timerService.getSecondsRemaining(roomId);
+      
+      if (isActive) {
+        nextRoundInfo = 'Active rounds available! Check the Rooms tab.';
+        break;
+      } else if (timeRemaining > 0 && timeRemaining < shortestWait) {
+        shortestWait = timeRemaining;
+        earliestRoom = roomId;
+        final minutes = timeRemaining ~/ 60;
+        final seconds = timeRemaining % 60;
+        nextRoundInfo = 'Next round in ${earliestRoom?.toUpperCase()}: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+      }
+    }
+    
+    if (nextRoundInfo.isEmpty) {
+      nextRoundInfo = 'Waiting for new rounds to be created...';
+    }
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32),
@@ -697,13 +854,38 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 16),
+          
+          // Next round info
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule, color: Colors.blue, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    nextRoundInfo,
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
           
           ElevatedButton(
-            onPressed: () {
-              // Switch to Room tab
-              // This would require a callback to parent widget
-            },
+            onPressed: widget.onNavigateToRooms,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF006833),
               foregroundColor: Colors.white,
@@ -722,7 +904,7 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
     );
   }
 
-  Widget _buildMockBattlePreview() {
+  Widget _buildLiveBattlePreview() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -735,10 +917,10 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
         children: [
           const Row(
             children: [
-              Icon(Icons.remove_red_eye, color: Colors.blue, size: 24),
+              Icon(Icons.visibility, color: Colors.blue, size: 24),
               SizedBox(width: 8),
               Text(
-                'Live Battles',
+                'Battle Arena',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -750,17 +932,49 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
           ),
           const SizedBox(height: 16),
           
-          ...(_mockPlayers.take(3).map((player) => _buildSpectatorPlayerCard(player))),
-          
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              '${_mockPlayers.length} players currently battling',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
-                fontFamily: 'Lato',
-              ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.casino, size: 48, color: Colors.blue),
+                const SizedBox(height: 12),
+                const Text(
+                  'Ready to Battle?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Join an active round from the Rooms tab to start battling with other players!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: widget.onNavigateToRooms,
+                  icon: const Icon(Icons.meeting_room),
+                  label: const Text('Browse Rooms'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -850,6 +1064,42 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
     );
   }
 
+  Widget _buildSpinButton() {
+    if (_isSpinning || _winningColor != null) {
+      return Container(); // Don't show button while spinning or after result
+    }
+    
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _spinWheel,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.play_circle_filled, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'SPIN THE WHEEL!',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _spinWheel() async {
     setState(() {
       _isSpinning = true;
@@ -863,9 +1113,14 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
     // Wait for animation to complete
     await Future.delayed(const Duration(milliseconds: 4000));
 
-    // Determine winner
+    // Determine winner from active players
+    final activePlayers = _getAllActivePlayers();
+    if (activePlayers.isEmpty) {
+      return; // No active players, can't spin
+    }
+    
     final random = Random();
-    _winningColor = _mockPlayers[random.nextInt(_mockPlayers.length)].avatarColor;
+    _winningColor = activePlayers[random.nextInt(activePlayers.length)].avatarColor;
 
     // Animate arrow
     _arrowAnimationController.reset();
@@ -874,7 +1129,7 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
     // Check if current player won
     final currentPlayer = _gameService.gameState.currentPlayer;
     if (currentPlayer != null && currentPlayer.avatarColor == _winningColor) {
-      final totalWinnings = _mockPlayers.fold(0, (sum, player) => sum + player.stakeAmount);
+      final totalWinnings = activePlayers.fold(0, (sum, player) => sum + player.stakeAmount);
       await _gameService.completeBattle(true, totalWinnings);
     } else {
       await _gameService.completeBattle(false, 0);
@@ -889,7 +1144,7 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
   }
 
   Future<void> _showBattleResultPopup(bool won) async {
-    final totalWinnings = _mockPlayers.fold(0, (sum, player) => sum + player.stakeAmount);
+    final totalWinnings = _getAllActivePlayers().fold(0, (sum, player) => sum + player.stakeAmount);
     final stakeAmount = _gameService.gameState.currentPlayer?.stakeAmount ?? 0;
 
     await showDialog(
@@ -1000,6 +1255,181 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
       _isSpinning = false;
     });
     _generateMockPlayers();
+  }
+
+  // NEW: Always show real-time round status and countdown
+  Widget _buildRoundStatusCard() {
+    // Check all rooms for active rounds or upcoming rounds
+    final rooms = ['rookie', 'pro', 'elite'];
+    final List<Map<String, dynamic>> roomStatus = [];
+    
+    for (final roomId in rooms) {
+      final isActive = _timerService.isRoundActive(roomId);
+      final timeRemaining = _timerService.getSecondsRemaining(roomId);
+      final formattedTime = _timerService.getFormattedTimeRemaining(roomId);
+      final activeRound = _timerService.getActiveRound(roomId);
+      
+      roomStatus.add({
+        'roomId': roomId,
+        'roomName': roomId.toUpperCase(),
+        'isActive': isActive,
+        'timeRemaining': timeRemaining,
+        'formattedTime': formattedTime,
+        'playersCount': activeRound?.players.length ?? 0,
+      });
+    }
+    
+    // Find the best status to show
+    final activeRooms = roomStatus.where((r) => r['isActive'] == true).toList();
+    final upcomingRooms = roomStatus.where((r) => r['timeRemaining'] > 0 && !r['isActive']).toList();
+    
+    String statusText;
+    String timerText;
+    Color statusColor;
+    IconData statusIcon;
+    
+    if (activeRooms.isNotEmpty) {
+      // Show active rounds
+      statusText = 'Active Rounds Available!';
+      statusColor = Colors.orange;
+      statusIcon = Icons.play_circle_filled;
+      timerText = '${activeRooms.length} room${activeRooms.length > 1 ? 's' : ''} accepting players';
+    } else if (upcomingRooms.isNotEmpty) {
+      // Show next round
+      upcomingRooms.sort((a, b) => a['timeRemaining'].compareTo(b['timeRemaining']));
+      final nextRoom = upcomingRooms.first;
+      statusText = 'Next Round Starting Soon';
+      statusColor = Colors.blue;
+      statusIcon = Icons.schedule;
+      timerText = '${nextRoom['roomName']} in ${nextRoom['formattedTime']}';
+    } else {
+      statusText = 'No Active Rounds';
+      statusColor = Colors.grey;
+      statusIcon = Icons.pause_circle_filled;
+      timerText = 'Waiting for new rounds to be created...';
+    }
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor, width: 2),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(statusIcon, color: statusColor, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      timerText,
+                      style: TextStyle(
+                        color: statusColor.withOpacity(0.8),
+                        fontSize: 14,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          if (activeRooms.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(color: Colors.grey),
+            const SizedBox(height: 12),
+            
+            // Show active rooms details
+            ...activeRooms.map((room) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${room['roomName']} Room',
+                      style: const TextStyle(
+                        color: Colors.orange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Ends: ${room['formattedTime']}',
+                    style: TextStyle(
+                      color: Colors.orange.withOpacity(0.8),
+                      fontSize: 12,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (room['playersCount'] > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${room['playersCount']}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            )).toList(),
+            
+            const SizedBox(height: 12),
+            Text(
+              'Go to Rooms tab to join a battle!',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

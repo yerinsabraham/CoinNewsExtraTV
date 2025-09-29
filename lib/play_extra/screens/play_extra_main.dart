@@ -23,8 +23,14 @@ class _PlayExtraMainState extends State<PlayExtraMain> {
   List<Widget> get _screens => [
     const StatsScreen(),
     RoomScreen(onNavigateToBattle: switchToBattleTab),
-    const BattleScreen(),
+    BattleScreen(onNavigateToRooms: switchToRoomsTab),
   ];
+  
+  void switchToRoomsTab() {
+    setState(() {
+      _selectedIndex = 1; // Rooms tab
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

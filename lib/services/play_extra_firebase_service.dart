@@ -99,6 +99,47 @@ class PlayExtraFirebaseService {
     }
   }
 
+  // Get active rounds for a specific room
+  Future<Map<String, dynamic>> getActiveRoundsForRoom(String roomId) async {
+    try {
+      final activeRounds = await _firestore
+          .collection('timedRounds')
+          .where('roomId', isEqualTo: roomId)
+          .where('status', isEqualTo: 'active')
+          .where('endsAt', isGreaterThan: Timestamp.now())
+          .orderBy('endsAt')
+          .get();
+
+      final rounds = activeRounds.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'roomId': data['roomId'],
+          'status': data['status'],
+          'startsAt': data['startsAt'],
+          'endsAt': data['endsAt'],
+          'duration': data['duration'],
+          'participants': data['participants'] ?? [],
+          'totalStake': data['totalStake'] ?? 0,
+          'minPlayers': data['minPlayers'] ?? 2,
+          'maxPlayers': data['maxPlayers'] ?? 8,
+        };
+      }).toList();
+
+      return {
+        'success': true,
+        'rounds': rounds,
+      };
+    } catch (e) {
+      print('Error getting active rounds for room: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'rounds': [],
+      };
+    }
+  }
+
   // Get user statistics
   Future<Map<String, dynamic>> getUserStats() async {
     try {
@@ -111,7 +152,13 @@ class PlayExtraFirebaseService {
 
       return {
         'success': true,
-        'stats': result.data['stats'],
+        'stats': result.data['stats'] ?? {
+          'coinBalance': 0,
+          'wins': 0,
+          'losses': 0,
+          'totalBattles': 0,
+          'recentBattles': [],
+        },
       };
     } catch (e) {
       print('Error getting user stats: $e');
@@ -158,6 +205,32 @@ class PlayExtraFirebaseService {
         .where('status', whereIn: ['waiting', 'active'])
         .orderBy('createdAt', descending: true)
         .snapshots();
+  }
+
+  // Listen to active timed rounds
+  Stream<QuerySnapshot> listenToActiveTimedRounds() {
+    return _firestore
+        .collection('timedRounds')
+        .where('status', isEqualTo: 'active')
+        .where('endsAt', isGreaterThan: Timestamp.now())
+        .orderBy('endsAt')
+        .snapshots();
+  }
+
+  // Listen to active timed rounds for a specific room
+  Stream<QuerySnapshot> listenToRoomTimedRounds(String roomId) {
+    return _firestore
+        .collection('timedRounds')
+        .where('roomId', isEqualTo: roomId)
+        .where('status', isEqualTo: 'active')
+        .where('endsAt', isGreaterThan: Timestamp.now())
+        .orderBy('endsAt')
+        .snapshots();
+  }
+
+  // Listen to a specific timed round
+  Stream<DocumentSnapshot> listenToTimedRound(String roundId) {
+    return _firestore.collection('timedRounds').doc(roundId).snapshots();
   }
 
   // Start a battle (for testing - normally triggered automatically)

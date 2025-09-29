@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:feather_icons/feather_icons.dart';
 import '../services/auth_service.dart';
+import '../provider/admin_provider.dart';
 import 'login_screen.dart';
+import 'admin_management_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,6 +16,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+      adminProvider.initializeAdminStatus();
+    });
+  }
 
   void _signOut() async {
     showDialog(
@@ -208,8 +221,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
+            // Admin Section (only visible to admins)
+            Consumer<AdminProvider>(
+              builder: (context, adminProvider, child) {
+                if (adminProvider.isLoading) {
+                  return const SizedBox(height: 16);
+                }
+                
+                if (!adminProvider.isAdmin) {
+                  return const SizedBox(height: 16);
+                }
+                
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    
+                    // Admin Badge
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF006833).withOpacity(0.2),
+                            const Color(0xFF006833).withOpacity(0.1),
+                          ],
+                        ),
+                        border: Border.all(color: const Color(0xFF006833)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            adminProvider.isSuperAdmin ? FeatherIcons.star : FeatherIcons.shield,
+                            color: const Color(0xFF006833),
+                            size: 28,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  adminProvider.isSuperAdmin ? 'Super Admin' : 'Admin',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    fontFamily: 'Lato',
+                                  ),
+                                ),
+                                Text(
+                                  adminProvider.isSuperAdmin 
+                                      ? 'Full administrative privileges'
+                                      : 'Content management privileges',
+                                  style: TextStyle(
+                                    color: Colors.grey[300],
+                                    fontSize: 14,
+                                    fontFamily: 'Lato',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Admin Management (Super Admin Only)
+                    if (adminProvider.isSuperAdmin)
+                      _buildMenuOption(
+                        icon: FeatherIcons.userPlus,
+                        title: 'Admin Management',
+                        subtitle: 'Add or remove admin users',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminManagementScreen(),
+                            ),
+                          );
+                        },
+                        isAdmin: true,
+                      ),
+                    
+                    const SizedBox(height: 8),
+                  ],
+                );
+              },
+            ),
+
             // Menu Options
-            const SizedBox(height: 16),
             _buildMenuOption(
               icon: Icons.history,
               title: 'Watch History',
@@ -347,33 +449,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    bool isAdmin = false,
   }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: Colors.white,
-        size: 24,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isAdmin ? const Color(0xFF006833) : Colors.white,
+          size: 24,
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          color: Colors.grey[400],
-          fontSize: 14,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'Lato',
+          ),
         ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+            fontFamily: 'Lato',
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right,
+          color: isAdmin ? const Color(0xFF006833) : Colors.grey,
+        ),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        tileColor: isAdmin 
+            ? const Color(0xFF006833).withOpacity(0.1) 
+            : Colors.grey[900],
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: Colors.grey,
-      ),
-      onTap: onTap,
     );
   }
 }

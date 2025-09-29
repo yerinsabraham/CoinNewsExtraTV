@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import '../screens/summit_page.dart';
+import '../screens/quiz_page.dart';
+import '../screens/more_page.dart';
 
 class MiddleFeatureGrid extends StatelessWidget {
   const MiddleFeatureGrid({super.key});
@@ -72,8 +75,11 @@ class MiddleFeatureGrid extends StatelessWidget {
                 icon: FeatherIcons.calendar,
                 label: 'Summit',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Crypto summit events coming soon!')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SummitPage(),
+                    ),
                   );
                 },
               ),
@@ -90,7 +96,12 @@ class MiddleFeatureGrid extends StatelessWidget {
                 icon: FeatherIcons.helpCircle,
                 label: 'Quiz',
                 onTap: () {
-                  Navigator.pushNamed(context, '/quiz');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const QuizPage(),
+                    ),
+                  );
                 },
               ),
               _buildGridItem(
@@ -98,8 +109,11 @@ class MiddleFeatureGrid extends StatelessWidget {
                 icon: FeatherIcons.moreHorizontal,
                 label: 'More',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('More features coming soon!')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MorePage(),
+                    ),
                   );
                 },
               ),

@@ -53,11 +53,19 @@ class PlayExtraService extends ChangeNotifier {
 
   // Load battle rooms from Firebase
   Future<void> _loadBattleRooms() async {
+    print('🔄 Loading battle rooms from Firebase...');
+    
     try {
-      final result = await _firebaseService.getRooms();
+      // Test Firebase connection first
+      final connectionTest = await _firebaseService.testConnection();
+      print('🔗 Firebase connection test: $connectionTest');
       
-      if (result['success']) {
+      final result = await _firebaseService.getRooms();
+      print('📊 Firebase getRooms result: $result');
+      
+      if (result['success'] && result['rooms'] != null && (result['rooms'] as List).isNotEmpty) {
         _battleRooms = (result['rooms'] as List).map((roomData) {
+          print('🏠 Loading room: ${roomData['name']} (${roomData['roomId']})');
           return BattleRoom(
             id: roomData['roomId'],
             name: roomData['name'],
@@ -72,52 +80,202 @@ class PlayExtraService extends ChangeNotifier {
         notifyListeners();
         print('✅ Loaded ${_battleRooms.length} battle rooms from Firebase');
       } else {
-        print('❌ Failed to load battle rooms: ${result['error']}');
+        print('❌ Failed to load battle rooms: ${result['error'] ?? 'No rooms found'}');
+        print('🏗️ Creating default rooms in Firebase...');
+        
+        // Try to create default rooms if none exist
+        try {
+          await _createDefaultRooms();
+          // Try loading again after creation
+          final retryResult = await _firebaseService.getRooms();
+          if (retryResult['success'] && retryResult['rooms'] != null && (retryResult['rooms'] as List).isNotEmpty) {
+            _battleRooms = (retryResult['rooms'] as List).map((roomData) {
+              return BattleRoom(
+                id: roomData['roomId'],
+                name: roomData['name'],
+                minStake: roomData['minStake'],
+                maxStake: roomData['maxStake'],
+                color: _getColorForRoom(roomData['roomId']),
+                icon: _getIconForRoom(roomData['roomId']),
+                description: roomData['description'] ?? 'Battle room',
+              );
+            }).toList();
+            notifyListeners();
+            print('✅ Loaded ${_battleRooms.length} battle rooms after creation');
+            return;
+          }
+        } catch (createError) {
+          print('❌ Error creating default rooms: $createError');
+        }
+        
+        print('🔄 Loading fallback rooms...');
         _loadFallbackRooms();
       }
     } catch (e) {
       print('❌ Error loading battle rooms: $e');
+      print('🔄 Loading fallback rooms...');
       _loadFallbackRooms();
+    }
+  }
+
+  // Create default battle rooms in Firebase
+  Future<void> _createDefaultRooms() async {
+    try {
+      print('🏗️ Creating default battle rooms in Firebase...');
+      
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch();
+      
+      final defaultRooms = [
+        {
+          'id': 'crypto-kings',
+          'name': 'Crypto Kings Arena',
+          'description': 'Elite battles for cryptocurrency masters',
+          'entryFee': 100,
+          'minStake': 50,
+          'maxStake': 500,
+          'maxPlayers': 4,
+          'difficulty': 'Hard',
+          'rewards': {
+            'first': 300,
+            'second': 150,
+            'third': 75
+          },
+          'icon': '👑',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp()
+        },
+        {
+          'id': 'blockchain-warriors',
+          'name': 'Blockchain Warriors',
+          'description': 'Test your blockchain knowledge in combat',
+          'entryFee': 50,
+          'minStake': 25,
+          'maxStake': 250,
+          'maxPlayers': 6,
+          'difficulty': 'Medium',
+          'rewards': {
+            'first': 200,
+            'second': 100,
+            'third': 50
+          },
+          'icon': '⚔️',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp()
+        },
+        {
+          'id': 'defi-dojo',
+          'name': 'DeFi Dojo',
+          'description': 'Master the art of decentralized finance',
+          'entryFee': 25,
+          'minStake': 10,
+          'maxStake': 100,
+          'maxPlayers': 8,
+          'difficulty': 'Easy',
+          'rewards': {
+            'first': 100,
+            'second': 60,
+            'third': 40
+          },
+          'icon': '🥋',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp()
+        },
+        {
+          'id': 'nft-nexus',
+          'name': 'NFT Nexus',
+          'description': 'Battle in the world of non-fungible tokens',
+          'entryFee': 75,
+          'minStake': 35,
+          'maxStake': 350,
+          'maxPlayers': 4,
+          'difficulty': 'Medium',
+          'rewards': {
+            'first': 250,
+            'second': 125,
+            'third': 75
+          },
+          'icon': '🎨',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp()
+        }
+      ];
+
+      for (final roomData in defaultRooms) {
+        final roomRef = firestore.collection('rooms').doc(roomData['id'] as String);
+        batch.set(roomRef, roomData);
+      }
+
+      await batch.commit();
+      print('✅ Created ${defaultRooms.length} default battle rooms in Firebase');
+      
+    } catch (e) {
+      print('❌ Error creating default rooms: $e');
+      rethrow;
     }
   }
 
   // Fallback rooms if Firebase fails
   void _loadFallbackRooms() {
+    print('📋 Loading fallback battle rooms...');
     _battleRooms = [
       BattleRoom(
-        id: 'rookie',
-        name: 'Rookie Room',
+        id: 'crypto-kings',
+        name: 'Crypto Kings Arena',
+        minStake: 50,
+        maxStake: 500,
+        color: Colors.purple,
+        icon: Icons.diamond,
+        description: 'Elite battles for cryptocurrency masters',
+      ),
+      BattleRoom(
+        id: 'blockchain-warriors',
+        name: 'Blockchain Warriors',
+        minStake: 25,
+        maxStake: 250,
+        color: Colors.red,
+        icon: Icons.shield,
+        description: 'Test your blockchain knowledge in combat',
+      ),
+      BattleRoom(
+        id: 'defi-dojo',
+        name: 'DeFi Dojo',
         minStake: 10,
         maxStake: 100,
         color: Colors.green,
         icon: Icons.sports_martial_arts,
-        description: 'Perfect for beginners!',
+        description: 'Master the art of decentralized finance',
       ),
       BattleRoom(
-        id: 'pro',
-        name: 'Pro Room',
-        minStake: 100,
-        maxStake: 500,
+        id: 'nft-nexus',
+        name: 'NFT Nexus',
+        minStake: 35,
+        maxStake: 350,
         color: Colors.blue,
-        icon: Icons.shield,
-        description: 'For experienced players',
-      ),
-      BattleRoom(
-        id: 'elite',
-        name: 'Elite Room',
-        minStake: 500,
-        maxStake: 5000,
-        color: Colors.purple,
-        icon: Icons.diamond,
-        description: 'High stakes battles',
+        icon: Icons.palette,
+        description: 'Battle in the world of non-fungible tokens',
       ),
     ];
+    print('✅ Loaded ${_battleRooms.length} fallback battle rooms');
     notifyListeners();
   }
 
   // Helper methods for room display
   Color _getColorForRoom(String roomId) {
     switch (roomId) {
+      case 'crypto-kings':
+        return Colors.purple;
+      case 'blockchain-warriors':
+        return Colors.red;
+      case 'defi-dojo':
+        return Colors.green;
+      case 'nft-nexus':
+        return Colors.blue;
+      // Legacy room IDs (backward compatibility)
       case 'rookie':
         return Colors.green;
       case 'pro':
@@ -131,6 +289,15 @@ class PlayExtraService extends ChangeNotifier {
 
   IconData _getIconForRoom(String roomId) {
     switch (roomId) {
+      case 'crypto-kings':
+        return Icons.diamond;
+      case 'blockchain-warriors':
+        return Icons.shield;
+      case 'defi-dojo':
+        return Icons.sports_martial_arts;
+      case 'nft-nexus':
+        return Icons.palette;
+      // Legacy room IDs (backward compatibility)
       case 'rookie':
         return Icons.sports_martial_arts;
       case 'pro':
@@ -421,4 +588,65 @@ class PlayExtraService extends ChangeNotifier {
   int get totalWins => _gameState.totalWins;
   int get totalLosses => _gameState.totalLosses;
   List<BattleHistory> get battleHistory => _gameState.battleHistory;
+
+  // Spend coins (for joining battles)
+  Future<void> spendCoins(int amount) async {
+    if (amount <= 0 || amount > _gameState.coins) {
+      throw Exception('Invalid amount to spend');
+    }
+    
+    _gameState = _gameState.copyWith(coins: _gameState.coins - amount);
+    await _saveGameState();
+    notifyListeners();
+  }
+
+  // Add coins (for winnings)
+  Future<void> addCoins(int amount) async {
+    if (amount <= 0) return;
+    
+    _gameState = _gameState.copyWith(coins: _gameState.coins + amount);
+    await _saveGameState();
+    notifyListeners();
+  }
+
+  // Additional methods expected by UI components
+  Future<void> clearTransactionHistory() async {
+    await clearActivities();
+  }
+
+  void selectCharacter(String character) {
+    _gameState = _gameState.copyWith(selectedCharacter: character);
+    _saveGameState();
+    notifyListeners();
+  }
+
+  List<String> getFormattedHistory() {
+    return _gameState.battleHistory.map((battle) {
+      final result = battle.isWinner ? 'Won' : 'Lost';
+      final coins = battle.isWinner ? '+${battle.stake * 2}' : '-${battle.stake}';
+      return '$result ${battle.roomId.toUpperCase()} $coins CNE';
+    }).toList();
+  }
+
+  double calculateWinProbability(int stakeAmount, BattleRoom room) {
+    // Simple probability calculation based on stake relative to room's range
+    final stakeRatio = (stakeAmount - room.minStake) / (room.maxStake - room.minStake);
+    return 0.3 + (stakeRatio * 0.4); // 30% to 70% win probability
+  }
+
+  Future<void> completeBattle(bool isWinner, int winnings) async {
+    if (isWinner) {
+      _gameState = _gameState.copyWith(
+        coins: _gameState.coins + winnings,
+        totalWins: _gameState.totalWins + 1,
+      );
+    } else {
+      _gameState = _gameState.copyWith(
+        totalLosses: _gameState.totalLosses + 1,
+      );
+    }
+    
+    _saveGameState();
+    notifyListeners();
+  }
 }
