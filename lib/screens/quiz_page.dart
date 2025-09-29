@@ -5,6 +5,7 @@ import 'dart:async';
 import '../models/quiz_models.dart';
 import '../services/quiz_data_service.dart';
 import '../provider/admin_provider.dart';
+import '../widgets/chat_ad_carousel.dart';
 
 class QuizPage extends StatefulWidget {
   const QuizPage({super.key});
@@ -199,7 +200,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
           style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
         ),
         content: Text(
-          'You need ${QuizDataService.defaultEntryFee} CME tokens to play. Your balance: $userTokenBalance CME',
+          'You need ${QuizDataService.defaultEntryFee} CNE tokens to play. Your balance: $userTokenBalance CNE',
           style: TextStyle(color: Colors.grey[300], fontFamily: 'Lato'),
         ),
         actions: [
@@ -290,7 +291,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '$userTokenBalance CME',
+                  '$userTokenBalance CNE',
                   style: const TextStyle(
                     color: Color(0xFF006833),
                     fontSize: 12,
@@ -339,6 +340,12 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Ad Banner Carousel
+          const Padding(
+            padding: EdgeInsets.only(bottom: 20),
+            child: ChatAdCarousel(),
+          ),
+          
           // Header section
           Container(
             width: double.infinity,
@@ -372,7 +379,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Test your knowledge and earn CME tokens!',
+                  'Test your knowledge and earn CNE tokens!',
                   style: TextStyle(
                     color: Colors.grey[300],
                     fontSize: 16,
@@ -405,7 +412,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Entry Fee: 5 CME tokens',
+                              'Entry Fee: 5 CNE tokens',
                               style: TextStyle(
                                 color: Colors.orange,
                                 fontSize: 14,
@@ -414,7 +421,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                               ),
                             ),
                             Text(
-                              'Correct answer: +1 CME • Wrong answer: -1 CME',
+                              'Correct answer: +1 CNE • Wrong answer: -1 CNE',
                               style: TextStyle(
                                 color: Colors.grey[400],
                                 fontSize: 12,
@@ -451,7 +458,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 1.1,
+              childAspectRatio: 1.0,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
@@ -667,7 +674,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
             ),
           ),
           child: Text(
-            '${currentSession!.currentTokens} CME',
+            '${currentSession!.currentTokens} CNE',
             style: const TextStyle(
               color: Color(0xFF006833),
               fontSize: 14,
@@ -826,7 +833,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  lastAnswerCorrect ? '+1 CME Token' : '-1 CME Token',
+                  lastAnswerCorrect ? '+1 CNE Token' : '-1 CNE Token',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -937,7 +944,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
               Expanded(
                 child: _buildStatCard(
                   'Net Change',
-                  '${netChange >= 0 ? '+' : ''}$netChange CME',
+                  '${netChange >= 0 ? '+' : ''}$netChange CNE',
                   netChange >= 0 ? Colors.green : Colors.red,
                   FeatherIcons.trendingUp,
                 ),
@@ -978,7 +985,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${result.finalTokens} CME',
+                  '${result.finalTokens} CNE',
                   style: const TextStyle(
                     color: Color(0xFF006833),
                     fontSize: 32,

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:feather_icons/feather_icons.dart';
 import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
+import '../provider/admin_provider.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoId;
@@ -538,6 +540,313 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+      floatingActionButton: Consumer<AdminProvider>(
+        builder: (context, adminProvider, child) {
+          if (!adminProvider.isAdmin) return const SizedBox.shrink();
+          
+          return FloatingActionButton(
+            onPressed: () => _showAdminMenu(context),
+            backgroundColor: const Color(0xFF006833),
+            child: const Icon(FeatherIcons.settings, color: Colors.white),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAdminMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.4,
+        minChildSize: 0.3,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Video Admin Panel',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF006833),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    _buildAdminOption(
+                      icon: FeatherIcons.edit3,
+                      title: 'Edit Video URL',
+                      subtitle: 'Update the current video link',
+                      onTap: () => _showEditVideoDialog(context),
+                    ),
+                    _buildAdminOption(
+                      icon: FeatherIcons.plus,
+                      title: 'Add New Video',
+                      subtitle: 'Add a new video to recommendations',
+                      onTap: () => _showAddVideoDialog(context),
+                    ),
+                    _buildAdminOption(
+                      icon: FeatherIcons.barChart2,
+                      title: 'View Analytics',
+                      subtitle: 'Check video watch statistics',
+                      onTap: () => _showVideoAnalytics(context),
+                    ),
+                    _buildAdminOption(
+                      icon: FeatherIcons.settings,
+                      title: 'Video Settings',
+                      subtitle: 'Configure video parameters',
+                      onTap: () => _showVideoSettings(context),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(icon, color: const Color(0xFF006833)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: TextStyle(color: Colors.grey[600])),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  void _showEditVideoDialog(BuildContext context) {
+    final TextEditingController urlController = TextEditingController(text: widget.videoId);
+    final TextEditingController titleController = TextEditingController(text: widget.title);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Video', style: TextStyle(color: Color(0xFF006833))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Video Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(
+                labelText: 'Video URL',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement video update logic
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Video updated successfully!')),
+              );
+              Navigator.pop(context);
+              Navigator.pop(context); // Close admin menu too
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006833)),
+            child: const Text('Update', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddVideoDialog(BuildContext context) {
+    final TextEditingController urlController = TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController channelController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Video', style: TextStyle(color: Color(0xFF006833))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Video Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: channelController,
+              decoration: const InputDecoration(
+                labelText: 'Channel Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(
+                labelText: 'Video URL',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (titleController.text.isNotEmpty && urlController.text.isNotEmpty) {
+                // TODO: Implement add video logic
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Video "${titleController.text}" added successfully!')),
+                );
+                Navigator.pop(context);
+                Navigator.pop(context); // Close admin menu too
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006833)),
+            child: const Text('Add Video', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showVideoAnalytics(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Video Analytics', style: TextStyle(color: Color(0xFF006833))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAnalyticRow('Total Views', '1,234'),
+            _buildAnalyticRow('Average Watch Time', '3:45'),
+            _buildAnalyticRow('Completion Rate', '68%'),
+            _buildAnalyticRow('Rewards Claimed', '45'),
+            _buildAnalyticRow('Today\'s Views', '89'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(color: Color(0xFF006833))),
+        ],
+      ),
+    );
+  }
+
+  void _showVideoSettings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Video Settings', style: TextStyle(color: Color(0xFF006833))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('Auto-play Next Video'),
+              value: true,
+              onChanged: (value) {
+                // TODO: Implement setting logic
+              },
+              activeColor: const Color(0xFF006833),
+            ),
+            SwitchListTile(
+              title: const Text('Track Watch Time'),
+              value: true,
+              onChanged: (value) {
+                // TODO: Implement setting logic
+              },
+              activeColor: const Color(0xFF006833),
+            ),
+            SwitchListTile(
+              title: const Text('Allow Comments'),
+              value: false,
+              onChanged: (value) {
+                // TODO: Implement setting logic
+              },
+              activeColor: const Color(0xFF006833),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Settings saved!')),
+              );
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006833)),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/event.dart';
 import 'event_detail_page.dart';
 import '../provider/admin_provider.dart';
+import '../widgets/chat_ad_carousel.dart';
 
 class SummitPage extends StatefulWidget {
   const SummitPage({super.key});
@@ -85,6 +86,27 @@ class _SummitPageState extends State<SummitPage> {
 
   String selectedCategory = 'All';
   final List<String> categories = ['All', 'FinTech', 'Fashion', 'Finance', 'Technology'];
+
+  int _getListItemCount(List<Event> events) {
+    if (events.isEmpty) return 0;
+    if (events.length == 1) return 1;
+    return events.length + 1; // +1 for the ad carousel after first event
+  }
+
+  Widget _buildListItem(BuildContext context, List<Event> events, int index) {
+    if (events.length > 1 && index == 1) {
+      // Show ad carousel after first event
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: ChatAdCarousel(),
+      );
+    }
+    
+    // Adjust event index if we've shown the ad carousel
+    final eventIndex = events.length > 1 && index > 1 ? index - 1 : index;
+    final event = events[eventIndex];
+    return _buildEventCard(context, event);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,11 +209,10 @@ class _SummitPageState extends State<SummitPage> {
             child: filteredEvents.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: filteredEvents.length,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    itemCount: _getListItemCount(filteredEvents),
                     itemBuilder: (context, index) {
-                      final event = filteredEvents[index];
-                      return _buildEventCard(context, event);
+                      return _buildListItem(context, filteredEvents, index);
                     },
                   ),
           ),
@@ -483,58 +504,68 @@ class _SummitPageState extends State<SummitPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(2),
-              ),
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Event Management',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.plus,
+                  title: 'Add New Event',
+                  subtitle: 'Create a new summit or event',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Add Event');
+                  },
+                ),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.edit,
+                  title: 'Edit Events',
+                  subtitle: 'Modify existing event details',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Edit Events');
+                  },
+                ),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.trash2,
+                  title: 'Remove Events',
+                  subtitle: 'Delete events from the list',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Remove Events');
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Event Management',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.plus,
-              title: 'Add New Event',
-              subtitle: 'Create a new summit or event',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Add Event');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.edit,
-              title: 'Edit Events',
-              subtitle: 'Modify existing event details',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Edit Events');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.trash2,
-              title: 'Remove Events',
-              subtitle: 'Delete events from the list',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Remove Events');
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );

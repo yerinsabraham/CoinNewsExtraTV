@@ -6,6 +6,9 @@ import '../widgets/ads_carousel.dart';
 import '../services/user_balance_service.dart';
 import '../services/reward_service.dart';
 import 'video_player_page.dart';
+import 'quiz_page.dart';
+import 'daily_checkin_page.dart';
+import 'live_stream_page.dart';
 
 class EarningPage extends StatefulWidget {
   const EarningPage({super.key});
@@ -263,46 +266,7 @@ class _EarningPageState extends State<EarningPage> {
             
             const SizedBox(height: 24),
             
-                  // Next halving countdown
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      border: Border.all(color: Colors.orange),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.schedule, color: Colors.orange, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Next Reward Halving',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  fontFamily: 'Lato',
-                                ),
-                              ),
-                              Text(
-                                'In ${balanceService.getDaysUntilNextHalving()} days - Rewards will be reduced by 50%',
-                                style: const TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 12,
-                                  fontFamily: 'Lato',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+
 
                   const SizedBox(height: 24),
 
@@ -532,46 +496,76 @@ class _EarningPageState extends State<EarningPage> {
   }
 
   Widget _buildSocialMediaTile(Map<String, dynamic> social) {
-    return GestureDetector(
-      onTap: () => _launchSocialMediaUrl(social['url']),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: const Color(0xFF006833).withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              social['icon'],
-              color: const Color(0xFF006833),
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                social['name'],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: 'Lato',
-                ),
+    return FutureBuilder<bool>(
+      future: _isFollowedPlatform(social['name']),
+      builder: (context, snapshot) {
+        final isFollowed = snapshot.data ?? false;
+        
+        return GestureDetector(
+          onTap: () => _launchSocialMediaUrl(social['url']),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isFollowed 
+                    ? const Color(0xFF006833).withOpacity(0.6)
+                    : const Color(0xFF006833).withOpacity(0.3),
+                width: 1,
               ),
             ),
-            Icon(
-              Icons.open_in_new,
-              color: Colors.grey[500],
-              size: 16,
+            child: Row(
+              children: [
+                Icon(
+                  social['icon'],
+                  color: const Color(0xFF006833),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    social['name'],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+                // Checkbox instead of open icon
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isFollowed ? const Color(0xFF006833) : Colors.grey,
+                      width: 2,
+                    ),
+                    color: isFollowed ? const Color(0xFF006833) : Colors.transparent,
+                  ),
+                  child: isFollowed
+                      ? const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 14,
+                        )
+                      : null,
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  Future<bool> _isFollowedPlatform(String platform) async {
+    // Check if user has followed this platform (stored locally or in backend)
+    // For now, return false but this should check the actual follow status
+    return await RewardService.isFollowedPlatform(platform);
   }
 
   Future<void> _launchSocialMediaUrl(String url) async {
@@ -615,7 +609,7 @@ class _EarningPageState extends State<EarningPage> {
           title: 'Daily Check-in',
           subtitle: canClaim ? 'Claim your daily bonus!' : 'Streak: $streak days',
           reward: '+${balanceService.rewardAmounts.dailyReward.toInt()} CNE per day',
-          onTap: canClaim ? () => _claimDailyReward(context) : null,
+          onTap: () => _navigateToDailyCheckin(context),
         );
       },
     );
@@ -640,14 +634,33 @@ class _EarningPageState extends State<EarningPage> {
   }
 
   void _navigateToQuiz(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Quiz feature coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const QuizPage(),
+      ),
     );
   }
 
   void _navigateToLiveStreams(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Live streams coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LiveStreamPage(
+          streamId: 'live_stream_001',
+          title: 'CoinNewsExtra Live',
+          description: 'Watch our live crypto news and analysis stream',
+        ),
+      ),
+    );
+  }
+
+  void _navigateToDailyCheckin(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DailyCheckinPage(),
+      ),
     );
   }
 
@@ -778,18 +791,59 @@ class _EarningPageState extends State<EarningPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text(
             'Claim Your Reward',
-            style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
+            style: TextStyle(
+              color: Colors.white, 
+              fontFamily: 'Lato',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          content: const Text(
-            'Did you follow our social media account? Claim your reward now!',
-            style: TextStyle(color: Colors.white70, fontFamily: 'Lato'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.star,
+                color: Color(0xFF006833),
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Did you follow our social media account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70, 
+                  fontFamily: 'Lato',
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Claim your 2 CNE reward now!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF006833), 
+                  fontFamily: 'Lato',
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                'Cancel', 
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -798,8 +852,19 @@ class _EarningPageState extends State<EarningPage> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF006833),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Claim Reward'),
+              child: const Text(
+                'Claim Reward',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );

@@ -89,67 +89,77 @@ class _BinanceHomePageState extends State<BinanceHomePage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(2),
-              ),
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Admin Content Management',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.image,
+                  title: 'Manage Banners',
+                  subtitle: 'Add, edit, or remove home banners',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Banner Management');
+                  },
+                ),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.tag,
+                  title: 'Manage Ads',
+                  subtitle: 'Control advertisement content',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Ad Management');
+                  },
+                ),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.calendar,
+                  title: 'Manage Events',
+                  subtitle: 'Create and manage events',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Event Management');
+                  },
+                ),
+                _buildAdminMenuItem(
+                  icon: FeatherIcons.fileText,
+                  title: 'Manage News',
+                  subtitle: 'Add and edit news articles',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'News Management');
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Admin Content Management',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.image,
-              title: 'Manage Banners',
-              subtitle: 'Add, edit, or remove home banners',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Banner Management');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.tag,
-              title: 'Manage Ads',
-              subtitle: 'Control advertisement content',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Ad Management');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.calendar,
-              title: 'Manage Events',
-              subtitle: 'Create and manage events',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Event Management');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.fileText,
-              title: 'Manage News',
-              subtitle: 'Add and edit news articles',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'News Management');
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );

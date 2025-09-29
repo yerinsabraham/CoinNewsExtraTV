@@ -14,6 +14,56 @@ class EventDetailPage extends StatefulWidget {
 class _EventDetailPageState extends State<EventDetailPage> {
   bool isRegistered = false;
 
+  Widget _buildEventImage() {
+    // Map event IDs to summit images
+    String getImagePath() {
+      switch (widget.event.id) {
+        case '1':
+          return 'assets/images/summit1.png';
+        case '2':
+          return 'assets/images/summit2.png';
+        case '3':
+          return 'assets/images/summit3.png';
+        default:
+          return 'assets/images/summit1.png';
+      }
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          getImagePath(),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: const Color(0xFF006833).withOpacity(0.3),
+              child: const Center(
+                child: Icon(
+                  FeatherIcons.calendar,
+                  color: Colors.white,
+                  size: 80,
+                ),
+              ),
+            );
+          },
+        ),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.black.withOpacity(0.8),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,19 +110,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFF006833).withOpacity(0.3),
-                      const Color(0xFF006833).withOpacity(0.1),
+                      Colors.transparent,
                       Colors.black.withOpacity(0.8),
                     ],
                   ),
                 ),
-                child: const Center(
-                  child: Icon(
-                    FeatherIcons.calendar,
-                    color: Colors.white,
-                    size: 80,
-                  ),
-                ),
+                child: _buildEventImage(),
               ),
             ),
           ),
