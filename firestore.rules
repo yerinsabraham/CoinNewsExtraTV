@@ -163,5 +163,45 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false; // Only Cloud Functions can write
     }
+    
+    // Custodial wallets - users can read/write their own wallet data
+    match /custodial_wallets/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Token associations - users can read their own, system can create
+    match /token_associations/{associationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Allow wallet creation to associate tokens
+      allow update, delete: if false; // Only system can modify
+    }
+    
+    // Wallet funding records - users can read their own funding history
+    match /wallet_funding/{fundingId} {
+      allow read: if request.auth != null; // Allow users to read funding records
+      allow create: if request.auth != null; // Allow system to fund wallets
+      allow update, delete: if false; // Only system can modify
+    }
+    
+    // Wallet audit log - read-only audit trail
+    match /wallet_audit_log/{logId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Allow wallet creation to log
+      allow update, delete: if false; // Only system can modify
+    }
+    
+    // User balances - users can read/write their own balance data
+    match /user_balances/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Reward logs - users can read their own rewards, system can create
+    match /reward_logs/{rewardId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null; // Allow system to create rewards
+      allow update, delete: if false; // Only system can modify
+    }
   }
 }
