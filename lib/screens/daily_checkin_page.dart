@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'dart:async';
 import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
+import '../widgets/chat_ad_carousel.dart';
 
 class DailyCheckinPage extends StatefulWidget {
   const DailyCheckinPage({super.key});
@@ -44,15 +47,25 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
   Future<void> _claimDailyReward() async {
     if (_isClaiming) return;
 
+    // Show mandatory 30-second ad before claiming reward
+    final watchedAd = await _showMandatoryAd();
+    if (!watchedAd) {
+      return; // User cancelled or didn't watch the full ad
+    }
+
     setState(() {
       _isClaiming = true;
     });
 
     try {
       final result = await RewardService.claimDailyReward();
-      if (result != null && result['success'] == true) {
+      if (result.success) {
         final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim(result);
+        await balanceService.processRewardClaim({
+          'success': result.success,
+          'reward': result.reward,
+          'message': result.message,
+        });
 
         // Refresh status
         await _loadCheckinStatus();
@@ -60,7 +73,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Daily reward claimed! +${result['rewardAmount']} CNE'),
+              content: Text('Daily reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
               backgroundColor: const Color(0xFF006833),
             ),
           );
@@ -69,7 +82,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result?['message'] ?? 'Failed to claim daily reward'),
+              content: Text(result.message),
               backgroundColor: Colors.red,
             ),
           );
@@ -89,6 +102,16 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
         _isClaiming = false;
       });
     }
+  }
+
+  Future<bool> _showMandatoryAd() async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // User must watch the ad
+      builder: (BuildContext context) {
+        return const _AdDialog();
+      },
+    ) ?? false;
   }
 
   @override
@@ -298,6 +321,23 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
 
                   // Rewards information
                   _buildRewardsInfo(),
+
+                  const SizedBox(height: 24),
+
+                  // Banner carousel from Chat page
+                  const Text(
+                    'Sponsored Content',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  const ChatAdCarousel(),
                 ],
               ),
             ),
@@ -527,5 +567,198 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
     final today = DateTime.now().weekday - 1; // Monday = 0
     final dayOfWeek = (today - dayIndex) % 7;
     return days[dayOfWeek < 0 ? dayOfWeek + 7 : dayOfWeek];
+  }
+}
+
+class _AdDialog extends StatefulWidget {
+  const _AdDialog();
+
+  @override
+  State<_AdDialog> createState() => _AdDialogState();
+}
+
+class _AdDialogState extends State<_AdDialog> {
+  late YoutubePlayerController _controller;
+  Timer? _adTimer;
+  int _remainingSeconds = 30;
+  bool _canSkip = false;
+  bool _adCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = YoutubePlayerController(
+      initialVideoId: 'p4kmPtTU4lw', // Mandatory ad video
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+        controlsVisibleAtStart: false,
+        loop: false,
+        hideControls: true,
+      ),
+    );
+
+    // Start countdown timer
+    _startAdTimer();
+  }
+
+  void _startAdTimer() {
+    _adTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _remainingSeconds--;
+      });
+
+      if (_remainingSeconds <= 0) {
+        setState(() {
+          _canSkip = true;
+          _adCompleted = true;
+        });
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _adTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with ad info
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.ads_click,
+                    color: Color(0xFF006833),
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Watch this ad to claim your reward',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                  if (!_canSkip)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${_remainingSeconds}s',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // Video player
+            Expanded(
+              child: YoutubePlayer(
+                controller: _controller,
+                showVideoProgressIndicator: true,
+                progressIndicatorColor: const Color(0xFF006833),
+                progressColors: const ProgressBarColors(
+                  playedColor: Color(0xFF006833),
+                  handleColor: Color(0xFF006833),
+                ),
+              ),
+            ),
+
+            // Bottom buttons
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(false); // User cancelled
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey,
+                        side: const BorderSide(color: Colors.grey),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _canSkip
+                          ? () {
+                              Navigator.of(context).pop(true); // Ad completed
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _canSkip 
+                            ? const Color(0xFF006833) 
+                            : Colors.grey[700],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        _canSkip ? 'Continue' : 'Please wait...',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

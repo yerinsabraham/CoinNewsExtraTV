@@ -1,8 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/play_extra_service.dart';
 import '../services/countdown_timer_service.dart';
 import '../models/game_models.dart';
+import '../../services/user_balance_service.dart';
 
 class BattleScreen extends StatefulWidget {
   final VoidCallback? onNavigateToRooms;
@@ -138,29 +140,33 @@ class _BattleScreenState extends State<BattleScreen> with TickerProviderStateMix
           ],
         ),
         actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF006833),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.monetization_on, color: Colors.white, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  '${gameState.coins}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Lato',
-                  ),
+          Consumer<UserBalanceService>(
+            builder: (context, balanceService, child) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006833),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${balanceService.balance.unlockedBalance.toStringAsFixed(1)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

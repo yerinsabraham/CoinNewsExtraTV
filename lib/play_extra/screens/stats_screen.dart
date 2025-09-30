@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/play_extra_service.dart';
 import '../models/game_models.dart';
+import '../../services/user_balance_service.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({Key? key}) : super(key: key);
@@ -280,14 +282,18 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 16),
           
-          Text(
-            '${gameState.coins}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Lato',
-            ),
+          Consumer<UserBalanceService>(
+            builder: (context, balanceService, child) {
+              return Text(
+                '${balanceService.balance.unlockedBalance.toStringAsFixed(1)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lato',
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
           

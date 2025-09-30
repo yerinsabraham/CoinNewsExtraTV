@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'dart:async';
 import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
@@ -27,16 +28,27 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
   bool _isWatching = false;
   bool _hasClaimedReward = false;
   bool _isClaimingReward = false;
+  late YoutubePlayerController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = YoutubePlayerController(
+      initialVideoId: 'p4kmPtTU4lw', // Same as Live TV screen
+      flags: const YoutubePlayerFlags(
+        autoPlay: false,
+        mute: false,
+        controlsVisibleAtStart: true,
+        loop: false,
+      ),
+    );
     _startWatching();
   }
 
   @override
   void dispose() {
     _stopWatching();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -72,9 +84,13 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
         watchDurationSeconds: _watchTimeSeconds,
       );
 
-      if (result != null && result['success'] == true) {
+      if (result.success) {
         final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim(result);
+        await balanceService.processRewardClaim({
+          'success': result.success,
+          'reward': result.reward,
+          'message': result.message,
+        });
 
         setState(() {
           _hasClaimedReward = true;
@@ -83,7 +99,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Live stream reward claimed! +${result['rewardAmount']} CNE'),
+              content: Text('Live stream reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
               backgroundColor: const Color(0xFF006833),
             ),
           );
@@ -92,7 +108,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result?['message'] ?? 'Failed to claim reward'),
+              content: Text(result.message),
               backgroundColor: Colors.red,
             ),
           );
@@ -166,110 +182,63 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
       ),
       body: Column(
         children: [
-          // Video player placeholder
+          // YouTube video player
           Expanded(
             flex: 3,
-            child: Container(
-              width: double.infinity,
-              color: Colors.grey[900],
-              child: Stack(
-                children: [
-                  // Video placeholder
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
+              children: [
+                YoutubePlayer(
+                  controller: _controller,
+                  showVideoProgressIndicator: true,
+                  progressIndicatorColor: const Color(0xFF006833),
+                  progressColors: const ProgressBarColors(
+                    playedColor: Color(0xFF006833),
+                    handleColor: Color(0xFF006833),
+                  ),
+                ),
+                
+                // Watch time overlay
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _isWatching ? FeatherIcons.play : FeatherIcons.pause,
+                        const Icon(
+                          FeatherIcons.clock,
                           color: Colors.white,
-                          size: 64,
+                          size: 16,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(width: 4),
                         Text(
-                          _isWatching ? 'Live Stream Running' : 'Stream Paused',
+                          _formatWatchTime(_watchTimeSeconds),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Lato',
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.description,
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 14,
-                            fontFamily: 'Lato',
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
                       ],
                     ),
                   ),
-                  
-                  // Watch time overlay
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            FeatherIcons.clock,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatWatchTime(_watchTimeSeconds),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Control buttons
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          onPressed: _isWatching ? _stopWatching : _startWatching,
-                          icon: Icon(
-                            _isWatching ? FeatherIcons.pause : FeatherIcons.play,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
           // Reward tracking section
           Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.all(20),
+            flex: 3,
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -427,6 +396,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         ],

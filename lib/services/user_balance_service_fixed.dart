@@ -98,9 +98,6 @@ class RewardAmounts {
   final double socialReward;
   final double referralReward;
   final double signupBonus;
-  final double quizReward;
-  final double liveStreamReward;
-  final int currentEpoch;
 
   RewardAmounts({
     required this.videoReward,
@@ -109,22 +106,16 @@ class RewardAmounts {
     required this.socialReward,
     required this.referralReward,
     required this.signupBonus,
-    required this.quizReward,
-    required this.liveStreamReward,
-    required this.currentEpoch,
   });
 
   factory RewardAmounts.fromMap(Map<String, dynamic> data) {
     return RewardAmounts(
-      videoReward: (data['video_watch'] ?? 1.0).toDouble(),
-      adReward: (data['ad_view'] ?? 0.5).toDouble(),
-      dailyReward: (data['daily_airdrop'] ?? 5.0).toDouble(),
-      socialReward: (data['social_follow'] ?? 2.0).toDouble(),
-      referralReward: (data['referral_reward'] ?? 10.0).toDouble(),
-      signupBonus: (data['signup'] ?? 50.0).toDouble(),
-      quizReward: (data['quiz_completion'] ?? 3.0).toDouble(),
-      liveStreamReward: (data['live_stream'] ?? 2.0).toDouble(),
-      currentEpoch: (data['currentEpoch'] ?? 1).toInt(),
+      videoReward: (data['videoReward'] ?? 1.0).toDouble(),
+      adReward: (data['adReward'] ?? 0.5).toDouble(),
+      dailyReward: (data['dailyReward'] ?? 5.0).toDouble(),
+      socialReward: (data['socialReward'] ?? 2.0).toDouble(),
+      referralReward: (data['referralReward'] ?? 10.0).toDouble(),
+      signupBonus: (data['signupBonus'] ?? 50.0).toDouble(),
     );
   }
 
@@ -136,9 +127,6 @@ class RewardAmounts {
       socialReward: 2.0,
       referralReward: 10.0,
       signupBonus: 50.0,
-      quizReward: 3.0,
-      liveStreamReward: 2.0,
-      currentEpoch: 1,
     );
   }
 }
@@ -158,7 +146,6 @@ class UserBalanceService extends ChangeNotifier {
   EarningStats get earningStats => _earningStats;
   RewardAmounts get rewardAmounts => _rewardAmounts;
   List<Map<String, dynamic>> get transactionHistory => _transactionHistory;
-  List<Map<String, dynamic>> get recentTransactions => _transactionHistory;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -277,28 +264,6 @@ class UserBalanceService extends ChangeNotifier {
   
   bool canAfford(double amount) {
     return _balance.unlockedBalance >= amount;
-  }
-
-  // Formatting methods
-  String getFormattedBalance() {
-    return _balance.totalBalance.toStringAsFixed(2);
-  }
-
-  String getFormattedUsdValue() {
-    return '\$${_balance.totalUsdValue.toStringAsFixed(2)}';
-  }
-
-  // Refresh methods
-  Future<void> refreshAll() async {
-    await refreshAllData();
-  }
-
-  Future<void> initialize() async {
-    await initializeUser();
-  }
-
-  void listenToAuthChanges() {
-    // Already handled in constructor
   }
 
   Future<bool> spendBalance(double amount) async {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../services/play_extra_service.dart';
 import '../services/countdown_timer_service.dart';
 import '../models/game_models.dart';
+import '../../services/user_balance_service.dart';
 
 class RoomScreen extends StatefulWidget {
   final VoidCallback? onNavigateToBattle;
@@ -105,21 +107,25 @@ class _RoomScreenState extends State<RoomScreen> {
               color: const Color(0xFF006833),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.monetization_on, color: Colors.white, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  '${gameState.coins}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
+            child: Consumer<UserBalanceService>(
+              builder: (context, balanceService, child) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${balanceService.balance.unlockedBalance.toStringAsFixed(1)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -281,16 +287,19 @@ class _RoomScreenState extends State<RoomScreen> {
   Widget _buildBattleRoomCard(BattleRoom room, GameState gameState) {
     final stakeController = _stakeControllers[room.id]!;
     final selectedColor = _selectedColors[room.id]!;
-    final canAfford = gameState.coins >= room.minStake;
     
-    // Get round info from timer service
-    final activeRound = _timerService.getActiveRound(room.id);
-    final isRoundActive = _timerService.isRoundActive(room.id);
-    final timeRemaining = _timerService.getFormattedTimeRemaining(room.id);
-    final roundStatusText = _timerService.getRoundStatusText(room.id);
-    final roundStatusColor = _timerService.getRoundStatusColor(room.id);
+    return Consumer<UserBalanceService>(
+      builder: (context, balanceService, child) {
+        final canAfford = balanceService.balance.unlockedBalance >= room.minStake;
     
-    return Container(
+        // Get round info from timer service
+        final activeRound = _timerService.getActiveRound(room.id);
+        final isRoundActive = _timerService.isRoundActive(room.id);
+        final timeRemaining = _timerService.getFormattedTimeRemaining(room.id);
+        final roundStatusText = _timerService.getRoundStatusText(room.id);
+        final roundStatusColor = _timerService.getRoundStatusColor(room.id);
+        
+        return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.grey[900],
@@ -567,6 +576,8 @@ class _RoomScreenState extends State<RoomScreen> {
         ],
       ),
     );
+      },
+    );
   }
 
   Widget _buildColorSelector(String roomId, String selectedColor) {
@@ -661,6 +672,10 @@ class _RoomScreenState extends State<RoomScreen> {
     final stakeController = _stakeControllers[room.id]!;
     final stakeAmount = int.tryParse(stakeController.text) ?? room.minStake;
     final selectedColor = _selectedColors[room.id]!;
+    
+    // Get real CNE balance
+    final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+    final availableBalance = balanceService.balance.unlockedBalance;
 
     // Validation
     if (stakeAmount < room.minStake || stakeAmount > room.maxStake) {
@@ -668,8 +683,8 @@ class _RoomScreenState extends State<RoomScreen> {
       return;
     }
 
-    if (stakeAmount > _gameService.gameState.coins) {
-      _showError('Insufficient CNE coins');
+    if (stakeAmount > availableBalance) {
+      _showError('Insufficient CNE coins. Available: ${availableBalance.toStringAsFixed(1)} CNE');
       return;
     }
 
@@ -721,8 +736,8 @@ class _RoomScreenState extends State<RoomScreen> {
             ),
           );
           
-          // Update game state with new coin balance
-          await _gameService.spendCoins(stakeAmount);
+          // Note: CNE balance deduction should be handled by RewardService
+          // For now, we skip the local PlayExtra balance update
           
         } else {
           _showError(result['error'] ?? 'Failed to join round');

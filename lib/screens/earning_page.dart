@@ -19,6 +19,7 @@ class EarningPage extends StatefulWidget {
 
 class _EarningPageState extends State<EarningPage> {
   bool _isClaimingDailyReward = false;
+  int _socialClaimRefreshKey = 0;
   
   // Social Media Links Configuration (Easily expandable by admin)
   final List<Map<String, dynamic>> _socialMediaLinks = [
@@ -497,6 +498,7 @@ class _EarningPageState extends State<EarningPage> {
 
   Widget _buildSocialMediaTile(Map<String, dynamic> social) {
     return FutureBuilder<bool>(
+      key: ValueKey('social_${social['name']}_$_socialClaimRefreshKey'),
       future: _isFollowedPlatform(social['name']),
       builder: (context, snapshot) {
         final isFollowed = snapshot.data ?? false;
@@ -563,9 +565,9 @@ class _EarningPageState extends State<EarningPage> {
   }
 
   Future<bool> _isFollowedPlatform(String platform) async {
-    // Check if user has followed this platform (stored locally or in backend)
-    // For now, return false but this should check the actual follow status
-    return await RewardService.isFollowedPlatform(platform);
+    // Convert platform name to lowercase to match the format used when claiming rewards
+    String platformKey = platform.toLowerCase();
+    return await RewardService.isFollowedPlatform(platformKey);
   }
 
   Future<void> _launchSocialMediaUrl(String url) async {
@@ -617,17 +619,17 @@ class _EarningPageState extends State<EarningPage> {
 
   // Navigation methods
   void _navigateToVideos(BuildContext context) {
-    // Navigate to video list or specific video
+    // Navigate to actual YouTube video with CNE rewards
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const VideoPlayerPage(
-          videoId: 'sample_video',
-          title: 'Sample Video',
+          videoId: 'M7lc1UVf-VE',
+          title: 'Bitcoin Breaking \$100K? Market Analysis',
           channelName: 'CoinNewsExtra',
-          views: '1K views',
-          uploadTime: '1 hour ago',
-          reward: 5.0,
+          views: '25K views',
+          uploadTime: '2 hours ago',
+          reward: 3.0, // CNE reward amount for watching 30+ seconds
         ),
       ),
     );
@@ -674,14 +676,18 @@ class _EarningPageState extends State<EarningPage> {
 
     try {
       final result = await RewardService.claimDailyReward();
-      if (result != null && result['success'] == true) {
+      if (result.success) {
         final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim(result);
+        await balanceService.processRewardClaim({
+          'success': result.success,
+          'reward': result.reward,
+          'message': result.message,
+        });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Daily reward claimed! +${result['rewardAmount']} CNE'),
+              content: Text('Daily reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
               backgroundColor: const Color(0xFF006833),
             ),
           );
@@ -690,7 +696,7 @@ class _EarningPageState extends State<EarningPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result?['message'] ?? 'Failed to claim daily reward'),
+              content: Text(result.message),
               backgroundColor: Colors.red,
             ),
           );
@@ -887,17 +893,24 @@ class _EarningPageState extends State<EarningPage> {
 
       final result = await RewardService.claimSocialReward(
         platform: platform,
-        socialMediaUrl: url,
       );
 
-      if (result != null && result['success'] == true) {
+      if (result.success) {
         final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim(result);
+        await balanceService.processRewardClaim({
+          'success': result.success,
+          'reward': result.reward,
+          'message': result.message,
+        });
 
         if (mounted) {
+          setState(() {
+            _socialClaimRefreshKey++;
+          });
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Social media reward claimed! +${result['rewardAmount']} CNE'),
+              content: Text('Social media reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
               backgroundColor: const Color(0xFF006833),
             ),
           );
@@ -906,7 +919,7 @@ class _EarningPageState extends State<EarningPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result?['message'] ?? 'Failed to claim social reward'),
+              content: Text(result.message),
               backgroundColor: Colors.red,
             ),
           );

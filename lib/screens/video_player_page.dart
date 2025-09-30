@@ -33,7 +33,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   late YoutubePlayerController _controller;
   bool _isLiked = false;
   bool _isDisliked = false;
-  bool _isSubscribed = false;
   bool _showDescription = false;
   
   // Reward tracking
@@ -78,7 +77,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   void _initializeVideoPlayer() {
     // Use a default YouTube video ID for demo
     _controller = YoutubePlayerController(
-      initialVideoId: widget.videoId.isNotEmpty ? widget.videoId : 'p4kmPtTU4lw',
+      initialVideoId: widget.videoId.isNotEmpty ? widget.videoId : 'M7lc1UVf-VE',
       flags: const YoutubePlayerFlags(
         autoPlay: true,
         mute: false,
@@ -137,17 +136,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<void> _claimReward() async {
     if (_rewardClaimed || _isClaimingReward) return;
 
-    // Check if watched enough (at least 70% or minimum 30 seconds)
+    // Check if watched enough (at least 30 seconds OR 70% of video)
     final minWatchTime = 30;
     final requiredWatchPercentage = 0.7;
     final actualWatchPercentage = _videoDuration.inSeconds > 0 
         ? _currentPosition.inSeconds / _videoDuration.inSeconds 
         : 0.0;
 
+    // Must meet 30 second minimum OR 70% watch requirement
     if (_watchedSeconds < minWatchTime && actualWatchPercentage < requiredWatchPercentage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Watch more to claim your reward!'),
+          content: Text('Watch at least 30 seconds or 70% of the video to claim your reward!'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -165,9 +165,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         totalDurationSeconds: _videoDuration.inSeconds,
       );
 
-      if (result != null && result['success'] == true) {
+      if (result.success) {
         final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim(result);
+        await balanceService.processRewardClaim({
+          'success': result.success,
+          'reward': result.reward,
+          'message': result.message,
+        });
 
         setState(() {
           _rewardClaimed = true;
@@ -175,14 +179,14 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Video reward claimed! +${result['rewardAmount']} CNE'),
+            content: Text('Video reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
             backgroundColor: const Color(0xFF006833),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result?['message'] ?? 'Failed to claim reward'),
+            content: Text(result.message),
             backgroundColor: Colors.red,
           ),
         );
@@ -321,59 +325,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     ),
                   ),
                   const Divider(color: Colors.grey, height: 1),
-                  // Channel info and subscribe
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: const Color(0xFF006833),
-                          child: Text(
-                            widget.channelName.isNotEmpty ? widget.channelName[0].toUpperCase() : 'C',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.channelName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                '125K subscribers',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => setState(() => _isSubscribed = !_isSubscribed),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isSubscribed ? Colors.grey[700] : const Color(0xFF006833),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          child: Text(_isSubscribed ? 'Subscribed' : 'Subscribe'),
-                        ),
-                      ],
-                    ),
-                  ),
                   // Enhanced earn reward section
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),

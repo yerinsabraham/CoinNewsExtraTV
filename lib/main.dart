@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
 import 'provider/user_provider.dart';
 import 'provider/admin_provider.dart';
 import 'services/user_balance_service.dart';
+import 'services/cme_config_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -26,6 +28,12 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Firebase Analytics
+  FirebaseAnalytics.instance;
+  
+  // Initialize CME Configuration Service
+  await CMEConfigService.initialize();
   
   // Initialize Play Extra service
   await PlayExtraService().initialize();

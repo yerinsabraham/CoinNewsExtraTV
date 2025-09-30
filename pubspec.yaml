@@ -11,9 +11,11 @@ dependencies:
     sdk: flutter
   firebase_core: ^2.32.0
   firebase_auth: ^4.17.5
+  firebase_analytics: ^10.8.0
   google_sign_in: ^6.1.6
   cloud_firestore: ^4.15.5
   cloud_functions: ^4.6.5
+  firebase_remote_config: ^4.3.8
   provider: ^6.1.1
   youtube_player_flutter: ^9.0.0
   flutter_launcher_icons: ^0.14.4
@@ -26,6 +28,13 @@ dependencies:
   confetti: ^0.7.0
   carousel_slider: ^4.2.1
   lottie: ^3.1.0
+  # DID and Blockchain dependencies
+  crypto: ^3.0.3
+  convert: ^3.1.1
+  # Web3 dependencies (for future Ethereum integration)
+  web3dart: ^2.7.3
+  # Hedera SDK (when available for Flutter)
+  # hedera_sdk: ^1.0.0
 
 flutter:
   uses-material-design: true

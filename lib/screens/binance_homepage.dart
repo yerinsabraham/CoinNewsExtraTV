@@ -21,31 +21,31 @@ class _BinanceHomePageState extends State<BinanceHomePage> {
   // Video data for search (combining featured videos and sample videos)
   final List<Map<String, dynamic>> _allVideos = [
     {
-      'id': 'p4kmPtTU4lw',
+      'id': 'M7lc1UVf-VE',
       'title': 'Bitcoin Breaking \$100K? Market Analysis',
       'channel': 'CoinNewsExtra',
       'channelName': 'CoinNewsExtra',
     },
     {
-      'id': 'dQw4w9WgXcQ', 
+      'id': '3jDhvKczYdQ', 
       'title': 'Ethereum 2.0 Complete Guide',
       'channel': 'Crypto Education',
       'channelName': 'Crypto Education',
     },
     {
-      'id': 'L_jWHffIx5E',
+      'id': 'kRuZKg3j4Ks',
       'title': 'Top 10 Altcoins for 2025', 
       'channel': 'CoinNewsExtra',
       'channelName': 'CoinNewsExtra',
     },
     {
-      'id': 'fJ9rUzIMcZQ',
+      'id': '3Kf8Od6nIQM',
       'title': 'DeFi Explained: Complete Beginner Guide',
       'channel': 'DeFi Academy',
       'channelName': 'DeFi Academy',
     },
     {
-      'id': 'zbRSjy4CSzM',
+      'id': '5-year-old-earns-6-figures-trading-stocks',
       'title': 'NFT Market Trends & Analysis',
       'channel': 'NFT Insights',
       'channelName': 'NFT Insights',

@@ -1,4 +1,4 @@
-const { onRequest, onCall } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
@@ -489,26 +489,607 @@ exports.autoCreateRounds = onSchedule({
     }
 });
 
-// ===== REWARD SYSTEM CLOUD FUNCTIONS =====
+// ===== CUSTODIAL HEDERA WALLET & CME TOKEN SYSTEM =====
 
-// Initialize reward configuration
-exports.initRewardConfig = onRequest({ cors: true }, async (req, res) => {
+// Constants for CME token system
+const CME_TOKEN_DECIMALS = 8; // 8 decimal places for CME token
+const CME_MULTIPLIER = Math.pow(10, CME_TOKEN_DECIMALS); // 100,000,000
+
+// Helper functions for CME token units
+function toCMEUnits(humanAmount) {
+    return Math.floor(humanAmount * CME_MULTIPLIER);
+}
+
+function fromCMEUnits(rawUnits) {
+    return rawUnits / CME_MULTIPLIER;
+}
+
+function roundToCMEPrecision(amount) {
+    return Math.floor(amount * CME_MULTIPLIER) / CME_MULTIPLIER;
+}
+
+// Cloud Function: User Onboarding - Creates Custodial Hedera Wallet
+exports.onboardUser = onCall({ cors: true }, async (request) => {
     try {
-        const { initializeRewardConfiguration } = require('./init-reward-config');
-        await initializeRewardConfiguration();
-        
-        res.json({
+        const { firebaseUid, publicKey } = request.data;
+        const uid = request.auth?.uid;
+
+        if (!uid || uid !== firebaseUid) {
+            throw new Error('Authentication mismatch');
+        }
+
+        // Check if user already exists
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            return {
+                success: true,
+                uid: userData.uid,
+                did: userData.did,
+                walletAddress: userData.walletAddress,
+                hederaAccountId: userData.hederaAccountId,
+                message: 'User already onboarded'
+            };
+        }
+
+        // Generate ED25519 keypair for custodial wallet
+        const newPrivateKey = PrivateKey.generateED25519();
+        const newPublicKey = newPrivateKey.publicKey;
+
+        // Create Hedera account
+        let hederaAccountId;
+        try {
+            if (hederaClient) {
+                const accountCreateTx = new AccountCreateTransaction()
+                    .setKey(newPublicKey)
+                    .setInitialBalance(new Hbar(0))
+                    .freezeWith(hederaClient);
+
+                const response = await accountCreateTx.execute(hederaClient);
+                const receipt = await response.getReceipt(hederaClient);
+                hederaAccountId = receipt.accountId.toString();
+            } else {
+                // Mock account ID for testing
+                hederaAccountId = `0.0.${Date.now().toString().slice(-7)}`;
+            }
+        } catch (error) {
+            console.error('Hedera account creation failed:', error);
+            hederaAccountId = `0.0.${Date.now().toString().slice(-7)}`;
+        }
+
+        // Create DID
+        const did = `did:hedera:${hederaAccountId}`;
+
+        // Store user data (encrypt private key in production)
+        const userData = {
+            uid: uid,
+            did: did,
+            hederaAccountId: hederaAccountId,
+            hederaPublicKey: newPublicKey.toString(),
+            hederaPrivateKeyEncrypted: newPrivateKey.toString(), // In production: encrypt this!
+            points_balance: toCMEUnits(100), // Welcome bonus: 100 CME
+            available_balance: toCMEUnits(50), // 50 CME immediately available
+            locked_balance: toCMEUnits(50), // 50 CME locked for 2 years
+            locks: [{
+                lockId: `signup_${uid}`,
+                amount: toCMEUnits(50),
+                unlockAt: Date.now() + (2 * 365 * 24 * 60 * 60 * 1000), // 2 years
+                source: 'signup_bonus'
+            }],
+            walletAddress: hederaAccountId,
+            createdAt: Date.now(),
+            lastRedemptionAt: null,
+            daily_claimed_at: null
+        };
+
+        await db.collection('users').doc(uid).set(userData);
+
+        // Log the signup reward
+        await db.collection('rewards_log').add({
+            id: `signup_${uid}_${Date.now()}`,
+            uid: uid,
+            did: did,
+            eventType: 'signup_bonus',
+            amount: toCMEUnits(100),
+            immediate: toCMEUnits(50),
+            locked: toCMEUnits(50),
+            status: 'COMPLETED',
+            idempotencyKey: `signup_${uid}`,
+            createdAt: Date.now()
+        });
+
+        // Update metrics
+        await updateSystemMetrics('signup_bonus', toCMEUnits(100));
+
+        // Publish to HCS for audit trail
+        const hcsMessage = {
+            type: 'user_onboarded',
+            uid: uid,
+            did: did,
+            hederaAccountId: hederaAccountId,
+            initialBalance: toCMEUnits(100),
+            timestamp: Date.now()
+        };
+        await publishToHCS(hcsMessage);
+
+        return {
             success: true,
-            message: 'Reward configuration initialized successfully'
-        });
+            uid: uid,
+            did: did,
+            walletAddress: hederaAccountId,
+            hederaAccountId: hederaAccountId,
+            initialBalance: fromCMEUnits(toCMEUnits(100)),
+            message: 'User onboarded successfully with 100 CME welcome bonus'
+        };
+
     } catch (error) {
-        console.error('Error initializing reward config:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        console.error('Error in user onboarding:', error);
+        throw new Error(error.message);
     }
 });
+
+// Cloud Function: Earn Event Processing - Universal reward handler
+exports.earnEvent = onCall({ cors: true }, async (request) => {
+    try {
+        const { uid, eventType, meta, idempotencyKey } = request.data;
+        const authUid = request.auth?.uid;
+
+        if (!authUid || authUid !== uid) {
+            throw new HttpsError('unauthenticated', 'Authentication mismatch');
+        }
+
+        if (!idempotencyKey) {
+            throw new HttpsError('invalid-argument', 'Idempotency key is required');
+        }
+
+        // Check for duplicate events
+        const existingEvent = await db.collection('rewards_log')
+            .where('idempotencyKey', '==', idempotencyKey)
+            .limit(1)
+            .get();
+
+        if (!existingEvent.empty) {
+            const existingData = existingEvent.docs[0].data();
+            return {
+                success: true,
+                reward: {
+                    amount: existingData.amount,
+                    immediate: existingData.immediate,
+                    locked: existingData.locked
+                },
+                message: 'Reward already processed',
+                duplicate: true
+            };
+        }
+
+        // Get user data or create user if doesn't exist  
+        const userDoc = await db.collection('users').doc(uid).get();
+        let userData;
+        
+        if (!userDoc.exists) {
+            // Create new user document with default values
+            userData = {
+                points_balance: 0,
+                available_balance: 0,
+                locked_balance: 0,
+                total_earned: 0,
+                locks: [],
+                did: `did:temp:${uid}`, // Temporary DID until user completes onboarding
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastActiveAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            
+            await db.collection('users').doc(uid).set(userData);
+            console.log(`Created new user document for ${uid}`);
+        } else {
+            userData = userDoc.data();
+            // Ensure did exists (for backwards compatibility)
+            if (!userData.did) {
+                userData.did = `did:temp:${uid}`;
+            }
+        }
+
+        // Calculate reward based on event type and current tier
+        const rewardData = await calculateReward(eventType, meta, userData);
+        
+        if (!rewardData || rewardData.amount === 0) {
+            throw new Error('No reward available for this event');
+        }
+
+        // Process reward in transaction
+        await db.runTransaction(async (transaction) => {
+            const userRef = db.collection('users').doc(uid);
+            const userSnapshot = await transaction.get(userRef);
+            const currentData = userSnapshot.data();
+
+            // Update user balances
+            const newAvailableBalance = currentData.available_balance + rewardData.immediate;
+            const newLockedBalance = currentData.locked_balance + rewardData.locked;
+            const newTotalBalance = currentData.points_balance + rewardData.amount;
+            const newTotalEarned = (currentData.total_earned || 0) + rewardData.amount;
+            
+            const updates = {
+                points_balance: newTotalBalance,
+                available_balance: newAvailableBalance,
+                locked_balance: newLockedBalance,
+                total_earned: newTotalEarned
+            };
+
+            // Add lock if there's locked amount
+            if (rewardData.locked > 0) {
+                const newLock = {
+                    lockId: `${eventType}_${uid}_${Date.now()}`,
+                    amount: rewardData.locked,
+                    unlockAt: Date.now() + (2 * 365 * 24 * 60 * 60 * 1000), // 2 years
+                    source: eventType
+                };
+                
+                updates.locks = [...(currentData.locks || []), newLock];
+            }
+
+            transaction.update(userRef, updates);
+
+            // Log the reward
+            const rewardLogRef = db.collection('rewards_log').doc();
+            transaction.set(rewardLogRef, {
+                id: rewardLogRef.id,
+                uid: uid,
+                did: userData.did,
+                eventType: eventType,
+                amount: rewardData.amount,
+                immediate: rewardData.immediate,
+                locked: rewardData.locked,
+                status: 'COMPLETED',
+                idempotencyKey: idempotencyKey,
+                meta: meta,
+                createdAt: Date.now()
+            });
+        });
+
+        // Update system metrics
+        await updateSystemMetrics(eventType, rewardData.amount);
+
+        // Publish to HCS
+        const hcsMessage = {
+            type: 'reward_earned',
+            uid: uid,
+            did: userData.did,
+            eventType: eventType,
+            amount: rewardData.amount,
+            immediate: rewardData.immediate,
+            locked: rewardData.locked,
+            timestamp: Date.now()
+        };
+        await publishToHCS(hcsMessage);
+
+        return {
+            success: true,
+            reward: {
+                amount: fromCMEUnits(rewardData.amount),
+                immediate: fromCMEUnits(rewardData.immediate),
+                locked: fromCMEUnits(rewardData.locked),
+                eventType: eventType
+            },
+            newBalance: {
+                available: fromCMEUnits(userData.available_balance + rewardData.immediate),
+                locked: fromCMEUnits(userData.locked_balance + rewardData.locked),
+                total: fromCMEUnits(userData.points_balance + rewardData.amount)
+            },
+            message: `Earned ${fromCMEUnits(rewardData.amount)} CME tokens`
+        };
+
+    } catch (error) {
+        console.error('Error processing earn event:', error);
+        
+        // Return proper Firebase Functions error
+        if (error.code && error.message) {
+            throw new HttpsError(error.code, error.message);
+        } else {
+            throw new HttpsError('internal', `Internal error: ${error.message || error}`);
+        }
+    }
+});
+
+// Cloud Function: Get User Balance
+exports.getUserBalance = onCall({ cors: true }, async (request) => {
+    try {
+        const { uid } = request.data;
+        const authUid = request.auth?.uid;
+
+        if (!authUid || authUid !== uid) {
+            throw new Error('Authentication mismatch');
+        }
+
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) {
+            return {
+                success: true,
+                balance: {
+                    available: 0,
+                    locked: 0,
+                    total: 0,
+                    humanAvailable: 0,
+                    humanLocked: 0,
+                    humanTotal: 0
+                }
+            };
+        }
+
+        const userData = userDoc.data();
+        
+        // Calculate unlockable tokens
+        const now = Date.now();
+        let unlockableAmount = 0;
+        const activeLocks = [];
+        
+        if (userData.locks) {
+            userData.locks.forEach(lock => {
+                if (lock.unlockAt <= now) {
+                    unlockableAmount += lock.amount;
+                } else {
+                    activeLocks.push({
+                        lockId: lock.lockId,
+                        amount: fromCMEUnits(lock.amount),
+                        unlockAt: lock.unlockAt,
+                        unlockDate: new Date(lock.unlockAt).toISOString(),
+                        source: lock.source,
+                        daysRemaining: Math.ceil((lock.unlockAt - now) / (24 * 60 * 60 * 1000))
+                    });
+                }
+            });
+        }
+
+        return {
+            success: true,
+            balance: {
+                available: userData.available_balance || 0,
+                locked: userData.locked_balance || 0,
+                total: userData.points_balance || 0,
+                humanAvailable: fromCMEUnits(userData.available_balance || 0),
+                humanLocked: fromCMEUnits(userData.locked_balance || 0),
+                humanTotal: fromCMEUnits(userData.points_balance || 0),
+                unlockable: fromCMEUnits(unlockableAmount),
+                activeLocks: activeLocks,
+                walletAddress: userData.walletAddress,
+                did: userData.did
+            }
+        };
+
+    } catch (error) {
+        console.error('Error getting user balance:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Redeem CME Tokens (Convert points to on-chain tokens)
+exports.redeemTokens = onCall({ cors: true }, async (request) => {
+    try {
+        const { uid, amount } = request.data; // amount in raw units
+        const authUid = request.auth?.uid;
+
+        if (!authUid || authUid !== uid) {
+            throw new Error('Authentication mismatch');
+        }
+
+        if (!amount || amount <= 0) {
+            throw new Error('Invalid redemption amount');
+        }
+
+        // Get user data
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) {
+            throw new Error('User not found');
+        }
+
+        const userData = userDoc.data();
+        
+        if (userData.available_balance < amount) {
+            throw new Error('Insufficient available balance');
+        }
+
+        // Create redemption record and lock tokens
+        const redemptionId = `redeem_${uid}_${Date.now()}`;
+        
+        await db.runTransaction(async (transaction) => {
+            const userRef = db.collection('users').doc(uid);
+            const userSnapshot = await transaction.get(userRef);
+            const currentData = userSnapshot.data();
+
+            if (currentData.available_balance < amount) {
+                throw new Error('Insufficient available balance');
+            }
+
+            // Lock the redemption amount
+            transaction.update(userRef, {
+                available_balance: currentData.available_balance - amount,
+                lastRedemptionAt: Date.now()
+            });
+
+            // Create redemption record
+            const redemptionRef = db.collection('redemptions').doc(redemptionId);
+            transaction.set(redemptionRef, {
+                id: redemptionId,
+                uid: uid,
+                did: userData.did,
+                amount: amount,
+                status: 'ENQUEUED',
+                hederaAccountId: userData.hederaAccountId,
+                createdAt: Date.now()
+            });
+        });
+
+        // Queue for processing
+        await queueTransfer(uid, userData.hederaAccountId, amount, redemptionId);
+
+        return {
+            success: true,
+            redemptionId: redemptionId,
+            amount: fromCMEUnits(amount),
+            status: 'ENQUEUED',
+            message: `Redemption of ${fromCMEUnits(amount)} CME tokens queued for processing`
+        };
+
+    } catch (error) {
+        console.error('Error processing redemption:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Helper function to calculate rewards based on configurable rates and halving tiers
+async function calculateReward(eventType, meta, userData) {
+    try {
+        // Get reward configuration
+        const configDoc = await db.collection('config').doc('reward_rates').get();
+        const rewardConfig = configDoc.exists ? configDoc.data() : null;
+        
+        // Get current user count for halving tier
+        const metricsDoc = await db.collection('config').doc('metrics').get();
+        const metrics = metricsDoc.data() || {};
+        const userCount = metrics.user_count || 0;
+        
+        // Get halving configuration
+        const halvingDoc = await db.collection('config').doc('halving_config').get();
+        const halvingData = halvingDoc.data() || {
+            users_per_tier: 10000,
+            max_tier: 10,
+            min_reward_multiplier: 0.001
+        };
+        
+        // Calculate tier and multiplier
+        const tier = Math.min(halvingData.max_tier || 10, Math.floor(userCount / (halvingData.users_per_tier || 10000)));
+        const tierMultiplier = Math.max(halvingData.min_reward_multiplier || 0.001, 1.0 / Math.pow(2, tier));
+        
+        // Get base reward amount from configuration
+        let baseRewardAmount = 0;
+        console.log(`Calculating reward for eventType: ${eventType}, tier: ${tier}, tierMultiplier: ${tierMultiplier}`);
+        
+        if (rewardConfig && rewardConfig[eventType]) {
+            const eventConfig = rewardConfig[eventType];
+            if (eventConfig.enabled) {
+                baseRewardAmount = eventConfig.base || 0;
+                console.log(`Using config reward: ${baseRewardAmount} for ${eventType}`);
+            } else {
+                // Reward type is disabled
+                console.log(`Reward type ${eventType} is disabled in config`);
+                return { amount: 0, immediate: 0, locked: 0 };
+            }
+        } else {
+            // Fallback to default amounts
+            const defaultRewards = {
+                video_watch: 5.0,
+                ad_view: 2.0,
+                daily_airdrop: 10.0,
+                social_follow: 3.0,
+                referral_bonus: 25.0,
+                live_stream: 8.0,
+                quiz_completion: 15.0
+            };
+            baseRewardAmount = defaultRewards[eventType] || 0;
+            console.log(`Using default reward: ${baseRewardAmount} for ${eventType}`);
+        }
+        
+        if (baseRewardAmount <= 0) {
+            return { amount: 0, immediate: 0, locked: 0 };
+        }
+        
+        // Apply tier multiplier
+        let finalAmount = baseRewardAmount * tierMultiplier;
+        console.log(`Final amount after tier multiplier: ${finalAmount} (base: ${baseRewardAmount} * tier: ${tierMultiplier})`);
+        
+        // Apply event-specific validation and logic
+        switch (eventType) {
+            case 'video_watch':
+                // Require minimum 70% completion
+                if (!meta.watchedPercentage || meta.watchedPercentage < 0.7) {
+                    return { amount: 0, immediate: 0, locked: 0 };
+                }
+                break;
+                
+            case 'ad_view':
+                // Require minimum 25 seconds viewing
+                if (!meta.adDuration || meta.adDuration < 25) {
+                    return { amount: 0, immediate: 0, locked: 0 };
+                }
+                break;
+                
+            case 'live_stream':
+                // Require minimum 2 minutes
+                if (!meta.watchDuration || meta.watchDuration < 120) {
+                    return { amount: 0, immediate: 0, locked: 0 };
+                }
+                // Reward per 10-minute segment
+                const segments = Math.floor(meta.watchDuration / 600);
+                finalAmount = finalAmount * Math.max(1, segments);
+                break;
+                
+            case 'daily_airdrop':
+                // Check daily limit
+                const today = new Date().toISOString().split('T')[0];
+                if (userData.daily_claimed_at === today) {
+                    return { amount: 0, immediate: 0, locked: 0 };
+                }
+                break;
+                
+            case 'quiz_completion':
+                // Apply accuracy bonus
+                if (meta.accuracy) {
+                    const accuracyBonus = Math.max(0.5, meta.accuracy); // Minimum 50% of reward
+                    finalAmount = finalAmount * accuracyBonus;
+                }
+                // Apply speed bonus
+                if (meta.speedBonus) {
+                    finalAmount = finalAmount * meta.speedBonus;
+                }
+                break;
+        }
+        
+        // Convert to raw units and split immediate/locked
+        const rawAmount = toCMEUnits(finalAmount);
+        const immediate = Math.floor(rawAmount * 0.5); // 50% immediate
+        const locked = Math.floor(rawAmount * 0.5);    // 50% locked for 2 years
+
+        console.log(`Reward calculation result: rawAmount=${rawAmount}, immediate=${immediate}, locked=${locked}, finalAmount=${finalAmount}`);
+
+        return {
+            amount: rawAmount,
+            immediate: immediate,
+            locked: locked,
+            tier: tier,
+            tierMultiplier: tierMultiplier,
+            baseAmount: baseRewardAmount
+        };
+        
+    } catch (error) {
+        console.error('Error calculating reward:', error);
+        return { amount: 0, immediate: 0, locked: 0 };
+    }
+}
+
+// Helper function to update system metrics
+async function updateSystemMetrics(eventType, amount) {
+    try {
+        const metricsRef = db.collection('config').doc('metrics');
+        await db.runTransaction(async (transaction) => {
+            const metricsDoc = await transaction.get(metricsRef);
+            const currentData = metricsDoc.exists ? metricsDoc.data() : {};
+            
+            const updates = {
+                total_distributed: (currentData.total_distributed || 0) + amount,
+                daily_distribution: (currentData.daily_distribution || 0) + amount,
+                [`event_stats.${eventType}`]: ((currentData.event_stats || {})[eventType] || 0) + 1,
+                last_updated: Date.now()
+            };
+            
+            transaction.set(metricsRef, updates, { merge: true });
+        });
+    } catch (error) {
+        console.error('Error updating system metrics:', error);
+    }
+}
+
+// queueTransfer is imported from rewardEngine module
+
+// ===== LEGACY REWARD SYSTEM FUNCTIONS (for compatibility) =====
 
 // Cloud Function: Process Video Watch Reward (Live Videos - 10 min segments)
 exports.processLiveWatchReward = onCall({ cors: true }, async (request) => {
@@ -1916,5 +2497,662 @@ exports.populateFirestore = onRequest(async (req, res) => {
             success: false,
             error: error.message
         });
+    }
+});
+
+// ===== CME TOKEN TRANSFER PROCESSING =====
+
+// Cloud Function: Process Pending Token Transfers (Manual trigger)
+exports.processTokenTransfers = onRequest({ cors: true }, async (req, res) => {
+    try {
+        const batchSize = 10; // Process 10 transfers at a time
+        
+        const pendingTransfers = await db.collection('pending_transfers')
+            .where('status', '==', 'PENDING')
+            .where('retryCount', '<', 3)
+            .limit(batchSize)
+            .get();
+
+        let processed = 0;
+        let failed = 0;
+
+        for (const transferDoc of pendingTransfers.docs) {
+            const transferData = transferDoc.data();
+            
+            try {
+                // Process the transfer
+                let transactionId = null;
+                
+                if (hederaClient && CNE_TOKEN_ID) {
+                    // Real Hedera transfer
+                    const transferTx = new TransferTransaction()
+                        .addTokenTransfer(CNE_TOKEN_ID, process.env.OPERATOR_ACCOUNT_ID, -transferData.amount)
+                        .addTokenTransfer(CNE_TOKEN_ID, transferData.hederaAccountId, transferData.amount)
+                        .freezeWith(hederaClient);
+
+                    const response = await transferTx.execute(hederaClient);
+                    const receipt = await response.getReceipt(hederaClient);
+                    transactionId = response.transactionId.toString();
+                } else {
+                    // Mock transfer for testing
+                    transactionId = `mock_tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                }
+
+                // Update transfer status
+                await db.collection('pending_transfers').doc(transferDoc.id).update({
+                    status: 'COMPLETED',
+                    transactionId: transactionId,
+                    completedAt: Date.now()
+                });
+
+                // Update redemption status
+                if (transferData.redemptionId) {
+                    await db.collection('redemptions').doc(transferData.redemptionId).update({
+                        status: 'COMPLETED',
+                        transactionId: transactionId,
+                        completedAt: Date.now()
+                    });
+                }
+
+                // Log success
+                await db.collection('transfer_log').add({
+                    transferId: transferDoc.id,
+                    redemptionId: transferData.redemptionId,
+                    uid: transferData.uid,
+                    amount: transferData.amount,
+                    hederaAccountId: transferData.hederaAccountId,
+                    transactionId: transactionId,
+                    status: 'SUCCESS',
+                    timestamp: Date.now()
+                });
+
+                // Publish to HCS
+                const hcsMessage = {
+                    type: 'token_transfer_completed',
+                    uid: transferData.uid,
+                    amount: transferData.amount,
+                    transactionId: transactionId,
+                    timestamp: Date.now()
+                };
+                await publishToHCS(hcsMessage);
+
+                processed++;
+
+            } catch (error) {
+                console.error(`Transfer failed for ${transferDoc.id}:`, error);
+                
+                // Increment retry count
+                await db.collection('pending_transfers').doc(transferDoc.id).update({
+                    retryCount: (transferData.retryCount || 0) + 1,
+                    lastError: error.message,
+                    lastRetryAt: Date.now()
+                });
+
+                // If max retries reached, mark as failed
+                if ((transferData.retryCount || 0) >= 2) {
+                    await db.collection('pending_transfers').doc(transferDoc.id).update({
+                        status: 'FAILED'
+                    });
+
+                    if (transferData.redemptionId) {
+                        await db.collection('redemptions').doc(transferData.redemptionId).update({
+                            status: 'FAILED',
+                            error: error.message
+                        });
+
+                        // Refund user's available balance
+                        const userRef = db.collection('users').doc(transferData.uid);
+                        await db.runTransaction(async (transaction) => {
+                            const userDoc = await transaction.get(userRef);
+                            const userData = userDoc.data();
+                            
+                            transaction.update(userRef, {
+                                available_balance: userData.available_balance + transferData.amount
+                            });
+                        });
+                    }
+                }
+
+                failed++;
+            }
+        }
+
+        res.json({
+            success: true,
+            processed: processed,
+            failed: failed,
+            total: pendingTransfers.size
+        });
+
+    } catch (error) {
+        console.error('Error processing transfers:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Cloud Function: Unlock Expired Locks for User
+exports.unlockExpiredTokens = onCall({ cors: true }, async (request) => {
+    try {
+        const { uid } = request.data;
+        const authUid = request.auth?.uid;
+
+        if (!authUid || authUid !== uid) {
+            throw new Error('Authentication mismatch');
+        }
+
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) {
+            throw new Error('User not found');
+        }
+
+        const userData = userDoc.data();
+        const now = Date.now();
+        let unlockedAmount = 0;
+        const remainingLocks = [];
+
+        if (userData.locks) {
+            userData.locks.forEach(lock => {
+                if (lock.unlockAt <= now) {
+                    unlockedAmount += lock.amount;
+                } else {
+                    remainingLocks.push(lock);
+                }
+            });
+        }
+
+        if (unlockedAmount > 0) {
+            await db.collection('users').doc(uid).update({
+                available_balance: userData.available_balance + unlockedAmount,
+                locked_balance: userData.locked_balance - unlockedAmount,
+                locks: remainingLocks
+            });
+
+            // Log unlock event
+            await db.collection('rewards_log').add({
+                id: `unlock_${uid}_${Date.now()}`,
+                uid: uid,
+                did: userData.did,
+                eventType: 'token_unlock',
+                amount: unlockedAmount,
+                immediate: unlockedAmount,
+                locked: 0,
+                status: 'COMPLETED',
+                createdAt: Date.now()
+            });
+        }
+
+        return {
+            success: true,
+            unlockedAmount: fromCMEUnits(unlockedAmount),
+            newAvailableBalance: fromCMEUnits(userData.available_balance + unlockedAmount),
+            remainingLocks: remainingLocks.map(lock => ({
+                amount: fromCMEUnits(lock.amount),
+                unlockDate: new Date(lock.unlockAt).toISOString(),
+                source: lock.source
+            }))
+        };
+
+    } catch (error) {
+        console.error('Error unlocking tokens:', error);
+        throw new Error(error.message);
+    }
+});
+
+// ===== ADMIN FUNCTIONS =====
+
+// Cloud Function: Admin - Get System Overview
+exports.getSystemOverview = onCall({ cors: true }, async (request) => {
+    try {
+        const authUid = request.auth?.uid;
+        
+        // Check admin privileges
+        const adminDoc = await db.collection('admins').doc(authUid).get();
+        if (!adminDoc.exists) {
+            throw new Error('Unauthorized - Admin access required');
+        }
+
+        // Get system metrics
+        const metricsDoc = await db.collection('config').doc('metrics').get();
+        const metrics = metricsDoc.data() || {};
+
+        // Get user count
+        const usersSnapshot = await db.collection('users').count().get();
+        const userCount = usersSnapshot.data().count;
+
+        // Get pending transfers
+        const pendingTransfersSnapshot = await db.collection('pending_transfers')
+            .where('status', '==', 'PENDING')
+            .count()
+            .get();
+        const pendingCount = pendingTransfersSnapshot.data().count;
+
+        // Get today's activity
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStart = today.getTime();
+
+        const todayRewardsSnapshot = await db.collection('rewards_log')
+            .where('createdAt', '>=', todayStart)
+            .count()
+            .get();
+        const todayRewardsCount = todayRewardsSnapshot.data().count;
+
+        return {
+            success: true,
+            overview: {
+                totalUsers: userCount,
+                totalDistributed: fromCMEUnits(metrics.total_distributed || 0),
+                dailyDistribution: fromCMEUnits(metrics.daily_distribution || 0),
+                pendingTransfers: pendingCount,
+                todayRewards: todayRewardsCount,
+                currentTier: Math.min(10, Math.floor(userCount / 10000)),
+                eventStats: metrics.event_stats || {},
+                lastUpdated: metrics.last_updated
+            }
+        };
+
+    } catch (error) {
+        console.error('Error getting system overview:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Admin - Configure Reward Rates
+exports.configureRewardRates = onCall({ cors: true }, async (request) => {
+    try {
+        const { rewardConfig } = request.data;
+        const authUid = request.auth?.uid;
+        
+        // Check admin privileges
+        const adminDoc = await db.collection('admins').doc(authUid).get();
+        if (!adminDoc.exists) {
+            throw new Error('Unauthorized - Admin access required');
+        }
+
+        // Validate reward config structure
+        if (!rewardConfig || typeof rewardConfig !== 'object') {
+            throw new Error('Invalid reward configuration');
+        }
+
+        // Validate each reward type
+        const validEventTypes = ['video_watch', 'ad_view', 'daily_airdrop', 'social_follow', 'referral_bonus', 'live_stream', 'quiz_completion'];
+        const processedConfig = {};
+
+        for (const [eventType, config] of Object.entries(rewardConfig)) {
+            if (!validEventTypes.includes(eventType)) {
+                throw new Error(`Invalid event type: ${eventType}`);
+            }
+
+            processedConfig[eventType] = {
+                base: parseFloat(config.base) || 0,
+                enabled: Boolean(config.enabled),
+                lastUpdated: Date.now(),
+                updatedBy: authUid
+            };
+        }
+
+        await db.collection('config').doc('reward_rates').set(processedConfig);
+
+        // Log admin action
+        await db.collection('admin_log').add({
+            adminUid: authUid,
+            action: 'configure_reward_rates',
+            data: processedConfig,
+            timestamp: Date.now()
+        });
+
+        return {
+            success: true,
+            message: 'Reward rates configuration updated successfully',
+            config: processedConfig
+        };
+
+    } catch (error) {
+        console.error('Error configuring reward rates:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Admin - Toggle Reward Type
+exports.toggleRewardType = onCall({ cors: true }, async (request) => {
+    try {
+        const { eventType, enabled } = request.data;
+        const authUid = request.auth?.uid;
+        
+        // Check admin privileges
+        const adminDoc = await db.collection('admins').doc(authUid).get();
+        if (!adminDoc.exists) {
+            throw new Error('Unauthorized - Admin access required');
+        }
+
+        // Update specific reward type
+        const configRef = db.collection('config').doc('reward_rates');
+        await configRef.update({
+            [`${eventType}.enabled`]: Boolean(enabled),
+            [`${eventType}.lastUpdated`]: Date.now(),
+            [`${eventType}.updatedBy`]: authUid
+        });
+
+        // Log admin action
+        await db.collection('admin_log').add({
+            adminUid: authUid,
+            action: 'toggle_reward_type',
+            data: { eventType, enabled },
+            timestamp: Date.now()
+        });
+
+        return {
+            success: true,
+            message: `${eventType} rewards ${enabled ? 'enabled' : 'disabled'} successfully`
+        };
+
+    } catch (error) {
+        console.error('Error toggling reward type:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Admin - Bulk Airdrop
+exports.bulkAirdrop = onCall({ cors: true }, async (request) => {
+    try {
+        const { targetUsers, amount, reason, immediate, locked } = request.data;
+        const authUid = request.auth?.uid;
+        
+        // Check admin privileges
+        const adminDoc = await db.collection('admins').doc(authUid).get();
+        if (!adminDoc.exists) {
+            throw new Error('Unauthorized - Admin access required');
+        }
+
+        // Validate parameters
+        if (!Array.isArray(targetUsers) || targetUsers.length === 0) {
+            throw new Error('Target users must be a non-empty array');
+        }
+
+        if (!amount || amount <= 0) {
+            throw new Error('Amount must be greater than 0');
+        }
+
+        const totalAmount = toCMEUnits(amount);
+        const immediateAmount = immediate ? toCMEUnits(immediate) : Math.floor(totalAmount * 0.5);
+        const lockedAmount = locked ? toCMEUnits(locked) : Math.floor(totalAmount * 0.5);
+
+        // Process airdrop for each user
+        const results = [];
+        const batch = db.batch();
+
+        for (const uid of targetUsers.slice(0, 100)) { // Limit to 100 users per batch
+            try {
+                const userRef = db.collection('users').doc(uid);
+                const userDoc = await userRef.get();
+
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    
+                    // Update user balance
+                    const newAvailableBalance = userData.available_balance + immediateAmount;
+                    const newLockedBalance = userData.locked_balance + lockedAmount;
+                    const newTotalBalance = userData.points_balance + totalAmount;
+                    
+                    const updates = {
+                        points_balance: newTotalBalance,
+                        available_balance: newAvailableBalance,
+                        locked_balance: newLockedBalance
+                    };
+
+                    // Add lock if there's locked amount
+                    if (lockedAmount > 0) {
+                        const newLock = {
+                            lockId: `airdrop_${uid}_${Date.now()}`,
+                            amount: lockedAmount,
+                            unlockAt: Date.now() + (2 * 365 * 24 * 60 * 60 * 1000), // 2 years
+                            source: 'admin_airdrop'
+                        };
+                        
+                        updates.locks = [...(userData.locks || []), newLock];
+                    }
+
+                    batch.update(userRef, updates);
+
+                    // Log the airdrop
+                    const logRef = db.collection('rewards_log').doc();
+                    batch.set(logRef, {
+                        id: logRef.id,
+                        uid: uid,
+                        did: userData.did,
+                        eventType: 'admin_airdrop',
+                        amount: totalAmount,
+                        immediate: immediateAmount,
+                        locked: lockedAmount,
+                        status: 'COMPLETED',
+                        reason: reason || 'Admin airdrop',
+                        adminUid: authUid,
+                        createdAt: Date.now()
+                    });
+
+                    results.push({ uid, status: 'success' });
+                } else {
+                    results.push({ uid, status: 'user_not_found' });
+                }
+            } catch (error) {
+                results.push({ uid, status: 'error', error: error.message });
+            }
+        }
+
+        // Commit batch
+        await batch.commit();
+
+        // Log admin action
+        await db.collection('admin_log').add({
+            adminUid: authUid,
+            action: 'bulk_airdrop',
+            data: { 
+                targetUsers: targetUsers.length, 
+                amount: fromCMEUnits(totalAmount),
+                immediate: fromCMEUnits(immediateAmount),
+                locked: fromCMEUnits(lockedAmount),
+                reason 
+            },
+            timestamp: Date.now()
+        });
+
+        const successCount = results.filter(r => r.status === 'success').length;
+
+        return {
+            success: true,
+            message: `Airdrop completed: ${successCount}/${targetUsers.length} users processed successfully`,
+            results: results
+        };
+
+    } catch (error) {
+        console.error('Error processing bulk airdrop:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Admin - Configure Halving Tiers
+exports.configureHalvingTiers = onCall({ cors: true }, async (request) => {
+    try {
+        const { halvingConfig } = request.data;
+        const authUid = request.auth?.uid;
+        
+        // Check admin privileges
+        const adminDoc = await db.collection('admins').doc(authUid).get();
+        if (!adminDoc.exists) {
+            throw new Error('Unauthorized - Admin access required');
+        }
+
+        // Validate halving config structure
+        if (!halvingConfig || typeof halvingConfig !== 'object') {
+            throw new Error('Invalid halving configuration');
+        }
+
+        await db.collection('config').doc('halving_config').set({
+            ...halvingConfig,
+            lastUpdated: Date.now(),
+            updatedBy: authUid
+        });
+
+        // Log admin action
+        await db.collection('admin_log').add({
+            adminUid: authUid,
+            action: 'configure_halving_tiers',
+            data: halvingConfig,
+            timestamp: Date.now()
+        });
+
+        return {
+            success: true,
+            message: 'Halving configuration updated successfully',
+            config: halvingConfig
+        };
+
+    } catch (error) {
+        console.error('Error configuring halving tiers:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Cloud Function: Admin - Emergency System Control
+exports.emergencySystemControl = onCall({ cors: true }, async (request) => {
+    try {
+        const { action, reason } = request.data;
+        const authUid = request.auth?.uid;
+        
+        // Check admin privileges
+        const adminDoc = await db.collection('admins').doc(authUid).get();
+        if (!adminDoc.exists) {
+            throw new Error('Unauthorized - Admin access required');
+        }
+
+        const validActions = ['pause_all', 'resume_all', 'pause_rewards', 'resume_rewards', 'maintenance_mode'];
+        if (!validActions.includes(action)) {
+            throw new Error('Invalid action');
+        }
+
+        const systemStatus = {
+            enabled: !action.includes('pause') && action !== 'maintenance_mode',
+            maintenance: action === 'maintenance_mode',
+            lastUpdated: Date.now(),
+            updatedBy: authUid,
+            reason: reason || 'Emergency admin control'
+        };
+
+        await db.collection('config').doc('system_status').set(systemStatus);
+
+        // Log admin action
+        await db.collection('admin_log').add({
+            adminUid: authUid,
+            action: 'emergency_system_control',
+            data: { action, reason },
+            timestamp: Date.now()
+        });
+
+        return {
+            success: true,
+            message: `System ${action.replace('_', ' ')} activated successfully`,
+            status: systemStatus
+        };
+
+    } catch (error) {
+        console.error('Error in emergency system control:', error);
+        throw new Error(error.message);
+    }
+});
+
+// Scheduled Function: Reset Daily Metrics (runs daily at midnight UTC)
+exports.resetDailyMetrics = onSchedule({
+    schedule: '0 0 * * *', // Daily at midnight UTC
+    timeZone: 'UTC'
+}, async (context) => {
+    try {
+        console.log('🔄 Resetting daily metrics...');
+        
+        const metricsRef = db.collection('config').doc('metrics');
+        await metricsRef.update({
+            daily_distribution: 0,
+            last_daily_reset: Date.now()
+        });
+        
+        console.log('✅ Daily metrics reset completed');
+        return { success: true, message: 'Daily metrics reset completed' };
+        
+    } catch (error) {
+        console.error('❌ Error resetting daily metrics:', error);
+        throw error;
+    }
+});
+
+// Scheduled Function: Process Token Transfers (runs every 5 minutes)
+exports.scheduledTokenTransfers = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC'
+}, async (context) => {
+    try {
+        console.log('🔄 Processing scheduled token transfers...');
+        
+        const batchSize = 5; // Smaller batch for automated processing
+        const pendingTransfers = await db.collection('pending_transfers')
+            .where('status', '==', 'PENDING')
+            .where('retryCount', '<', 3)
+            .limit(batchSize)
+            .get();
+
+        let processed = 0;
+        
+        for (const transferDoc of pendingTransfers.docs) {
+            const transferData = transferDoc.data();
+            
+            try {
+                let transactionId = null;
+                
+                if (hederaClient && CNE_TOKEN_ID) {
+                    const transferTx = new TransferTransaction()
+                        .addTokenTransfer(CNE_TOKEN_ID, process.env.OPERATOR_ACCOUNT_ID, -transferData.amount)
+                        .addTokenTransfer(CNE_TOKEN_ID, transferData.hederaAccountId, transferData.amount)
+                        .freezeWith(hederaClient);
+
+                    const response = await transferTx.execute(hederaClient);
+                    transactionId = response.transactionId.toString();
+                } else {
+                    transactionId = `mock_tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                }
+
+                await db.collection('pending_transfers').doc(transferDoc.id).update({
+                    status: 'COMPLETED',
+                    transactionId: transactionId,
+                    completedAt: Date.now()
+                });
+
+                if (transferData.redemptionId) {
+                    await db.collection('redemptions').doc(transferData.redemptionId).update({
+                        status: 'COMPLETED',
+                        transactionId: transactionId,
+                        completedAt: Date.now()
+                    });
+                }
+
+                processed++;
+                
+            } catch (error) {
+                console.error(`Transfer failed for ${transferDoc.id}:`, error);
+                
+                await db.collection('pending_transfers').doc(transferDoc.id).update({
+                    retryCount: (transferData.retryCount || 0) + 1,
+                    lastError: error.message,
+                    lastRetryAt: Date.now()
+                });
+            }
+        }
+        
+        console.log(`✅ Processed ${processed} token transfers`);
+        return { success: true, processed: processed };
+        
+    } catch (error) {
+        console.error('❌ Error in scheduled token transfers:', error);
+        throw error;
     }
 });

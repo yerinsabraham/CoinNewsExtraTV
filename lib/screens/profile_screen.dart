@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:feather_icons/feather_icons.dart';
 import '../services/auth_service.dart';
+import '../services/user_balance_service.dart';
+import '../services/reward_service.dart';
 import '../provider/admin_provider.dart';
 import 'login_screen.dart';
 import 'admin_management_screen.dart';
@@ -144,15 +146,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
                   // Stats Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildStatItem('Videos Watched', '15'),
-                      Container(width: 1, height: 40, color: Colors.grey[700]),
-                      _buildStatItem('Rewards Earned', '\$12.50'),
-                      Container(width: 1, height: 40, color: Colors.grey[700]),
-                      _buildStatItem('Streak Days', '7'),
-                    ],
+                  Consumer<UserBalanceService>(
+                    builder: (context, balanceService, child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildStatItem('Videos Watched', '${balanceService.earningStats.videosWatched}'),
+                          Container(width: 1, height: 40, color: Colors.grey[700]),
+                          _buildStatItem('Rewards Earned', '\$${balanceService.balance.totalUsdValue.toStringAsFixed(2)}'),
+                          Container(width: 1, height: 40, color: Colors.grey[700]),
+                          _buildStreakDaysItem(),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -192,12 +198,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        Text(
-                          '\$12.50 USD',
-                          style: TextStyle(
-                            color: Colors.grey[300],
-                            fontSize: 14,
-                          ),
+                        Consumer<UserBalanceService>(
+                          builder: (context, balanceService, child) {
+                            return Text(
+                              '\$${balanceService.balance.totalUsdValue.toStringAsFixed(2)} USD',
+                              style: TextStyle(
+                                color: Colors.grey[300],
+                                fontSize: 14,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -329,16 +339,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Liked videos coming soon!')),
-                );
-              },
-            ),
-            _buildMenuOption(
-              icon: Icons.download_outlined,
-              title: 'Downloads',
-              subtitle: 'Your offline videos',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Downloads coming soon!')),
                 );
               },
             ),
@@ -489,6 +489,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : Colors.grey[900],
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       ),
+    );
+  }
+
+  Widget _buildStreakDaysItem() {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: RewardService.getDailyRewardStatus(),
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        final currentStreak = data?['currentStreak'] ?? 0;
+        
+        return _buildStatItem('Streak Days', '$currentStreak');
+      },
     );
   }
 }

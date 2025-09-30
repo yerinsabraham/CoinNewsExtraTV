@@ -214,11 +214,11 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
         totalDurationSeconds: 60,
       );
       
-      if (result != null && result['success'] == true) {
-        _addResult('✅ Video reward: +${result['rewardAmount']} CNE');
+      if (result != null && result.success == true) {
+        _addResult('✅ Video reward: +${result.reward ?? 0} CNE');
         await _refreshBalance();
       } else {
-        _addResult('❌ Video reward failed: ${result?['message'] ?? 'Unknown error'}');
+        _addResult('❌ Video reward failed: ${result?.message ?? 'Unknown error'}');
       }
     } catch (e) {
       _addResult('❌ Video reward error: $e');
@@ -232,14 +232,13 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
         quizId: 'test_quiz_${DateTime.now().millisecondsSinceEpoch}',
         score: 8,
         totalQuestions: 10,
-        timeTakenSeconds: 120,
       );
       
-      if (result != null && result['success'] == true) {
-        _addResult('✅ Quiz reward: +${result['rewardAmount']} CNE');
+      if (result != null && result.success == true) {
+        _addResult('✅ Quiz reward: +${result.reward ?? 0} CNE');
         await _refreshBalance();
       } else {
-        _addResult('❌ Quiz reward failed: ${result?['message'] ?? 'Unknown error'}');
+        _addResult('❌ Quiz reward failed: ${result?.message ?? 'Unknown error'}');
       }
     } catch (e) {
       _addResult('❌ Quiz reward error: $e');
@@ -251,11 +250,11 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
     try {
       final result = await RewardService.claimDailyReward();
       
-      if (result != null && result['success'] == true) {
-        _addResult('✅ Daily reward: +${result['rewardAmount']} CNE');
+      if (result != null && result.success == true) {
+        _addResult('✅ Daily reward: +${result.reward ?? 0} CNE');
         await _refreshBalance();
       } else {
-        _addResult('❌ Daily reward failed: ${result?['message'] ?? 'Unknown error'}');
+        _addResult('❌ Daily reward failed: ${result?.message ?? 'Unknown error'}');
       }
     } catch (e) {
       _addResult('❌ Daily reward error: $e');
@@ -267,14 +266,13 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
     try {
       final result = await RewardService.claimSocialReward(
         platform: 'twitter',
-        socialMediaUrl: 'https://twitter.com/CoinNewsExtraTv',
       );
       
-      if (result != null && result['success'] == true) {
-        _addResult('✅ Social reward: +${result['rewardAmount']} CNE');
+      if (result != null && result.success == true) {
+        _addResult('✅ Social reward: +${result.reward ?? 0} CNE');
         await _refreshBalance();
       } else {
-        _addResult('❌ Social reward failed: ${result?['message'] ?? 'Unknown error'}');
+        _addResult('❌ Social reward failed: ${result?.message ?? 'Unknown error'}');
       }
     } catch (e) {
       _addResult('❌ Social reward error: $e');
@@ -286,15 +284,14 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
     try {
       final result = await RewardService.claimAdReward(
         adId: 'test_ad_${DateTime.now().millisecondsSinceEpoch}',
-        adProvider: 'test_provider',
-        completedFully: true,
+        adDurationSeconds: 30,
       );
       
-      if (result != null && result['success'] == true) {
-        _addResult('✅ Ad reward: +${result['rewardAmount']} CNE');
+      if (result != null && result.success == true) {
+        _addResult('✅ Ad reward: +${result.reward ?? 0} CNE');
         await _refreshBalance();
       } else {
-        _addResult('❌ Ad reward failed: ${result?['message'] ?? 'Unknown error'}');
+        _addResult('❌ Ad reward failed: ${result?.message ?? 'Unknown error'}');
       }
     } catch (e) {
       _addResult('❌ Ad reward error: $e');
@@ -309,11 +306,11 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
         watchDurationSeconds: 300,
       );
       
-      if (result != null && result['success'] == true) {
-        _addResult('✅ Live stream reward: +${result['rewardAmount']} CNE');
+      if (result != null && result.success == true) {
+        _addResult('✅ Live stream reward: +${result.reward ?? 0} CNE');
         await _refreshBalance();
       } else {
-        _addResult('❌ Live stream reward failed: ${result?['message'] ?? 'Unknown error'}');
+        _addResult('❌ Live stream reward failed: ${result?.message ?? 'Unknown error'}');
       }
     } catch (e) {
       _addResult('❌ Live stream reward error: $e');
@@ -382,7 +379,7 @@ class _RewardSystemTestPageState extends State<RewardSystemTestPage> {
 
   Future<void> _refreshBalance() async {
     final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-    await balanceService.refreshBalance();
+    await balanceService.loadUserBalance();
   }
 
   Future<void> _runAllTests() async {

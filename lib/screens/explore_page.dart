@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'video_detail_screen.dart';
+import '../services/youtube_thumbnail_service.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -10,59 +11,60 @@ class ExplorePage extends StatefulWidget {
 
 class _ExplorePageState extends State<ExplorePage> {
   final TextEditingController _searchController = TextEditingController();
+  final YouTubeThumbnailService _thumbnailService = YouTubeThumbnailService();
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
   
   // Only videos from YouTube links provided to the app (same as home banner carousel)
   final List<Map<String, dynamic>> _allVideos = [
     {
-      'id': 'p4kmPtTU4lw',
+      'id': 'M7lc1UVf-VE',
       'title': 'Bitcoin Breaking \$100K? Market Analysis',
       'channel': 'CoinNewsExtra',
       'channelName': 'CoinNewsExtra',
       'views': '25K views',
       'uploadTime': '2 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/p4kmPtTU4lw/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/M7lc1UVf-VE/maxresdefault.jpg',
       'duration': '12:30',
     },
     {
-      'id': 'dQw4w9WgXcQ', 
+      'id': '3jDhvKczYdQ', 
       'title': 'Ethereum 2.0 Complete Guide',
       'channel': 'Crypto Education',
       'channelName': 'Crypto Education',
       'views': '18K views',
       'uploadTime': '4 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/3jDhvKczYdQ/maxresdefault.jpg',
       'duration': '15:45',
     },
     {
-      'id': 'L_jWHffIx5E',
+      'id': 'kRuZKg3j4Ks',
       'title': 'Top 10 Altcoins for 2025', 
       'channel': 'CoinNewsExtra',
       'channelName': 'CoinNewsExtra',
       'views': '32K views',
       'uploadTime': '6 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/L_jWHffIx5E/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/kRuZKg3j4Ks/maxresdefault.jpg',
       'duration': '20:15',
     },
     {
-      'id': 'fJ9rUzIMcZQ',
+      'id': '3Kf8Od6nIQM',
       'title': 'DeFi Explained: Complete Beginner Guide',
       'channel': 'DeFi Academy',
       'channelName': 'DeFi Academy',
       'views': '15K views',
       'uploadTime': '8 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/fJ9rUzIMcZQ/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/3Kf8Od6nIQM/maxresdefault.jpg',
       'duration': '18:22',
     },
     {
-      'id': 'zbRSjy4CSzM',
+      'id': '5-year-old-earns-6-figures-trading-stocks',
       'title': 'NFT Market Trends & Analysis',
       'channel': 'NFT Insights',
       'channelName': 'NFT Insights',
       'views': '12K views',
       'uploadTime': '10 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/zbRSjy4CSzM/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/5-year-old-earns-6-figures-trading-stocks/maxresdefault.jpg',
       'duration': '14:08',
     },
   ];
@@ -312,25 +314,25 @@ class _ExplorePageState extends State<ExplorePage> {
                 ),
                 child: Stack(
                   children: [
-                    // Thumbnail image (fallback to colored container)
-                    Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFF006833).withOpacity(0.3),
-                            Colors.grey[800]!,
-                          ],
+                    // YouTube thumbnail with fallback
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      child: YouTubeThumbnailService.buildThumbnailWidget(
+                        videoId: video['id'],
+                        child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          color: Colors.grey[800],
+                          child: Icon(
+                            Icons.play_circle_outline,
+                            color: Colors.white.withOpacity(0.7),
+                            size: 50,
+                          ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.play_circle_outline,
-                        color: Colors.white54,
-                        size: 40,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        semanticLabel: 'Thumbnail for ${video['title']}',
                       ),
                     ),
                     

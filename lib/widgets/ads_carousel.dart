@@ -19,22 +19,22 @@ class _AdsCarouselState extends State<AdsCarousel> {
     {
       'image': 'assets/images/ad1.png',
       'title': 'Exclusive Crypto Trading Course',
-      'url': 'https://www.youtube.com/watch?v=p4kmPtTU4lw',
+      'url': 'https://www.youtube.com/watch?v=M7lc1UVf-VE',
     },
     {
       'image': 'assets/images/ad2.png', 
       'title': 'Join Our Premium Community',
-      'url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      'url': 'https://www.youtube.com/watch?v=3jDhvKczYdQ',
     },
     {
       'image': 'assets/images/ad3.png',
       'title': 'Earn 50% More Rewards',
-      'url': 'https://www.youtube.com/watch?v=L_jWHffIx5E',
+      'url': 'https://www.youtube.com/watch?v=kRuZKg3j4Ks',
     },
     {
       'image': 'assets/images/ad4.png',
       'title': 'Limited Time: Double Coins',
-      'url': 'https://www.youtube.com/watch?v=fJ9rUzIMcZQ',
+      'url': 'https://www.youtube.com/watch?v=3Kf8Od6nIQM',
     },
   ];
 

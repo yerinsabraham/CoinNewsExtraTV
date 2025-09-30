@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import '../models/quiz_models.dart';
 import '../services/quiz_data_service.dart';
+import '../services/reward_service.dart';
+import '../services/user_balance_service.dart';
 import '../provider/admin_provider.dart';
 import '../widgets/chat_ad_carousel.dart';
 
@@ -15,9 +17,6 @@ class QuizPage extends StatefulWidget {
 }
 
 class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
-  // User wallet balance (mock - would come from actual wallet service)
-  int userTokenBalance = 50;
-  
   // Quiz session management
   QuizSession? currentSession;
   
@@ -83,8 +82,11 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   
   void _startGame(String categoryId) {
     try {
-      if (userTokenBalance < QuizDataService.defaultEntryFee) {
-        _showInsufficientTokensDialog();
+      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+      final availableBalance = balanceService.balance.unlockedBalance;
+      
+      if (availableBalance < QuizDataService.defaultEntryFee) {
+        _showInsufficientTokensDialog(availableBalance);
         return;
       }
       
@@ -94,7 +96,6 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
         currentSession = session;
         isInGame = true;
         showResult = false;
-        userTokenBalance -= QuizDataService.defaultEntryFee;
       });
       
       _slideController.forward();
@@ -167,12 +168,37 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     setState(() {});
   }
   
-  void _endGame() {
+  Future<void> _endGame() async {
     questionTimer?.cancel();
     
     if (currentSession != null) {
       final result = currentSession!.generateResult();
-      userTokenBalance += currentSession!.currentTokens;
+      
+      // Claim quiz completion reward
+      if (currentSession!.currentTokens > 0) {
+        try {
+          final rewardResult = await RewardService.claimQuizReward(
+            quizId: currentSession!.categoryId,
+            score: currentSession!.correctAnswers,
+            totalQuestions: currentSession!.questions.length,
+            metadata: {
+              'correctAnswers': currentSession!.correctAnswers,
+              'rewardAmount': currentSession!.currentTokens.toDouble(),
+            },
+          );
+          
+          if (rewardResult.success) {
+            final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+            await balanceService.processRewardClaim({
+              'success': rewardResult.success,
+              'reward': rewardResult.reward,
+              'message': rewardResult.message,
+            });
+          }
+        } catch (e) {
+          debugPrint('Error claiming quiz reward: $e');
+        }
+      }
       
       setState(() {
         isInGame = false;
@@ -190,17 +216,17 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     _slideController.reset();
   }
   
-  void _showInsufficientTokensDialog() {
+  void _showInsufficientTokensDialog(double availableBalance) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
         title: const Text(
-          'Insufficient Tokens',
+          'Insufficient CNE Tokens',
           style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
         ),
         content: Text(
-          'You need ${QuizDataService.defaultEntryFee} CNE tokens to play. Your balance: $userTokenBalance CNE',
+          'You need ${QuizDataService.defaultEntryFee} CNE tokens to play. Your available balance: ${availableBalance.toStringAsFixed(1)} CNE',
           style: TextStyle(color: Colors.grey[300], fontFamily: 'Lato'),
         ),
         actions: [
@@ -290,14 +316,18 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                   size: 16,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  '$userTokenBalance CNE',
-                  style: const TextStyle(
-                    color: Color(0xFF006833),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Lato',
-                  ),
+                Consumer<UserBalanceService>(
+                  builder: (context, balanceService, child) {
+                    return Text(
+                      '${balanceService.balance.unlockedBalance.toStringAsFixed(1)} CNE',
+                      style: const TextStyle(
+                        color: Color(0xFF006833),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

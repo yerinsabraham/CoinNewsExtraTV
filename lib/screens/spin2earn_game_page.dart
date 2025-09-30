@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:confetti/confetti.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../widgets/chat_ad_carousel.dart';
 import '../theme/app_colors.dart';
+import '../services/reward_service.dart';
+import '../services/user_balance_service.dart';
 
 class Spin2EarnGamePage extends StatefulWidget {
   const Spin2EarnGamePage({Key? key}) : super(key: key);
@@ -14,7 +18,6 @@ class Spin2EarnGamePage extends StatefulWidget {
 }
 
 class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
-  int _userCNE = 0;
   int _dailySpinsUsed = 0;
   int _maxDailySpins = 3;
   
@@ -111,7 +114,7 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     ];
     
     final totalWeight = weights.fold(0, (sum, weight) => sum + weight);
-    final random = (DateTime.now().millisecondsSinceEpoch % totalWeight);
+    final random = Random().nextInt(totalWeight);
     
     int cumulativeWeight = 0;
     for (int i = 0; i < weights.length; i++) {
@@ -121,10 +124,10 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
       }
     }
     
-    return 1; // Fallback to "Try Again"
+    return 4; // Fallback to 50 CNE (most common prize)
   }
   
-  void _handleSpinResult() {
+  Future<void> _handleSpinResult() async {
     // Reset spinning state
     setState(() {
       _isSpinning = false;
@@ -132,19 +135,26 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     
     // Use the stored selected index
     final prize = prizes[_lastSelectedIndex];
-    _processPrizeResult(prize);
+    await _processPrizeResult(prize);
   }
   
-  void _processPrizeResult(String prize) {
+  Future<void> _processPrizeResult(String prize) async {
     if (prize.contains('CNE')) {
       // Extract CNE amount (handle commas in numbers like 1,000)
       final amountStr = prize.replaceAll(RegExp(r'[^0-9,]'), '').replaceAll(',', '');
       final amount = int.tryParse(amountStr) ?? 0;
-      setState(() {
-        _userCNE += amount;
-      });
+      
+      debugPrint('🎰 Spin Debug: Prize="$prize", AmountStr="$amountStr", Amount=$amount');
+      
+      // For now, show success without backend integration
+      // TODO: Backend team needs to add spin_wheel event support
+      _showResultDialog(
+        prize, 
+        'Congratulations! You won $amount CNE!\n\n🚧 Note: Spin rewards will be integrated with your wallet once the backend supports spin wheel events.', 
+        true
+      );
+      
       _saveGameData();
-      _showResultDialog(prize, 'Congratulations! You won $amount CNE!', true);
     } else if (prize == 'NFT') {
       // NFT win - no CNE added but still a win
       _showResultDialog(prize, '🎨 Amazing! You won an NFT!\n\nYour NFT will be sent to your wallet soon.', true);
@@ -233,12 +243,16 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
                       children: [
                         const Icon(Icons.monetization_on, color: Colors.white, size: 16),
                         const SizedBox(width: 4),
-                        Text(
-                          'Balance: $_userCNE CNE',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Consumer<UserBalanceService>(
+                          builder: (context, balanceService, child) {
+                            return Text(
+                              'Balance: ${balanceService.balance.unlockedBalance.toStringAsFixed(1)} CNE',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -275,7 +289,6 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     final prefs = await SharedPreferences.getInstance();
     
     setState(() {
-      _userCNE = prefs.getInt('cne_balance') ?? 0;
       _dailySpinsUsed = prefs.getInt('daily_spins_used') ?? 0;
     });
     
@@ -296,7 +309,6 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     final prefs = await SharedPreferences.getInstance();
     final today = DateTime.now().toIso8601String().substring(0, 10);
     
-    await prefs.setInt('cne_balance', _userCNE);
     await prefs.setInt('daily_spins_used', _dailySpinsUsed);
     await prefs.setString('last_spin_date', today);
   }
@@ -325,12 +337,16 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
               children: [
                 const Icon(Icons.monetization_on, size: 16, color: Colors.white),
                 const SizedBox(width: 4),
-                Text(
-                  '$_userCNE',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Consumer<UserBalanceService>(
+                  builder: (context, balanceService, child) {
+                    return Text(
+                      '${balanceService.balance.unlockedBalance.toStringAsFixed(1)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

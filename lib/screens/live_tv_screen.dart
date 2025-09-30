@@ -13,7 +13,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
     {
       'name': 'Crypto News 24/7',
       'description': 'Latest cryptocurrency news and market updates',
-      'thumbnail': 'https://img.youtube.com/vi/p4kmPtTU4lw/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/M7lc1UVf-VE/maxresdefault.jpg',
       'viewers': '2.3K',
       'isLive': true,
       'category': 'News',
@@ -21,7 +21,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
     {
       'name': 'Bitcoin Analysis Live',
       'description': 'Real-time Bitcoin price analysis and trading signals',
-      'thumbnail': 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/3jDhvKczYdQ/maxresdefault.jpg',
       'viewers': '1.8K',
       'isLive': true,
       'category': 'Analysis',
