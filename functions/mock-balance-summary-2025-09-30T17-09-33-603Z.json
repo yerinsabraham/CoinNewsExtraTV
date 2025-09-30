@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "exportDate": "2025-09-30T17:09:33.581Z",
+    "exportVersion": "1.0.0",
+    "network": "testnet",
+    "targetNetwork": "mainnet",
+    "targetTokenId": "0.0.10007647",
+    "note": "Mock export for migration testing",
+    "exportHash": "b0b86bcebfa6a4d7a97d533dd41fb291475bc7979ab9c0fcb54ae258c2911295"
+  },
+  "totals": {
+    "userCount": 5,
+    "totalCNETokens": 71000,
+    "totalPlayExtraTokens": 12800,
+    "totalRewardsClaimed": 59000
+  },
+  "eligibleUsers": 4,
+  "totalUsers": 5
+}

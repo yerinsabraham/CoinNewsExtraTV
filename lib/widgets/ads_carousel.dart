@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
 
 class AdsCarousel extends StatefulWidget {
   const AdsCarousel({super.key});
@@ -14,29 +16,32 @@ class _AdsCarouselState extends State<AdsCarousel> {
   final PageController _controller = PageController();
   Timer? _timer;
 
-  // Sample promotional banners with links
-  final List<Map<String, String>> _bannerAds = [
-    {
-      'image': 'assets/images/ad1.png',
-      'title': 'Exclusive Crypto Trading Course',
-      'url': 'https://www.youtube.com/watch?v=M7lc1UVf-VE',
-    },
-    {
-      'image': 'assets/images/ad2.png', 
-      'title': 'Join Our Premium Community',
-      'url': 'https://www.youtube.com/watch?v=3jDhvKczYdQ',
-    },
-    {
-      'image': 'assets/images/ad3.png',
-      'title': 'Earn 50% More Rewards',
-      'url': 'https://www.youtube.com/watch?v=kRuZKg3j4Ks',
-    },
-    {
-      'image': 'assets/images/ad4.png',
-      'title': 'Limited Time: Double Coins',
-      'url': 'https://www.youtube.com/watch?v=3Kf8Od6nIQM',
-    },
-  ];
+  // Use centralized video data for promotional banners
+  List<Map<String, String>> get _bannerAds {
+    final videos = VideoData.getAllVideos();
+    return [
+      {
+        'image': 'assets/images/ad1.png',
+        'title': 'Exclusive Crypto Trading Course',
+        'url': videos.isNotEmpty ? videos[0].youtubeWatchUrl : '',
+      },
+      {
+        'image': 'assets/images/ad2.png', 
+        'title': 'Join Our Premium Community',
+        'url': videos.length > 1 ? videos[1].youtubeWatchUrl : '',
+      },
+      {
+        'image': 'assets/images/ad3.png',
+        'title': 'Earn 50% More Rewards',
+        'url': videos.length > 2 ? videos[2].youtubeWatchUrl : '',
+      },
+      {
+        'image': 'assets/images/ad4.png',
+        'title': 'Limited Time: Double Coins',
+        'url': videos.length > 3 ? videos[3].youtubeWatchUrl : '',
+      },
+    ];
+  }
 
   Future<void> _launchUrl(String urlString) async {
     final Uri url = Uri.parse(urlString);

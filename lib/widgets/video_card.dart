@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/youtube_thumbnail_helper.dart';
 
 class VideoCard extends StatelessWidget {
   final String title;
@@ -37,20 +38,7 @@ class VideoCard extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: Image.network(
-                    thumbnail,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[800],
-                        child: const Icon(
-                          Icons.play_circle_outline,
-                          color: Colors.white,
-                          size: 64,
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildThumbnailImage(),
                 ),
                 // Duration overlay
                 Positioned(
@@ -168,6 +156,87 @@ class VideoCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailImage() {
+    // Check if thumbnail is a YouTube URL and extract video ID
+    String? videoId = YouTubeThumbnailHelper.extractYoutubeId(thumbnail);
+    
+    if (videoId != null) {
+      // Use YouTube thumbnail helper for YouTube videos
+      String thumbnailUrl = YouTubeThumbnailHelper.buildYoutubeThumbnailUrl(videoId);
+      return Image.network(
+        thumbnailUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey[800],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / 
+                      loadingProgress.expectedTotalBytes!
+                    : null,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildFallbackThumbnail();
+        },
+      );
+    } else {
+      // Use regular network image for non-YouTube thumbnails
+      return Image.network(
+        thumbnail,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey[800],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / 
+                      loadingProgress.expectedTotalBytes!
+                    : null,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildFallbackThumbnail();
+        },
+      );
+    }
+  }
+
+  Widget _buildFallbackThumbnail() {
+    return Container(
+      color: Colors.grey[800],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.play_circle_outline,
+            color: Colors.white,
+            size: 64,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'CoinNews Extra',
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

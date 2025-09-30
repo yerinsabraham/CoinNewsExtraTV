@@ -1,0 +1,11 @@
+{
+  "treasury_account_id": "0.0.10007646",
+  "treasury_private_key_ref": "hedera-mainnet-treasury-0-0-10007646",
+  "treasury_public_key": "cc9cad78ef35aff4560dd51da3f7f8a2c1bdb6ba5ce009b1825eec271d22c44f",
+  "key_rotation_policy": "90_days",
+  "backup_locations": [
+    "primary_hsm_slot_1",
+    "backup_hsm_slot_2",
+    "offline_secure_storage"
+  ]
+}

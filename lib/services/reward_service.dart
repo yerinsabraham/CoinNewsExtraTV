@@ -756,6 +756,33 @@ class RewardService {
     };
   }
 
+  /// Deduct tokens for quiz entry fee or other expenses
+  static Future<RewardResult> deductTokens({
+    required double amount,
+    required String reason,
+    Map<String, dynamic>? metadata,
+  }) async {
+    if (_userId == null) {
+      return RewardResult(success: false, message: 'User not authenticated');
+    }
+    
+    try {
+      print('🔍 DEBUG: Deducting $amount tokens for $reason');
+      final result = await _functions.httpsCallable('deductTokens').call({
+        'uid': _userId,
+        'amount': amount,
+        'reason': reason,
+        'metadata': metadata ?? {},
+      });
+      
+      print('🔍 DEBUG: Token deduction result: ${result.data}');
+      return RewardResult.fromMap(result.data);
+    } catch (e) {
+      print('❌ DEBUG: Token deduction failed: $e');
+      return RewardResult(success: false, message: 'Token deduction failed: $e');
+    }
+  }
+
   /// Debug method to test Firebase Functions connectivity
   static Future<void> testFirebaseConnection() async {
     print('🔍 DEBUG: Testing Firebase Functions connection...');

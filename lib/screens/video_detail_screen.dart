@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../models/video_model.dart';
+import '../data/video_data.dart';
 
 class VideoDetailScreen extends StatefulWidget {
   final String videoId;
@@ -21,6 +23,8 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
   late YoutubePlayerController _controller;
   bool _isLiked = false;
   bool _isDisliked = false;
+  List<VideoModel> _recommendedVideos = [];
+  bool _loadingRecommended = true;
 
   @override
   void initState() {
@@ -33,6 +37,30 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
         showLiveFullscreenButton: false,
       ),
     );
+    _loadRecommendedVideos();
+  }
+
+  Future<void> _loadRecommendedVideos() async {
+    try {
+      setState(() => _loadingRecommended = true);
+      
+      // Get all videos from database
+      final allVideos = await VideoData.getVideosFromDatabase();
+      
+      // Filter out current video and take first 4 as recommended
+      final recommended = allVideos
+          .where((video) => video.youtubeId != widget.videoId)
+          .take(4)
+          .toList();
+      
+      setState(() {
+        _recommendedVideos = recommended;
+        _loadingRecommended = false;
+      });
+    } catch (e) {
+      print('❌ Error loading recommended videos: $e');
+      setState(() => _loadingRecommended = false);
+    }
   }
 
   @override
@@ -324,6 +352,24 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                         'Can you make a video about DeFi next?',
                         '45 minutes ago',
                       ),
+                      
+                      const SizedBox(height: 30),
+                      
+                      // Recommended videos section
+                      const Text(
+                        'Recommended Videos',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Recommended videos list
+                      _buildRecommendedVideos(),
                     ],
                   ),
                 ),
@@ -435,6 +481,165 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendedVideos() {
+    if (_loadingRecommended) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(
+            color: Color(0xFF006833),
+          ),
+        ),
+      );
+    }
+
+    if (_recommendedVideos.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'No recommended videos available',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+            fontFamily: 'Lato',
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: _recommendedVideos.map((video) => _buildRecommendedVideoItem(video)).toList(),
+    );
+  }
+
+  Widget _buildRecommendedVideoItem(VideoModel video) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to the new video
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoDetailScreen(
+              videoId: video.youtubeId,
+              title: video.title,
+              channelName: video.channelName ?? 'CoinNews Extra',
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            // Video thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                width: 120,
+                height: 68,
+                color: Colors.grey[800],
+                child: Image.network(
+                  video.youtubeThumbnailUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[800],
+                      child: const Icon(
+                        Icons.play_circle_outline,
+                        color: Colors.white54,
+                        size: 30,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            // Video info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Lato',
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    video.channelName ?? 'CoinNews Extra',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        video.views ?? '0 views',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        video.uploadTime ?? '',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Duration badge
+            if (video.duration != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  video.duration!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

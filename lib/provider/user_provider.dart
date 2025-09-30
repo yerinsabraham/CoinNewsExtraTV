@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/user_local_storage_service.dart';
 
 class UserProvider extends ChangeNotifier {
   User? _user;
@@ -12,8 +13,16 @@ class UserProvider extends ChangeNotifier {
   }
 
   void _init() {
-    FirebaseAuth.instance.authStateChanges().listen((u) {
+    FirebaseAuth.instance.authStateChanges().listen((u) async {
+      final previousUser = _user;
       _user = u;
+      
+      // Handle account switching
+      if (previousUser?.uid != u?.uid) {
+        await UserLocalStorageService.handleUserSwitch();
+        print('🔄 Account switch detected: ${previousUser?.uid} → ${u?.uid}');
+      }
+      
       notifyListeners();
     });
   }
@@ -28,6 +37,8 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    // Clear user-specific local storage before signing out
+    await UserLocalStorageService.clearAllUserData();
     await AuthService.signOut();
   }
 }

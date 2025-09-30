@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_service.dart';  // Fix import path
+import '../services/auth_service.dart';
+import '../services/enhanced_auth_service.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
 
@@ -19,20 +20,37 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // Use enhanced authentication service to ensure complete setup
+      final result = await EnhancedAuthService.instance.signInUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      
+      if (!result.success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Login failed: ${result.error}")),
+          );
+        }
+        return;
+      }
+      
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Login successful! ✅"),
+            backgroundColor: Color(0xFF006833),
+          ),
+        );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       }
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.message}")),
+          SnackBar(content: Text("Error: $e")),
         );
       }
     } finally {

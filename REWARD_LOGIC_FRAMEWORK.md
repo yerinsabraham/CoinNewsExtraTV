@@ -7,7 +7,7 @@
 
 ## 🎯 Executive Summary
 
-**Phase 1 (Current)**: Implement complete reward engine on **CNE_TEST testnet** (Token ID: `0.0.6917127`)
+**Phase 1 (Current)**: Implement complete reward engine on **CNE_MAINNET mainnet** (Token ID: `0.0.9764298`)
 - Safe testing environment with infinite supply
 - Full halving tier simulation
 - 50% token locking mechanism (2-year vesting)
@@ -53,7 +53,7 @@
 - **Halving Calculator**: Dynamic reward amounts based on user count
 - **Lock Manager**: 50% immediate, 50% locked for 2 years
 - **Idempotency**: Prevents duplicate rewards
-- **Precision**: 8-decimal CNE_TEST token handling
+- **Precision**: 8-decimal CNE_MAINNET token handling
 
 #### 4. Ledger System
 - **Firestore Database**: Internal balance tracking
@@ -61,7 +61,7 @@
 - **Reconciliation**: Balance verification and audit trails
 
 #### 5. Hedera Integration
-- **Current**: CNE_TEST (0.0.6917127) on testnet
+- **Current**: CNE_MAINNET (0.0.9764298) on mainnet
 - **Future**: Mainnet CNE token integration
 - **HCS Topic**: 0.0.6917128 for transparency logging
 
@@ -74,7 +74,7 @@
 {
   uid: "firebase_user_id",
   wallet_address: "0.0.1234567", // Hedera account (nullable)
-  available_balance: 1250.75,    // Unlocked CNE_TEST ready to transfer
+  available_balance: 1250.75,    // Unlocked CNE_MAINNET ready to transfer
   locked_balance: 2480.25,       // Total locked tokens
   locks: [                       // Array of lock objects
     {
@@ -126,7 +126,7 @@
 {
   id: "transfer_uuid",
   to_wallet: "0.0.1234567",      // Recipient Hedera account
-  amount: 125.75,                // CNE_TEST amount to transfer
+  amount: 125.75,                // CNE_MAINNET amount to transfer
   status: "PENDING",             // PENDING, PROCESSING, COMPLETED, FAILED
   attempt_count: 0,              // Retry attempts for failed transfers
   batch_id: "batch_20250929_001", // For batched transfers
@@ -206,7 +206,7 @@
 ```javascript
 {
   user_count: 45750,             // Current total users (for halving calculation)
-  total_distributed: 2450000.75, // All-time CNE_TEST distributed
+  total_distributed: 2450000.75, // All-time CNE_MAINNET distributed
   total_locked: 1225000.375,     // Currently locked tokens
   total_unlocked: 1225000.375,   // Unlocked and available
   daily_distribution: 15750.5,   // Today's distribution
@@ -776,7 +776,7 @@ exports.trackDeviceActivity = onCall(async (request) => {
 // Example A: Live watch 10 minutes at 10,000 users
 const userCount = 10000;
 const tier = getHalvingTier(userCount); // Returns 10000
-const rewardAmount = 7; // CNE_TEST from mapping[10000][live_10min]
+const rewardAmount = 7; // CNE_MAINNET from mapping[10000][live_10min]
 
 const immediate = 3.5;  // 50% available immediately
 const locked = 3.5;     // 50% locked for 2 years
@@ -784,7 +784,7 @@ const locked = 3.5;     // 50% locked for 2 years
 // Example B: User signup at 100,000 users  
 const userCount = 100000;
 const tier = getHalvingTier(userCount); // Returns 100000
-const rewardAmount = 350; // CNE_TEST from mapping[100000][signup_bonus]
+const rewardAmount = 350; // CNE_MAINNET from mapping[100000][signup_bonus]
 
 const immediate = 175;  // 50% available immediately
 const locked = 175;     // 50% locked for 2 years
@@ -792,7 +792,7 @@ const locked = 175;     // 50% locked for 2 years
 // Example C: Ad viewed at 1,000,000 users
 const userCount = 1000000;
 const tier = getHalvingTier(userCount); // Returns 1000000  
-const rewardAmount = 0.35; // CNE_TEST from mapping[1000000][ad_view]
+const rewardAmount = 0.35; // CNE_MAINNET from mapping[1000000][ad_view]
 
 const immediate = 0.175;  // 50% available immediately
 const locked = 0.175;     // 50% locked for 2 years
@@ -805,7 +805,7 @@ function roundToCNEPrecision(amount) {
 
 ---
 
-## 🧪 Testing Strategy (CNE_TEST Phase)
+## 🧪 Testing Strategy (CNE_MAINNET Phase)
 
 ### Test Suite Implementation
 
@@ -955,11 +955,11 @@ describe('Anti-Abuse System', () => {
 ```javascript
 // Migration configuration
 const MIGRATION_CONFIG = {
-    testnet: {
-        tokenId: '0.0.6917127',
+    mainnet: {
+        tokenId: '0.0.9764298',
         treasury: '0.0.6917102',
         hcsTopic: '0.0.6917128',
-        network: 'testnet'
+        network: 'mainnet'
     },
     mainnet: {
         tokenId: 'TBD', // Real CNE token ID
@@ -1098,12 +1098,12 @@ exports.executeMainnetMigration = onCall(async (request) => {
         
     } catch (error) {
         // Rollback on failure
-        await admin.firestore().doc('config/hedera').update(MIGRATION_CONFIG.testnet);
+        await admin.firestore().doc('config/hedera').update(MIGRATION_CONFIG.mainnet);
         await admin.firestore().doc('config/system').update({
             rewards_paused: false,
             migration_in_progress: false,
             migration_failed_at: admin.firestore.FieldValue.serverTimestamp(),
-            network: 'testnet'
+            network: 'mainnet'
         });
         
         throw new functions.https.HttpsError('internal', `Migration failed: ${error.message}`);
@@ -1232,7 +1232,7 @@ exports.getSystemHealth = onCall(async (request) => {
     return {
         system_status: {
             rewards_active: !system?.rewards_paused,
-            network: system?.network || 'testnet',
+            network: system?.network || 'mainnet',
             migration_in_progress: system?.migration_in_progress || false
         },
         metrics: {
@@ -1259,7 +1259,7 @@ exports.getSystemHealth = onCall(async (request) => {
 ### Development Checklist
 
 #### Phase 1: Core Infrastructure ✅
-- [x] Firebase project setup with CNE_TEST integration
+- [x] Firebase project setup with CNE_MAINNET integration
 - [x] Firestore collections schema (users, rewards_log, etc.)
 - [x] Halving tier configuration document
 - [x] Basic reward calculation functions
@@ -1328,4 +1328,4 @@ exports.getSystemHealth = onCall(async (request) => {
 - ✅ Full security audit clearance
 - ✅ Emergency rollback capability tested
 
-This comprehensive reward framework provides a production-ready foundation for your tokenomics implementation, ensuring fair distribution, proper security, and seamless scaling from testnet to mainnet operations! 🚀
+This comprehensive reward framework provides a production-ready foundation for your tokenomics implementation, ensuring fair distribution, proper security, and seamless scaling from mainnet to mainnet operations! 🚀

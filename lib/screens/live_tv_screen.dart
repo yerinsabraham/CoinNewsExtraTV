@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
 
 class LiveTvScreen extends StatefulWidget {
   const LiveTvScreen({super.key});
@@ -8,42 +10,45 @@ class LiveTvScreen extends StatefulWidget {
 }
 
 class _LiveTvScreenState extends State<LiveTvScreen> {
-  // Sample live channels data
-  final List<Map<String, dynamic>> _liveChannels = [
-    {
-      'name': 'Crypto News 24/7',
-      'description': 'Latest cryptocurrency news and market updates',
-      'thumbnail': 'https://img.youtube.com/vi/M7lc1UVf-VE/maxresdefault.jpg',
-      'viewers': '2.3K',
-      'isLive': true,
-      'category': 'News',
-    },
-    {
-      'name': 'Bitcoin Analysis Live',
-      'description': 'Real-time Bitcoin price analysis and trading signals',
-      'thumbnail': 'https://img.youtube.com/vi/3jDhvKczYdQ/maxresdefault.jpg',
-      'viewers': '1.8K',
-      'isLive': true,
-      'category': 'Analysis',
-    },
-    {
-      'name': 'DeFi Education Stream',
-      'description': 'Learn about DeFi protocols and yield farming',
-      'thumbnail': 'https://img.youtube.com/vi/oHg5SJYRHA0/maxresdefault.jpg',
-      'viewers': '945',
-      'isLive': true,
-      'category': 'Education',
-    },
-    {
-      'name': 'NFT Marketplace Tour',
-      'description': 'Exploring the latest NFT collections and trends',
-      'thumbnail': 'https://img.youtube.com/vi/RDxaVw3X74s/maxresdefault.jpg',
-      'viewers': '567',
-      'isLive': false,
-      'category': 'NFTs',
-      'nextStream': 'Starting in 2 hours',
-    },
-  ];
+  // Generate live channels data from centralized video source
+  List<Map<String, dynamic>> get _liveChannels {
+    final videos = VideoData.getAllVideos();
+    return [
+      {
+        'name': 'Crypto News 24/7',
+        'description': 'Latest cryptocurrency news and market updates',
+        'thumbnail': videos.isNotEmpty ? videos[0].youtubeThumbnailUrl : '',
+        'viewers': '2.3K',
+        'isLive': true,
+        'category': 'News',
+      },
+      {
+        'name': 'Bitcoin Analysis Live',
+        'description': 'Real-time Bitcoin price analysis and trading signals',
+        'thumbnail': videos.length > 1 ? videos[1].youtubeThumbnailUrl : '',
+        'viewers': '1.8K',
+        'isLive': true,
+        'category': 'Analysis',
+      },
+      {
+        'name': 'DeFi Education Stream',
+        'description': 'Learn about DeFi protocols and yield farming',
+        'thumbnail': videos.length > 2 ? videos[2].youtubeThumbnailUrl : '',
+        'viewers': '945',
+        'isLive': true,
+        'category': 'Education',
+      },
+      {
+        'name': 'NFT Marketplace Tour',
+        'description': 'Exploring the latest NFT collections and trends',
+        'thumbnail': videos.length > 3 ? videos[3].youtubeThumbnailUrl : '',
+        'viewers': '567',
+        'isLive': false,
+        'category': 'NFTs',
+        'nextStream': 'Starting in 2 hours',
+      },
+    ];
+  }
 
   String _selectedCategory = 'All';
   final List<String> _categories = ['All', 'News', 'Analysis', 'Education', 'NFTs'];

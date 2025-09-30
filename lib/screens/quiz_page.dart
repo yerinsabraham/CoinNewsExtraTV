@@ -80,15 +80,38 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     super.dispose();
   }
   
-  void _startGame(String categoryId) {
+  void _startGame(String categoryId) async {
     try {
       final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-      final availableBalance = balanceService.balance.unlockedBalance;
+      final availableBalance = balanceService.balance.totalBalance;
       
       if (availableBalance < QuizDataService.defaultEntryFee) {
         _showInsufficientTokensDialog(availableBalance);
         return;
       }
+
+      // Show loading while deducting entry fee
+      _showLoadingDialog('Starting quiz...');
+      
+      // Deduct entry fee
+      final deductionResult = await RewardService.deductTokens(
+        amount: QuizDataService.defaultEntryFee.toDouble(),
+        reason: 'Quiz entry fee',
+        metadata: {'categoryId': categoryId},
+      );
+      
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      if (!deductionResult.success) {
+        _showErrorDialog('Failed to start quiz: ${deductionResult.message}');
+        return;
+      }
+      
+      // Update balance immediately and wait for completion
+      _showLoadingDialog('Updating balance...');
+      await balanceService.refreshAllData();
+      await Future.delayed(const Duration(milliseconds: 500)); // Allow UI to update
+      Navigator.of(context).pop(); // Close loading dialog
       
       final session = QuizDataService.createQuizSession(categoryId);
       
@@ -101,7 +124,17 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       _slideController.forward();
       _startQuestionTimer();
       
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Entry fee deducted: ${QuizDataService.defaultEntryFee} CNE. Good luck!'),
+          backgroundColor: Colors.orange[600],
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
     } catch (e) {
+      Navigator.of(context).pop(); // Close any open dialogs
       _showErrorDialog('Failed to start quiz: $e');
     }
   }
@@ -173,31 +206,71 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     
     if (currentSession != null) {
       final result = currentSession!.generateResult();
+      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
       
-      // Claim quiz completion reward
-      if (currentSession!.currentTokens > 0) {
-        try {
+      // Calculate net tokens change (current tokens - entry fee already paid)
+      final netTokenChange = currentSession!.currentTokens - QuizDataService.defaultEntryFee;
+      
+      try {
+        if (netTokenChange > 0) {
+          // Player won tokens - award them
+          debugPrint('Quiz completed: Awarding ${netTokenChange} CNE tokens');
           final rewardResult = await RewardService.claimQuizReward(
             quizId: currentSession!.categoryId,
             score: currentSession!.correctAnswers,
             totalQuestions: currentSession!.questions.length,
             metadata: {
               'correctAnswers': currentSession!.correctAnswers,
-              'rewardAmount': currentSession!.currentTokens.toDouble(),
+              'wrongAnswers': currentSession!.questions.length - currentSession!.correctAnswers,
+              'netRewardAmount': netTokenChange.toDouble(),
+              'finalTokens': currentSession!.currentTokens,
             },
           );
           
           if (rewardResult.success) {
-            final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+            debugPrint('Quiz reward claimed successfully: ${rewardResult.reward}');
             await balanceService.processRewardClaim({
               'success': rewardResult.success,
               'reward': rewardResult.reward,
               'message': rewardResult.message,
             });
+            // Add delay to ensure UI updates
+            await Future.delayed(const Duration(milliseconds: 500));
+          } else {
+            debugPrint('Failed to claim quiz reward: ${rewardResult.message}');
           }
-        } catch (e) {
-          debugPrint('Error claiming quiz reward: $e');
+        } else if (netTokenChange < 0) {
+          // Player lost tokens - deduct the additional loss
+          final additionalLoss = -netTokenChange; // Make positive
+          debugPrint('Quiz completed: Deducting additional ${additionalLoss} CNE tokens');
+          final deductionResult = await RewardService.deductTokens(
+            amount: additionalLoss.toDouble(),
+            reason: 'Quiz penalty (wrong answers)',
+            metadata: {
+              'categoryId': currentSession!.categoryId,
+              'correctAnswers': currentSession!.correctAnswers,
+              'wrongAnswers': currentSession!.questions.length - currentSession!.correctAnswers,
+              'penaltyAmount': additionalLoss.toDouble(),
+            },
+          );
+          
+          if (deductionResult.success) {
+            debugPrint('Quiz penalty deducted successfully');
+            await balanceService.refreshAllData();
+            await Future.delayed(const Duration(milliseconds: 500));
+          } else {
+            debugPrint('Failed to deduct quiz penalty: ${deductionResult.message}');
+          }
+        } else {
+          debugPrint('Quiz completed: Player broke even (entry fee only)');
         }
+        
+        // Always refresh balance at the end and wait for completion
+        await balanceService.refreshAllData();
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+      } catch (e) {
+        debugPrint('Error processing quiz result: $e');
       }
       
       setState(() {
@@ -268,6 +341,34 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     );
   }
   
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+                strokeWidth: 2,
+              ),
+            ),
+            const SizedBox(width: 20),
+            Text(
+              message,
+              style: TextStyle(color: Colors.grey[300], fontFamily: 'Lato'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -319,7 +420,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 Consumer<UserBalanceService>(
                   builder: (context, balanceService, child) {
                     return Text(
-                      '${balanceService.balance.unlockedBalance.toStringAsFixed(1)} CNE',
+                      '${balanceService.balance.totalBalance.toStringAsFixed(1)} CNE',
                       style: const TextStyle(
                         color: Color(0xFF006833),
                         fontSize: 12,

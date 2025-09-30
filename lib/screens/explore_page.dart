@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'video_detail_screen.dart';
 import '../services/youtube_thumbnail_service.dart';
+import '../widgets/youtube_thumbnail_widget.dart';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -12,67 +15,37 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   final TextEditingController _searchController = TextEditingController();
   final YouTubeThumbnailService _thumbnailService = YouTubeThumbnailService();
-  List<Map<String, dynamic>> _searchResults = [];
+  List<VideoModel> _searchResults = [];
+  List<VideoModel> _allVideos = [];
   bool _isSearching = false;
-  
-  // Only videos from YouTube links provided to the app (same as home banner carousel)
-  final List<Map<String, dynamic>> _allVideos = [
-    {
-      'id': 'M7lc1UVf-VE',
-      'title': 'Bitcoin Breaking \$100K? Market Analysis',
-      'channel': 'CoinNewsExtra',
-      'channelName': 'CoinNewsExtra',
-      'views': '25K views',
-      'uploadTime': '2 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/M7lc1UVf-VE/maxresdefault.jpg',
-      'duration': '12:30',
-    },
-    {
-      'id': '3jDhvKczYdQ', 
-      'title': 'Ethereum 2.0 Complete Guide',
-      'channel': 'Crypto Education',
-      'channelName': 'Crypto Education',
-      'views': '18K views',
-      'uploadTime': '4 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/3jDhvKczYdQ/maxresdefault.jpg',
-      'duration': '15:45',
-    },
-    {
-      'id': 'kRuZKg3j4Ks',
-      'title': 'Top 10 Altcoins for 2025', 
-      'channel': 'CoinNewsExtra',
-      'channelName': 'CoinNewsExtra',
-      'views': '32K views',
-      'uploadTime': '6 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/kRuZKg3j4Ks/maxresdefault.jpg',
-      'duration': '20:15',
-    },
-    {
-      'id': '3Kf8Od6nIQM',
-      'title': 'DeFi Explained: Complete Beginner Guide',
-      'channel': 'DeFi Academy',
-      'channelName': 'DeFi Academy',
-      'views': '15K views',
-      'uploadTime': '8 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/3Kf8Od6nIQM/maxresdefault.jpg',
-      'duration': '18:22',
-    },
-    {
-      'id': '5-year-old-earns-6-figures-trading-stocks',
-      'title': 'NFT Market Trends & Analysis',
-      'channel': 'NFT Insights',
-      'channelName': 'NFT Insights',
-      'views': '12K views',
-      'uploadTime': '10 hours ago',
-      'thumbnail': 'https://img.youtube.com/vi/5-year-old-earns-6-figures-trading-stocks/maxresdefault.jpg',
-      'duration': '14:08',
-    },
-  ];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _searchResults = _allVideos; // Show all videos initially
+    _loadVideos();
+  }
+
+  Future<void> _loadVideos() async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Load videos from Firebase database
+      final videos = await VideoData.getExploreVideosFromDatabase();
+      
+      setState(() {
+        _allVideos = videos;
+        _searchResults = videos; // Show all videos initially
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error loading videos: $e');
+      setState(() {
+        _allVideos = VideoData.getExploreVideos(); // Fallback to static
+        _searchResults = _allVideos;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -89,8 +62,8 @@ class _ExplorePageState extends State<ExplorePage> {
         _searchResults = _allVideos;
       } else {
         _searchResults = _allVideos.where((video) {
-          final title = video['title']?.toLowerCase() ?? '';
-          final channel = video['channelName']?.toLowerCase() ?? '';
+          final title = video.title.toLowerCase();
+          final channel = (video.channelName ?? '').toLowerCase();
           final searchTerm = query.toLowerCase();
           
           return title.contains(searchTerm) || channel.contains(searchTerm);
@@ -99,15 +72,15 @@ class _ExplorePageState extends State<ExplorePage> {
     });
   }
 
-  void _onVideoTap(Map<String, dynamic> video) {
+  void _onVideoTap(VideoModel video) {
     // Navigate to VideoDetailScreen
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VideoDetailScreen(
-          videoId: video['id'] ?? '',
-          title: video['title'] ?? 'Untitled',
-          channelName: video['channelName'] ?? video['channel'] ?? 'Unknown Channel',
+          videoId: video.youtubeId,
+          title: video.title,
+          channelName: video.channelName ?? 'CoinNews Extra',
         ),
       ),
     );
@@ -236,22 +209,46 @@ class _ExplorePageState extends State<ExplorePage> {
           
           // Video grid
           Expanded(
-            child: _searchResults.isEmpty
-                ? _buildEmptyState()
-                : GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.85, // Increased to prevent overflow
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 12,
-                    ),
-                    itemCount: _searchResults.length,
-                    itemBuilder: (context, index) {
-                      final video = _searchResults[index];
-                      return _buildVideoCard(video);
-                    },
-                  ),
+            child: _isLoading
+                ? _buildLoadingState()
+                : _searchResults.isEmpty
+                    ? _buildEmptyState()
+                    : GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.75, // Reduced to provide more height
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 12,
+                        ),
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final video = _searchResults[index];
+                          return _buildVideoCard(video);
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: Color(0xFF006833),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Loading videos...',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+              fontFamily: 'Lato',
+            ),
           ),
         ],
       ),
@@ -293,128 +290,14 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
-  Widget _buildVideoCard(Map<String, dynamic> video) {
-    return GestureDetector(
+  Widget _buildVideoCard(VideoModel video) {
+    return YouTubeGridItem(
+      youtubeUrl: video.youtubeWatchUrl,
+      title: video.title,
+      channelName: video.channelName ?? 'CoinNews Extra',
+      views: video.views,
+      timeAgo: video.uploadTime,
       onTap: () => _onVideoTap(video),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail
-            AspectRatio(
-              aspectRatio: 16 / 9, // Standard video aspect ratio
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  color: Colors.grey[800],
-                ),
-                child: Stack(
-                  children: [
-                    // YouTube thumbnail with fallback
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: YouTubeThumbnailService.buildThumbnailWidget(
-                        videoId: video['id'],
-                        child: Container(
-                          width: double.infinity,
-                          height: double.infinity,
-                          color: Colors.grey[800],
-                          child: Icon(
-                            Icons.play_circle_outline,
-                            color: Colors.white.withOpacity(0.7),
-                            size: 50,
-                          ),
-                        ),
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        semanticLabel: 'Thumbnail for ${video['title']}',
-                      ),
-                    ),
-                    
-                    // Duration badge
-                    if (video['duration'] != null)
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            video['duration'],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // Video info
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Title
-                  Text(
-                    video['title'] ?? 'Untitled',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Lato',
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 3),
-                  
-                  // Channel name
-                  Text(
-                    video['channelName'] ?? 'Unknown Channel',
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 10,
-                      fontFamily: 'Lato',
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 2),
-                  
-                  // Views and time
-                  Text(
-                    '${video['views'] ?? 'N/A'} • ${video['uploadTime'] ?? 'N/A'}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 9,
-                      fontFamily: 'Lato',
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

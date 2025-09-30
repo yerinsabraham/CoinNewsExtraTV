@@ -138,17 +138,8 @@ class _WalletPageState extends State<WalletPage> {
                                   children: [
                                     Expanded(
                                       child: _buildBalanceDetail(
-                                        'Locked',
-                                        balanceService.balance.lockedBalance.toStringAsFixed(2),
-                                        Icons.lock,
-                                        Colors.orange,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: _buildBalanceDetail(
-                                        'Available',
-                                        balanceService.balance.unlockedBalance.toStringAsFixed(2),
+                                        'Total Balance',
+                                        balanceService.balance.totalBalance.toStringAsFixed(2),
                                         Icons.account_balance_wallet,
                                         const Color(0xFF006833),
                                       ),

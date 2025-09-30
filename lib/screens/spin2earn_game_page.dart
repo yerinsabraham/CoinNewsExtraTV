@@ -5,6 +5,7 @@ import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:confetti/confetti.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/chat_ad_carousel.dart';
 import '../theme/app_colors.dart';
 import '../services/reward_service.dart';
@@ -47,6 +48,13 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     _loadGameData();
+    
+    // Listen for auth state changes to reload data when user switches
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (mounted) {
+        _loadGameData();
+      }
+    });
   }
   
   Stream<int> get wheelStream {
@@ -135,6 +143,12 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     
     // Use the stored selected index
     final prize = prizes[_lastSelectedIndex];
+    
+    debugPrint('🎰 Spin Result Debug:');
+    debugPrint('   Selected Index: $_lastSelectedIndex');
+    debugPrint('   Prize Array: $prizes');
+    debugPrint('   Selected Prize: $prize');
+    
     await _processPrizeResult(prize);
   }
   
@@ -146,13 +160,46 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
       
       debugPrint('🎰 Spin Debug: Prize="$prize", AmountStr="$amountStr", Amount=$amount');
       
-      // For now, show success without backend integration
-      // TODO: Backend team needs to add spin_wheel event support
-      _showResultDialog(
-        prize, 
-        'Congratulations! You won $amount CNE!\n\n🚧 Note: Spin rewards will be integrated with your wallet once the backend supports spin wheel events.', 
-        true
-      );
+      try {
+        // Claim the spin reward through the reward service
+        final result = await RewardService.claimGameReward(
+          gameType: 'spin_wheel',
+          gameId: 'daily_spin_${DateTime.now().millisecondsSinceEpoch}',
+          rewardAmount: amount.toDouble(),
+          metadata: {
+            'spinResult': prize,
+            'spinIndex': _lastSelectedIndex,
+            'dailySpinNumber': _dailySpinsUsed,
+          },
+        );
+        
+        if (result.success) {
+          // Update balance immediately
+          if (mounted) {
+            Provider.of<UserBalanceService>(context, listen: false).refreshAllData();
+          }
+          
+          _showResultDialog(
+            prize, 
+            'Congratulations! You won $amount CNE!\n\nYour balance has been updated!', 
+            true
+          );
+        } else {
+          // Show error but still display the prize
+          _showResultDialog(
+            prize, 
+            'You won $amount CNE but there was an issue crediting your account.\n\nError: ${result.message}', 
+            false
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Error claiming spin reward: $e');
+        _showResultDialog(
+          prize, 
+          'You won $amount CNE but there was an issue crediting your account.\n\nPlease try again later.', 
+          false
+        );
+      }
       
       _saveGameData();
     } else if (prize == 'NFT') {
@@ -284,16 +331,25 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
     );
   }
   
-  // Persistence methods
+  // Persistence methods - USER-SPECIFIC
   Future<void> _loadGameData() async {
     final prefs = await SharedPreferences.getInstance();
+    final userId = await _getCurrentUserId();
+    
+    if (userId == null) {
+      // User not logged in, reset to defaults
+      setState(() {
+        _dailySpinsUsed = 0;
+      });
+      return;
+    }
     
     setState(() {
-      _dailySpinsUsed = prefs.getInt('daily_spins_used') ?? 0;
+      _dailySpinsUsed = prefs.getInt('daily_spins_used_$userId') ?? 0;
     });
     
     // Check if it's a new day
-    final lastSpinDate = prefs.getString('last_spin_date') ?? '';
+    final lastSpinDate = prefs.getString('last_spin_date_$userId') ?? '';
     final today = DateTime.now().toIso8601String().substring(0, 10); // YYYY-MM-DD
     
     if (lastSpinDate != today) {
@@ -304,13 +360,23 @@ class _Spin2EarnGamePageState extends State<Spin2EarnGamePage> {
       await _saveGameData();
     }
   }
-  
+
   Future<void> _saveGameData() async {
     final prefs = await SharedPreferences.getInstance();
+    final userId = await _getCurrentUserId(); 
+    
+    if (userId == null) return; // Don't save if user not logged in
+    
     final today = DateTime.now().toIso8601String().substring(0, 10);
     
-    await prefs.setInt('daily_spins_used', _dailySpinsUsed);
-    await prefs.setString('last_spin_date', today);
+    await prefs.setInt('daily_spins_used_$userId', _dailySpinsUsed);
+    await prefs.setString('last_spin_date_$userId', today);
+  }
+  
+  Future<String?> _getCurrentUserId() async {
+    // Import FirebaseAuth to get current user ID
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.uid;
   }
   @override
   Widget build(BuildContext context) {

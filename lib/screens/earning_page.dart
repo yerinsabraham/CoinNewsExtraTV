@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../widgets/ads_carousel.dart';
 import '../services/user_balance_service.dart';
 import '../services/reward_service.dart';
+import '../services/social_media_verification_service.dart';
+import '../widgets/social_media_verification_dialog.dart';
 import 'video_player_page.dart';
 import 'quiz_page.dart';
 import 'daily_checkin_page.dart';
@@ -156,19 +158,12 @@ class _EarningPageState extends State<EarningPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Locked: ${balanceService.balance.lockedBalance.toStringAsFixed(2)} CNE',
+                                    'Total Balance: ${balanceService.balance.totalBalance.toStringAsFixed(2)} CNE',
                                     style: const TextStyle(
                                       color: Colors.white70,
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontFamily: 'Lato',
-                                    ),
-                                  ),
-                                  Text(
-                                    'Available: ${balanceService.balance.unlockedBalance.toStringAsFixed(2)} CNE',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      fontFamily: 'Lato',
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -431,7 +426,7 @@ class _EarningPageState extends State<EarningPage> {
       builder: (BuildContext context) {
         return Container(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.7, // Limit height to 70% of screen
+            maxHeight: MediaQuery.of(context).size.height * 0.8, // Increased height
           ),
           child: SingleChildScrollView(
             child: Container(
@@ -450,7 +445,7 @@ class _EarningPageState extends State<EarningPage> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Follow Us on Social Media',
+                          'Social Media Verification',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -469,7 +464,7 @@ class _EarningPageState extends State<EarningPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Earn tokens by following our social media accounts!',
+                    'Follow our accounts and get verified to earn CNE tokens!',
                     style: TextStyle(
                       color: Colors.grey[400],
                       fontSize: 14,
@@ -478,13 +473,42 @@ class _EarningPageState extends State<EarningPage> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Social Media Links List (Changed from Grid to List for better space management)
-                  ..._socialMediaLinks.map((social) => 
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _buildSocialMediaTile(social),
+                  // Verification Process Info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF006833).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF006833).withOpacity(0.3),
+                      ),
                     ),
-                  ).toList(),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.security,
+                          color: Color(0xFF006833),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'We verify all follows to prevent abuse. Each platform can only be claimed once.',
+                            style: TextStyle(
+                              color: Colors.grey[300],
+                              fontSize: 12,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Social Media Platforms List with new verification system
+                  ..._buildVerificationPlatformsList(),
                   
                   const SizedBox(height: 16),
                 ],
@@ -565,9 +589,17 @@ class _EarningPageState extends State<EarningPage> {
   }
 
   Future<bool> _isFollowedPlatform(String platform) async {
-    // Convert platform name to lowercase to match the format used when claiming rewards
-    String platformKey = platform.toLowerCase();
-    return await RewardService.isFollowedPlatform(platformKey);
+    try {
+      // Convert platform name to lowercase to match the format used when claiming rewards
+      String platformKey = platform.toLowerCase();
+      print('🔍 DEBUG: Checking if platform $platform ($platformKey) is followed');
+      final isFollowed = await RewardService.isFollowedPlatform(platformKey);
+      print('🔍 DEBUG: Platform $platformKey followed status: $isFollowed');
+      return isFollowed;
+    } catch (e) {
+      print('❌ DEBUG: Error checking platform follow status: $e');
+      return false;
+    }
   }
 
   Future<void> _launchSocialMediaUrl(String url) async {
@@ -908,6 +940,14 @@ class _EarningPageState extends State<EarningPage> {
             _socialClaimRefreshKey++;
           });
           
+          // Force a page rebuild to refresh all social media tiles
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            setState(() {
+              _socialClaimRefreshKey++;
+            });
+          }
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Social media reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
@@ -934,6 +974,213 @@ class _EarningPageState extends State<EarningPage> {
           ),
         );
       }
+    }
+  }
+
+  // Build verification platforms list using new system
+  List<Widget> _buildVerificationPlatformsList() {
+    final platforms = SocialMediaVerificationService.getSupportedPlatforms();
+    
+    return platforms.map((platform) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: FutureBuilder<VerificationStatus>(
+          future: SocialMediaVerificationService.getVerificationStatus(platform['id']),
+          builder: (context, snapshot) {
+            final status = snapshot.data;
+            final isLoading = snapshot.connectionState == ConnectionState.waiting;
+            
+            return GestureDetector(
+              onTap: () => _showVerificationDialog(platform),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getStatusBorderColor(status),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _getPlatformIcon(platform['id']),
+                      color: const Color(0xFF006833),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            platform['displayName'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isLoading 
+                                ? 'Loading status...'
+                                : (status?.message ?? 'Click to start verification'),
+                            style: TextStyle(
+                              color: _getStatusTextColor(status),
+                              fontSize: 12,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '+${platform['reward']} CNE',
+                          style: const TextStyle(
+                            color: Color(0xFF006833),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        _getStatusIcon(status, isLoading),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }).toList();
+  }
+
+  void _showVerificationDialog(Map<String, dynamic> platform) {
+    showDialog(
+      context: context,
+      builder: (context) => SocialMediaVerificationDialog(
+        platform: platform,
+        onVerificationComplete: () {
+          setState(() {
+            _socialClaimRefreshKey++;
+          });
+        },
+      ),
+    );
+  }
+
+  Color _getStatusBorderColor(VerificationStatus? status) {
+    if (status == null) return const Color(0xFF006833).withOpacity(0.3);
+    
+    switch (status.status) {
+      case 'completed':
+        return const Color(0xFF006833);
+      case 'approved':
+        return Colors.blue;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return const Color(0xFF006833).withOpacity(0.3);
+    }
+  }
+
+  Color _getStatusTextColor(VerificationStatus? status) {
+    if (status == null) return Colors.grey[400]!;
+    
+    switch (status.status) {
+      case 'completed':
+        return const Color(0xFF006833);
+      case 'approved':
+        return Colors.blue;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey[400]!;
+    }
+  }
+
+  Widget _getStatusIcon(VerificationStatus? status, bool isLoading) {
+    if (isLoading) {
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Color(0xFF006833),
+        ),
+      );
+    }
+    
+    if (status == null) {
+      return const Icon(
+        Icons.arrow_forward_ios,
+        color: Colors.grey,
+        size: 16,
+      );
+    }
+    
+    switch (status.status) {
+      case 'completed':
+        return const Icon(
+          Icons.check_circle,
+          color: Color(0xFF006833),
+          size: 20,
+        );
+      case 'approved':
+        return const Icon(
+          Icons.check_circle_outline,
+          color: Colors.blue,
+          size: 20,
+        );
+      case 'pending':
+        return const Icon(
+          Icons.hourglass_empty,
+          color: Colors.orange,
+          size: 20,
+        );
+      case 'rejected':
+        return const Icon(
+          Icons.cancel_outlined,
+          color: Colors.red,
+          size: 20,
+        );
+      default:
+        return const Icon(
+          Icons.arrow_forward_ios,
+          color: Colors.grey,
+          size: 16,
+        );
+    }
+  }
+
+  IconData _getPlatformIcon(String platformId) {
+    switch (platformId.toLowerCase()) {
+      case 'twitter':
+        return Icons.alternate_email;
+      case 'instagram':
+        return Icons.camera_alt;
+      case 'facebook':
+        return Icons.facebook;
+      case 'youtube':
+        return Icons.play_circle_outline;
+      case 'linkedin':
+        return Icons.business;
+      case 'telegram':
+        return Icons.send;
+      default:
+        return Icons.link;
     }
   }
 

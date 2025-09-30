@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
+import '../services/live_video_config.dart';
+import '../services/reward_service.dart';
+import '../services/user_balance_service.dart';
 
 class LiveTvPage extends StatefulWidget {
   const LiveTvPage({super.key});
@@ -12,6 +17,14 @@ class LiveTvPage extends StatefulWidget {
 class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
   late YoutubePlayerController _controller;
   late TabController _tabController;
+  
+  // Watch time tracking
+  Timer? _watchTimer;
+  int _watchTimeSeconds = 0;
+  bool _isWatching = false;
+  bool _hasClaimedReward = false;
+  bool _isClaimingReward = false;
+  bool _hasStartedPlaying = false;
   
   // Poll state management
   String? selectedPollOption;
@@ -63,28 +76,132 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     
-    // Initialize YouTube player with the livestream URL
-    final videoId = YoutubePlayer.convertUrlToId('https://www.youtube.com/live/HwHP5WojgBg?si=Eaoja0H3P0veWfOt');
-    
+    // Initialize YouTube player with unified configuration
     _controller = YoutubePlayerController(
-      initialVideoId: videoId ?? 'HwHP5WojgBg', // Specific livestream ID
-      flags: const YoutubePlayerFlags(
-        autoPlay: false,
+      initialVideoId: LiveVideoConfig.getVideoId(),
+      flags: YoutubePlayerFlags(
+        autoPlay: LiveVideoConfig.autoPlayOnLaunch,
         mute: false,
-        isLive: true,
+        isLive: LiveVideoConfig.isLiveStream,
         forceHD: false,
-        enableCaption: true,
+        enableCaption: LiveVideoConfig.enableCaptions,
       ),
     );
+    
+    // Listen to player state changes
+    _controller.addListener(_onPlayerStateChanged);
     
     _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
+    _stopWatching();
+    _controller.removeListener(_onPlayerStateChanged);
     _controller.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onPlayerStateChanged() {
+    if (_controller.value.isPlaying && !_hasStartedPlaying) {
+      _hasStartedPlaying = true;
+      _startWatching();
+    } else if (!_controller.value.isPlaying && _isWatching) {
+      _pauseWatching();
+    }
+  }
+
+  void _startWatching() {
+    if (_isWatching) return;
+    
+    setState(() {
+      _isWatching = true;
+    });
+
+    _watchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_controller.value.isPlaying) {
+        setState(() {
+          _watchTimeSeconds++;
+        });
+        LiveVideoConfig.logWatchTime(_watchTimeSeconds);
+      }
+    });
+  }
+
+  void _pauseWatching() {
+    setState(() {
+      _isWatching = false;
+    });
+  }
+
+  void _stopWatching() {
+    _watchTimer?.cancel();
+    setState(() {
+      _isWatching = false;
+    });
+  }
+
+  Future<void> _claimWatchReward() async {
+    if (_isClaimingReward || _hasClaimedReward || 
+        !LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds)) return;
+
+    setState(() {
+      _isClaimingReward = true;
+    });
+
+    try {
+      final result = await RewardService.claimLiveStreamReward(
+        streamId: LiveVideoConfig.getVideoId(),
+        watchDurationSeconds: _watchTimeSeconds,
+      );
+
+      if (result.success) {
+        final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+        await balanceService.processRewardClaim({
+          'success': result.success,
+          'reward': result.reward,
+          'message': result.message,
+        });
+
+        setState(() {
+          _hasClaimedReward = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Live stream reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
+              backgroundColor: const Color(0xFF006833),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error claiming live stream reward'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isClaimingReward = false;
+        });
+      }
+    }
   }
 
   @override
@@ -159,6 +276,9 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
             ),
             builder: (context, player) => player,
           ),
+          
+          // Watch progress indicator
+          _buildWatchProgressIndicator(),
           
           // Live stream info
           Container(
@@ -521,6 +641,147 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
       SnackBar(
         content: Text('Voted for: $option'),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildWatchProgressIndicator() {
+    final progress = LiveVideoConfig.getWatchProgress(_watchTimeSeconds);
+    final canClaim = LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds);
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF006833).withOpacity(0.1),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.grey[800]!,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Watch Progress',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              Text(
+                LiveVideoConfig.formatWatchTime(_watchTimeSeconds),
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Progress bar
+          Container(
+            height: 6,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: progress,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: canClaim ? const Color(0xFF006833) : Colors.orange,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  LiveVideoConfig.getTimeRemainingMessage(_watchTimeSeconds),
+                  style: TextStyle(
+                    color: canClaim ? const Color(0xFF006833) : Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+              
+              if (canClaim && !_hasClaimedReward)
+                ElevatedButton(
+                  onPressed: _isClaimingReward ? null : _claimWatchReward,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF006833),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: _isClaimingReward
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          '+${LiveVideoConfig.watchReward.toInt()} CNE',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                )
+              else if (_hasClaimedReward)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF006833).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF006833),
+                        size: 16,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Claimed',
+                        style: TextStyle(
+                          color: Color(0xFF006833),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

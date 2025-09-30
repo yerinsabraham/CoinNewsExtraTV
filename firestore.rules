@@ -1,9 +1,34 @@
 rules_version = '2';
+// Updated rules for social verifications - 2025-09-30 (removed username validation)
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read/write their own user documents
+    
+    // Users collection - allow own document access only
     match /users/{userId} {
+      // Users can read/write their own documents
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow creating documents for authenticated users
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Social verifications subcollection
+      match /social_verifications/{platform} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Wallet subcollection
+      match /wallets/{walletId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Rewards subcollection
+      match /rewards/{rewardId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Token locks subcollection
+      match /token_locks/{lockId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
     
     // Rooms collection - authenticated users can create/update rooms
@@ -40,6 +65,103 @@ service cloud.firestore {
     match /battle_results/{resultId} {
       allow read: if request.auth != null;
       allow write: if false; // Only Cloud Functions can write results
+    }
+    
+    // Videos collection - read-only for all authenticated users
+    match /videos/{videoId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admins/Cloud Functions can write
+    }
+    
+    // Live videos collection - read-only for all authenticated users
+    match /live_videos/{videoId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admins/Cloud Functions can write
+    }
+    
+    // System configuration - read-only for authenticated users
+    match /system/{configId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admins/Cloud Functions can write
+    }
+    
+    // Reward system configuration - read-only for authenticated users
+    match /reward_config/{configId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admins/Cloud Functions can write
+    }
+    
+    // Global stats - read-only for authenticated users
+    match /stats/{statId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions can write
+    }
+    
+    // Referral codes - users can read their own and create new ones
+    match /referral_codes/{codeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.createdBy;
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.createdBy;
+    }
+    
+    // Admin verification queue - restricted access
+    match /verification_queue/{verificationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false; // Only Cloud Functions/admins can update
+    }
+    
+    // Admin collection - restricted access
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      // Allow users to create their own admin document (for testing/setup)
+      allow create: if request.auth != null && request.auth.uid == adminId;
+      // Only system can update/delete admin documents
+      allow update, delete: if false;
+    }
+    
+    // Battles/rounds collection - users can read battles they participate in
+    match /rounds/{roundId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+    }
+    
+    // Username availability collection - for username uniqueness checks
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false; // Only system can update
+      allow delete: if false; // Only system can delete
+    }
+    
+    // Rewards log - allow users to read their own rewards
+    match /rewards_log/{logId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if false; // Only Cloud Functions can create
+      allow update, delete: if false; // Only Cloud Functions can modify
+    }
+    
+    // Redemptions - allow users to read their own redemptions
+    match /redemptions/{redemptionId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if false; // Only Cloud Functions can modify
+    }
+    
+    // Pending transfers - allow users to read their own transfers
+    match /pending_transfers/{transferId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if false; // Only Cloud Functions can modify
+    }
+    
+    // Admin actions - read-only audit log
+    match /admin_actions/{actionId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions can write
     }
   }
 }

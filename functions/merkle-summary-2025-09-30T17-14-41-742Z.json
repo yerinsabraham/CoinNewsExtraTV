@@ -1,0 +1,13 @@
+{
+  "merkleRoot": "e00d4b7e4154e5bff28856363185c7afb08aba9ad9782abeb9b96131e6764d56",
+  "userCount": 4,
+  "totalCNETokens": 71000,
+  "hcsTransactionId": "0.0.9764298@1759252468.286960391",
+  "hcsSequenceNumber": "1",
+  "generatedAt": "2025-09-30T17:14:41.773Z",
+  "verificationUrl": "https://hashscan.io/mainnet/topic/0.0.10007691",
+  "files": {
+    "merkleTree": "merkle-tree-2025-09-30T17-14-41-742Z.json",
+    "proofs": "merkle-proofs-2025-09-30T17-14-41-742Z.json"
+  }
+}

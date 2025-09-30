@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/video_card.dart';
 import 'video_player_page.dart';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
 
 class VideoFeedPage extends StatefulWidget {
   const VideoFeedPage({super.key});
@@ -10,59 +12,8 @@ class VideoFeedPage extends StatefulWidget {
 }
 
 class _VideoFeedPageState extends State<VideoFeedPage> {
-  // Sample data for video cards
-  final List<Map<String, dynamic>> _sampleVideos = [
-    {
-      'id': '1',
-      'title': 'Bitcoin Price Analysis: What\'s Next for BTC?',
-      'channelName': 'CoinNewsExtra',
-      'thumbnail': 'https://img.youtube.com/vi/kRuZKg3j4Ks/maxresdefault.jpg',
-      'views': '25K views',
-      'uploadTime': '2 hours ago',
-      'duration': '12:30',
-      'reward': 2.5,
-    },
-    {
-      'id': '2',
-      'title': 'Ethereum 2.0 Update: Complete Guide',
-      'channelName': 'Crypto Education',
-      'thumbnail': 'https://img.youtube.com/vi/3Kf8Od6nIQM/maxresdefault.jpg',
-      'views': '45K views',
-      'uploadTime': '5 hours ago',
-      'duration': '18:45',
-      'reward': 3.0,
-    },
-    {
-      'id': '3',
-      'title': 'Top 5 Altcoins to Watch This Month',
-      'channelName': 'Altcoin Daily',
-      'thumbnail': 'https://img.youtube.com/vi/oHg5SJYRHA0/maxresdefault.jpg',
-      'views': '12K views',
-      'uploadTime': '1 day ago',
-      'duration': '8:20',
-      'reward': 1.5,
-    },
-    {
-      'id': '4',
-      'title': 'DeFi Explained: Beginner\'s Guide to Decentralized Finance',
-      'channelName': 'DeFi University',
-      'thumbnail': 'https://img.youtube.com/vi/RDxaVw3X74s/maxresdefault.jpg',
-      'views': '78K views',
-      'uploadTime': '3 days ago',
-      'duration': '22:15',
-      'reward': 4.0,
-    },
-    {
-      'id': '5',
-      'title': 'NFT Market Trends: What You Need to Know',
-      'channelName': 'NFT Insider',
-      'thumbnail': 'https://img.youtube.com/vi/kJQP7kiw5Fk/maxresdefault.jpg',
-      'views': '33K views',
-      'uploadTime': '1 week ago',
-      'duration': '15:30',
-      'reward': 2.0,
-    },
-  ];
+  // Use centralized video data source
+  List<VideoModel> get _sampleVideos => VideoData.getAllVideos();
 
   @override
   Widget build(BuildContext context) {
@@ -124,24 +75,24 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
           itemBuilder: (context, index) {
             final video = _sampleVideos[index];
             return VideoCard(
-              title: video['title'],
-              channelName: video['channelName'],
-              thumbnail: video['thumbnail'],
-              views: video['views'],
-              uploadTime: video['uploadTime'],
-              duration: video['duration'],
-              reward: video['reward'],
+              title: video.title,
+              channelName: video.channelName ?? 'CoinNews Extra',
+              thumbnail: video.youtubeThumbnailUrl,
+              views: video.views,
+              uploadTime: video.uploadTime,
+              duration: video.duration,
+              reward: video.reward,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => VideoPlayerPage(
-                      videoId: video['id'],
-                      title: video['title'],
-                      channelName: video['channelName'],
-                      views: video['views'],
-                      uploadTime: video['uploadTime'],
-                      reward: video['reward'],
+                      videoId: video.youtubeId,
+                      title: video.title,
+                      channelName: video.channelName ?? 'CoinNews Extra',
+                      views: video.views,
+                      uploadTime: video.uploadTime,
+                      reward: video.reward,
                     ),
                   ),
                 );

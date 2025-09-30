@@ -1,0 +1,16 @@
+{
+  "name": "username-validator",
+  "version": "1.0.0",
+  "description": "Lightweight username validation function",
+  "main": "username.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "deploy": "firebase deploy --only functions:checkUsernameAvailable"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0",
+    "firebase-functions": "^6.4.0"
+  }
+}

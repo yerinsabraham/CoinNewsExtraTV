@@ -49,7 +49,7 @@ class SmartContractService {
       );
       
       if (response.success && response.data != null) {
-        final tokens = response.data['tokens'] as List?;
+        final tokens = response.data?['tokens'] as List?;
         if (tokens != null && tokens.isNotEmpty) {
           final balance = double.parse(tokens.first['balance'].toString());
           // Convert from smallest unit (8 decimals) to CNE
@@ -127,8 +127,8 @@ class SmartContractService {
       );
       
       if (result.success && result.data != null) {
-        final canClaim = result.data['result'][0] as bool;
-        return ContractResult.success(canClaim);
+        final canClaim = result.data?['result']?[0] as bool?;
+        return ContractResult.success(canClaim ?? false);
       }
       
       return ContractResult.error('Failed to check claim eligibility');
@@ -150,13 +150,15 @@ class SmartContractService {
       );
       
       if (result.success && result.data != null) {
-        final data = result.data['result'] as List;
-        final stats = UserRewardStats(
-          totalEarned: _smallestUnitToCNE(data[0]),
-          totalClaimed: _smallestUnitToCNE(data[1]),
-          lockedBalance: _smallestUnitToCNE(data[2]),
-        );
-        return ContractResult.success(stats);
+        final data = result.data?['result'] as List?;
+        if (data != null && data.length >= 3) {
+          final stats = UserRewardStats(
+            totalEarned: _smallestUnitToCNE(data[0]),
+            totalClaimed: _smallestUnitToCNE(data[1]),
+            lockedBalance: _smallestUnitToCNE(data[2]),
+          );
+          return ContractResult.success(stats);
+        }
       }
       
       return ContractResult.error('Failed to get user reward stats');
@@ -279,14 +281,16 @@ class SmartContractService {
       );
       
       if (result.success && result.data != null) {
-        final data = result.data['result'] as List;
-        final documentJson = data[0] as String;
-        final lastUpdated = data[1] as int;
+        final data = result.data?['result'] as List?;
+        if (data != null && data.length >= 2) {
+          final documentJson = data[0] as String;
+          final lastUpdated = data[1] as int;
         
-        return ContractResult.success({
-          'document': jsonDecode(documentJson),
-          'lastUpdated': lastUpdated,
-        });
+          return ContractResult.success({
+            'document': jsonDecode(documentJson),
+            'lastUpdated': lastUpdated,
+          });
+        }
       }
       
       return ContractResult.error('Failed to resolve DID');

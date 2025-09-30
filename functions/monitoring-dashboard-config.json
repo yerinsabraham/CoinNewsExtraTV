@@ -1,0 +1,132 @@
+{
+  "dashboard": {
+    "title": "CoinNewsExtra Mainnet Pilot Monitoring",
+    "refreshInterval": 30,
+    "autoRefresh": true,
+    "theme": "dark"
+  },
+  "metrics": {
+    "system": {
+      "errorRate": {
+        "threshold": 0.05,
+        "unit": "percentage",
+        "alert": "critical"
+      },
+      "responseTime": {
+        "threshold": 2000,
+        "unit": "milliseconds",
+        "alert": "warning"
+      },
+      "memoryUsage": {
+        "threshold": 0.85,
+        "unit": "percentage",
+        "alert": "warning"
+      },
+      "cpuUsage": {
+        "threshold": 0.8,
+        "unit": "percentage",
+        "alert": "warning"
+      }
+    },
+    "business": {
+      "dailyActiveUsers": {
+        "target": 40,
+        "unit": "count",
+        "alert": "info"
+      },
+      "transactionSuccessRate": {
+        "threshold": 0.95,
+        "unit": "percentage",
+        "alert": "critical"
+      },
+      "tokensDistributed": {
+        "threshold": 1000,
+        "unit": "CNE",
+        "alert": "info"
+      },
+      "userFeedbackScore": {
+        "target": 4,
+        "unit": "rating",
+        "alert": "warning"
+      }
+    },
+    "security": {
+      "fraudDetections": {
+        "threshold": 5,
+        "unit": "count/day",
+        "alert": "warning"
+      },
+      "rateLimitViolations": {
+        "threshold": 50,
+        "unit": "count/hour",
+        "alert": "info"
+      },
+      "failedLogins": {
+        "threshold": 100,
+        "unit": "count/hour",
+        "alert": "warning"
+      }
+    }
+  },
+  "alerts": {
+    "channels": {
+      "email": {
+        "enabled": true,
+        "recipients": [
+          "admin@coinnewsextra.com",
+          "dev@coinnewsextra.com"
+        ]
+      },
+      "slack": {
+        "enabled": true,
+        "webhook": "${SLACK_WEBHOOK_URL}",
+        "channel": "#pilot-alerts"
+      },
+      "sms": {
+        "enabled": false,
+        "numbers": []
+      }
+    },
+    "severity": {
+      "critical": {
+        "immediate": true,
+        "channels": [
+          "email",
+          "slack",
+          "sms"
+        ]
+      },
+      "warning": {
+        "delay": 300,
+        "channels": [
+          "slack"
+        ]
+      },
+      "info": {
+        "delay": 900,
+        "channels": [
+          "slack"
+        ]
+      }
+    }
+  },
+  "reports": {
+    "daily": {
+      "enabled": true,
+      "time": "09:00",
+      "timezone": "UTC",
+      "recipients": [
+        "admin@coinnewsextra.com"
+      ]
+    },
+    "weekly": {
+      "enabled": true,
+      "day": "monday",
+      "time": "09:00",
+      "timezone": "UTC",
+      "recipients": [
+        "team@coinnewsextra.com"
+      ]
+    }
+  }
+}

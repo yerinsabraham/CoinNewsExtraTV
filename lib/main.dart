@@ -20,8 +20,10 @@ import 'screens/news_page.dart';
 import 'screens/notification_screen.dart';
 import 'screens/explore_page.dart';
 import 'screens/spin2earn_game_page.dart';
+import 'screens/admin_delete_user_page.dart';
 import 'play_extra/screens/play_extra_main.dart';
 import 'play_extra/services/play_extra_service.dart'; 
+import 'services/user_local_storage_service.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +39,9 @@ void main() async {
   
   // Initialize Play Extra service
   await PlayExtraService().initialize();
+  
+  // Initialize User Local Storage Service (handles account switching)
+  await UserLocalStorageService.initialize();
   
   runApp(const Watch2EarnApp());
 }
@@ -95,6 +100,8 @@ class Watch2EarnApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const Spin2EarnGamePage());
             case '/play-extra':
               return MaterialPageRoute(builder: (_) => const PlayExtraMain());
+            case '/admin-delete-user':
+              return MaterialPageRoute(builder: (_) => const AdminDeleteUserPage());
             default:
               return MaterialPageRoute(builder: (_) => const LoginScreen());
           }

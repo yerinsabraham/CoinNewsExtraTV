@@ -1,0 +1,33 @@
+{
+  "deployment_date": "2025-09-30T16:56:45.034Z",
+  "network": "mainnet",
+  "operator_account": "0.0.9764298",
+  "treasury_account": "0.0.10007646",
+  "token_id": "0.0.10007647",
+  "transactions": {
+    "treasury_creation": {
+      "tx_id": "0.0.9764298@1759251388.933747202",
+      "account_id": "0.0.10007646",
+      "status": "SUCCESS"
+    },
+    "token_creation": {
+      "tx_id": "0.0.9764298@1759251398.405451010",
+      "token_id": "0.0.10007647",
+      "status": "SUCCESS"
+    }
+  },
+  "token_properties": {
+    "name": "CoinNewsExtra Token",
+    "symbol": "CNE",
+    "decimals": 8,
+    "supply_type": "INFINITE",
+    "initial_supply": 0,
+    "treasury": "0.0.10007646"
+  },
+  "verification_links": {
+    "treasury_account": "https://hashscan.io/mainnet/account/0.0.10007646",
+    "token": "https://hashscan.io/mainnet/token/0.0.10007647",
+    "treasury_tx": "https://hashscan.io/mainnet/transaction/0.0.9764298@1759251388.933747202",
+    "token_tx": "https://hashscan.io/mainnet/transaction/0.0.9764298@1759251398.405451010"
+  }
+}

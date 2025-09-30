@@ -18,11 +18,20 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
   bool _isLoading = false;
   bool _isClaiming = false;
   Map<String, dynamic>? _checkinStatus;
+  Timer? _countdownTimer;
+  Duration _timeUntilNextClaim = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _loadCheckinStatus();
+    _startCountdownTimer();
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadCheckinStatus() async {
@@ -34,6 +43,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
       final status = await RewardService.getDailyRewardStatus();
       setState(() {
         _checkinStatus = status;
+        _calculateTimeUntilNextClaim();
       });
     } catch (e) {
       debugPrint('Error loading checkin status: $e');
@@ -41,6 +51,47 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  void _calculateTimeUntilNextClaim() {
+    if (_checkinStatus == null) return;
+    
+    final canClaim = _checkinStatus!['canClaim'] == true;
+    if (canClaim) {
+      _timeUntilNextClaim = Duration.zero;
+      return;
+    }
+    
+    // If user can't claim, calculate time until tomorrow's claim
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    _timeUntilNextClaim = tomorrow.difference(now);
+  }
+
+  void _startCountdownTimer() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_timeUntilNextClaim.inSeconds > 0) {
+        setState(() {
+          _timeUntilNextClaim = _timeUntilNextClaim - const Duration(seconds: 1);
+        });
+      } else {
+        // Time's up, refresh the status
+        _loadCheckinStatus();
+      }
+    });
+  }
+
+  String _formatCountdown(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     }
   }
 
@@ -69,6 +120,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
 
         // Refresh status
         await _loadCheckinStatus();
+        _calculateTimeUntilNextClaim();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -260,7 +312,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                         Text(
                           _checkinStatus?['canClaim'] == true
                               ? 'Claim your daily reward and continue your streak!'
-                              : 'Come back tomorrow for your next reward',
+                              : 'Next check-in available in:',
                           style: TextStyle(
                             color: Colors.grey[400],
                             fontSize: 14,
@@ -268,6 +320,27 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                           ),
                           textAlign: TextAlign.center,
                         ),
+                        if (_checkinStatus?['canClaim'] != true && _timeUntilNextClaim.inSeconds > 0) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[600]!, width: 1),
+                            ),
+                            child: Text(
+                              _formatCountdown(_timeUntilNextClaim),
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace',
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         if (_checkinStatus?['canClaim'] == true)
                           SizedBox(

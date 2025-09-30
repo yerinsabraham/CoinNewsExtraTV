@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/enhanced_auth_service.dart';
 import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
 import 'home_screen.dart';
@@ -16,91 +17,29 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _nameController = TextEditingController();
-  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _referralCodeController = TextEditingController();
   bool _loading = false;
-  String? _usernameError;
   bool _showReferralField = false;
 
-  Future<bool> _checkUsernameAvailable(String username) async {
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('username', isEqualTo: username.toLowerCase())
-          .get();
-      return querySnapshot.docs.isEmpty;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<void> _validateUsername() async {
-    final username = _usernameController.text.trim();
-    if (username.isEmpty) {
-      setState(() {
-        _usernameError = 'Username is required';
-      });
-      return;
-    }
-    
-    if (username.length < 3) {
-      setState(() {
-        _usernameError = 'Username must be at least 3 characters';
-      });
-      return;
-    }
-    
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
-      setState(() {
-        _usernameError = 'Username can only contain letters, numbers, and underscores';
-      });
-      return;
-    }
-    
-    final isAvailable = await _checkUsernameAvailable(username);
-    if (!isAvailable) {
-      setState(() {
-        _usernameError = 'Username already taken, please try another';
-      });
-      return;
-    }
-    
-    setState(() {
-      _usernameError = null;
-    });
-  }
-
   Future<void> _signup() async {
-    // Validate username first
-    await _validateUsername();
-    if (_usernameError != null) {
-      return;
-    }
-    
     setState(() => _loading = true);
     try {
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Use enhanced authentication service for complete onboarding
+      final result = await EnhancedAuthService.instance.onboardNewUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        displayName: _nameController.text.trim(),
       );
       
-      // Create user document in Firestore with username
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set({
-        'uid': credential.user!.uid,
-        'name': _nameController.text.trim(),
-        'username': _usernameController.text.trim().toLowerCase(),
-        'email': _emailController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      
-      // Set the user's display name
-      if (_nameController.text.trim().isNotEmpty) {
-        await credential.user?.updateDisplayName(_nameController.text.trim());
+      if (!result.success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Signup failed: ${result.error}")),
+          );
+        }
+        return;
       }
       
       // Initialize user rewards and claim signup bonus
@@ -109,8 +48,9 @@ class _SignupScreenState extends State<SignupScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Signup successful! Welcome bonus awarded! ✅"),
+            content: Text("Signup successful! Hedera wallet created and welcome bonus awarded! 🎉"),
             backgroundColor: Color(0xFF006833),
+            duration: Duration(seconds: 4),
           ),
         );
         Navigator.pushReplacement(
@@ -118,10 +58,10 @@ class _SignupScreenState extends State<SignupScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       }
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.message}")),
+          SnackBar(content: Text("Error: $e")),
         );
       }
     } finally {
@@ -241,28 +181,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _usernameController,
-                    style: const TextStyle(fontSize: 16),
-                    onChanged: (_) {
-                      if (_usernameError != null) {
-                        setState(() {
-                          _usernameError = null;
-                        });
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: "Username",
-                      hintText: "Your public username",
-                      prefixIcon: const Icon(Icons.alternate_email),
-                      errorText: _usernameError,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      helperText: "3+ characters, letters, numbers, and _ only",
                     ),
                   ),
                   const SizedBox(height: 20),

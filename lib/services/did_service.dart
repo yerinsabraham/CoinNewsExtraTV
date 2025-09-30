@@ -53,7 +53,7 @@ class DIDService {
       final didDocument = _createDIDDocument(
         identifier: didIdentifier,
         walletAddress: walletAddress,
-        publicKey: keyPair['publicKey'],
+        publicKey: keyPair['publicKey'] as String,
         userEmail: userEmail,
         userName: userName,
       );

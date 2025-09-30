@@ -7,6 +7,8 @@ import '../widgets/middle_feature_grid.dart';
 import '../widgets/ads_carousel.dart';
 import '../widgets/search_overlay.dart';
 import '../provider/admin_provider.dart';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
 
 class BinanceHomePage extends StatefulWidget {
   const BinanceHomePage({super.key});
@@ -18,57 +20,15 @@ class BinanceHomePage extends StatefulWidget {
 class _BinanceHomePageState extends State<BinanceHomePage> {
   bool _isSearchVisible = false;
   
-  // Video data for search (combining featured videos and sample videos)
-  final List<Map<String, dynamic>> _allVideos = [
-    {
-      'id': 'M7lc1UVf-VE',
-      'title': 'Bitcoin Breaking \$100K? Market Analysis',
-      'channel': 'CoinNewsExtra',
-      'channelName': 'CoinNewsExtra',
-    },
-    {
-      'id': '3jDhvKczYdQ', 
-      'title': 'Ethereum 2.0 Complete Guide',
-      'channel': 'Crypto Education',
-      'channelName': 'Crypto Education',
-    },
-    {
-      'id': 'kRuZKg3j4Ks',
-      'title': 'Top 10 Altcoins for 2025', 
-      'channel': 'CoinNewsExtra',
-      'channelName': 'CoinNewsExtra',
-    },
-    {
-      'id': '3Kf8Od6nIQM',
-      'title': 'DeFi Explained: Complete Beginner Guide',
-      'channel': 'DeFi Academy',
-      'channelName': 'DeFi Academy',
-    },
-    {
-      'id': '5-year-old-earns-6-figures-trading-stocks',
-      'title': 'NFT Market Trends & Analysis',
-      'channel': 'NFT Insights',
-      'channelName': 'NFT Insights',
-    },
-    {
-      'title': 'Cardano ADA Price Prediction 2025',
-      'channelName': 'CoinNewsExtra',
-      'views': '15K views',
-      'uploadTime': '1 day ago',
-    },
-    {
-      'title': 'Solana SOL: The Ethereum Killer?',
-      'channelName': 'Blockchain Today',
-      'views': '8.2K views',
-      'uploadTime': '3 days ago',
-    },
-    {
-      'title': 'Binance vs Coinbase: Which is Better?',
-      'channelName': 'Crypto Compare',
-      'views': '12K views',
-      'uploadTime': '1 week ago',
-    },
-  ];
+  // Use centralized video data for search - convert to Map format for SearchOverlay
+  List<Map<String, dynamic>> get _allVideos {
+    return VideoData.getAllVideos().map((video) => {
+      'id': video.youtubeId,
+      'title': video.title,
+      'channel': video.channelName ?? 'CoinNews Extra',
+      'channelName': video.channelName ?? 'CoinNews Extra',
+    }).toList();
+  }
 
   void _showSearch() {
     setState(() {

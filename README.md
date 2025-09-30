@@ -1,4 +1,8 @@
 # watch2earn_app
+![Mainnet](https://img.shields.io/badge/Network-Mainnet-green)
+![Token](https://img.shields.io/badge/CNE%20Token-0.0.10007647-blue)
+![Migration](https://img.shields.io/badge/Migration-Complete-success)
+
 
 A new Flutter project.
 

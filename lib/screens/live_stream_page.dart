@@ -5,6 +5,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'dart:async';
 import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
+import '../services/live_video_config.dart';
 
 class LiveStreamPage extends StatefulWidget {
   final String streamId;
@@ -28,39 +29,67 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
   bool _isWatching = false;
   bool _hasClaimedReward = false;
   bool _isClaimingReward = false;
+  bool _hasStartedPlaying = false;
   late YoutubePlayerController _controller;
 
   @override
   void initState() {
     super.initState();
+    
+    // Use unified live video configuration
     _controller = YoutubePlayerController(
-      initialVideoId: 'p4kmPtTU4lw', // Same as Live TV screen
+      initialVideoId: LiveVideoConfig.getVideoId(),
       flags: const YoutubePlayerFlags(
-        autoPlay: false,
+        autoPlay: LiveVideoConfig.autoPlayOnLaunch,
         mute: false,
         controlsVisibleAtStart: true,
         loop: false,
+        isLive: LiveVideoConfig.isLiveStream,
+        enableCaption: LiveVideoConfig.enableCaptions,
       ),
     );
-    _startWatching();
+    
+    // Listen to player state changes
+    _controller.addListener(_onPlayerStateChanged);
   }
 
   @override
   void dispose() {
     _stopWatching();
+    _controller.removeListener(_onPlayerStateChanged);
     _controller.dispose();
     super.dispose();
   }
 
+  void _onPlayerStateChanged() {
+    if (_controller.value.isPlaying && !_hasStartedPlaying) {
+      _hasStartedPlaying = true;
+      _startWatching();
+    } else if (!_controller.value.isPlaying && _isWatching) {
+      _pauseWatching();
+    }
+  }
+
   void _startWatching() {
+    if (_isWatching) return;
+    
     setState(() {
       _isWatching = true;
     });
 
     _watchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _watchTimeSeconds++;
-      });
+      if (_controller.value.isPlaying) {
+        setState(() {
+          _watchTimeSeconds++;
+        });
+        LiveVideoConfig.logWatchTime(_watchTimeSeconds);
+      }
+    });
+  }
+
+  void _pauseWatching() {
+    setState(() {
+      _isWatching = false;
     });
   }
 
@@ -72,7 +101,10 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
   }
 
   Future<void> _claimWatchReward() async {
-    if (_isClaimingReward || _hasClaimedReward || _watchTimeSeconds < 300) return; // 5 minutes = 300 seconds
+    if (_isClaimingReward || _hasClaimedReward || 
+        !LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds)) {
+      return;
+    }
 
     setState(() {
       _isClaimingReward = true;
@@ -80,23 +112,23 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
 
     try {
       final result = await RewardService.claimLiveStreamReward(
-        streamId: widget.streamId,
+        streamId: LiveVideoConfig.getVideoId(),
         watchDurationSeconds: _watchTimeSeconds,
       );
 
       if (result.success) {
-        final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim({
-          'success': result.success,
-          'reward': result.reward,
-          'message': result.message,
-        });
-
-        setState(() {
-          _hasClaimedReward = true;
-        });
-
         if (mounted) {
+          final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+          await balanceService.processRewardClaim({
+            'success': result.success,
+            'reward': result.reward,
+            'message': result.message,
+          });
+
+          setState(() {
+            _hasClaimedReward = true;
+          });
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Live stream reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
@@ -130,17 +162,10 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
     }
   }
 
-  String _formatWatchTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final watchMinutes = _watchTimeSeconds ~/ 60;
-    final canClaim = watchMinutes >= 5 && !_hasClaimedReward;
-    final progress = (_watchTimeSeconds / 300).clamp(0.0, 1.0); // Progress to 5 minutes
+    final progress = LiveVideoConfig.getWatchProgress(_watchTimeSeconds);
+    final canClaim = LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds) && !_hasClaimedReward;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -204,7 +229,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -217,7 +242,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _formatWatchTime(_watchTimeSeconds),
+                          LiveVideoConfig.formatWatchTime(_watchTimeSeconds),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
@@ -271,7 +296,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    canClaim ? 'Reward Ready!' : 'Watch for 5+ minutes',
+                                    canClaim ? 'Reward Ready!' : 'Watch for 1+ minute',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 18,
@@ -281,10 +306,10 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                                   ),
                                   Text(
                                     canClaim 
-                                        ? 'Claim your 8 CNE tokens now!'
-                                        : 'You\'ve watched for ${_formatWatchTime(_watchTimeSeconds)}',
+                                        ? 'Claim your ${LiveVideoConfig.watchReward.toInt()} CNE tokens now!'
+                                        : LiveVideoConfig.getTimeRemainingMessage(_watchTimeSeconds),
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.white.withValues(alpha: 0.8),
                                       fontSize: 14,
                                       fontFamily: 'Lato',
                                     ),
@@ -307,7 +332,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                                 Text(
                                   'Progress to reward',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontFamily: 'Lato',
                                   ),
@@ -327,7 +352,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                             Container(
                               height: 6,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                               child: ClipRRect(
@@ -365,9 +390,9 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Text(
-                                      'Claim 8 CNE Reward',
-                                      style: TextStyle(
+                                  : Text(
+                                      'Claim ${LiveVideoConfig.watchReward.toInt()} CNE Reward',
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         fontFamily: 'Lato',
@@ -386,7 +411,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: _buildStatCard('Watch Time', _formatWatchTime(_watchTimeSeconds)),
+                        child: _buildStatCard('Watch Time', LiveVideoConfig.formatWatchTime(_watchTimeSeconds)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

@@ -1,3 +1,22 @@
+
+// Security Hardening Import - Added by mainnet security integration
+const SecurityHardening = require('./security-hardening');
+const securitySystem = new SecurityHardening();
+
+// Initialize security system
+let securityInitialized = false;
+async function initializeSecurity() {
+    if (!securityInitialized) {
+        await securitySystem.initialize();
+        securityInitialized = true;
+        console.log('🔒 Security system active for mainnet operations');
+    }
+}
+
+// MAINNET MIGRATION - 2025-09-30T17:24:29.281Z
+// Token ID: 0.0.10007647
+// Treasury: 0.0.10007646
+// Network: mainnet
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
@@ -44,19 +63,19 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // Hedera Configuration
-const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID || "0.0.6917102";
+const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID || "0.0.9764298";
 const HEDERA_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
-const CNE_TOKEN_ID = process.env.CNE_TEST_TOKEN_ID || "0.0.6917127";
+const CNE_TOKEN_ID = process.env.CNE_MAINNET_TOKEN_ID || "0.0.9764298";
 const HCS_TOPIC_ID = process.env.HCS_TOPIC_ID || "0.0.6917128";
 
 // Initialize Hedera Client
 let hederaClient;
 try {
     if (HEDERA_PRIVATE_KEY) {
-        hederaClient = Client.forTestnet();
+        hederaClient = Client.forMainnet();
         hederaClient.setOperator(
             AccountId.fromString(HEDERA_ACCOUNT_ID),
-            PrivateKey.fromStringECDSA(HEDERA_PRIVATE_KEY)
+            PrivateKey.fromStringED25519(HEDERA_PRIVATE_KEY)
         );
     }
 } catch (error) {
@@ -508,6 +527,61 @@ function roundToCMEPrecision(amount) {
     return Math.floor(amount * CME_MULTIPLIER) / CME_MULTIPLIER;
 }
 
+// Cloud Function: Check Username Availability (Secure)
+exports.checkUsernameAvailable = onCall({ cors: true }, async (request) => {
+    try {
+        const { username } = request.data;
+        const uid = request.auth?.uid;
+
+        if (!uid) {
+            throw new HttpsError('unauthenticated', 'User must be authenticated');
+        }
+
+        if (!username || typeof username !== 'string') {
+            throw new HttpsError('invalid-argument', 'Username is required');
+        }
+
+        const cleanUsername = username.toLowerCase().trim();
+
+        // Validate username format
+        if (cleanUsername.length < 3) {
+            return { available: false, error: 'Username must be at least 3 characters' };
+        }
+
+        if (cleanUsername.length > 20) {
+            return { available: false, error: 'Username must be less than 20 characters' };
+        }
+
+        if (!/^[a-zA-Z0-9_]+$/.test(cleanUsername)) {
+            return { available: false, error: 'Username can only contain letters, numbers, and underscores' };
+        }
+
+        // Check for reserved words
+        const reservedWords = ['admin', 'moderator', 'support', 'system', 'bot', 'api', 'root', 'user'];
+        if (reservedWords.includes(cleanUsername)) {
+            return { available: false, error: 'This username is reserved' };
+        }
+
+        // Check if username exists in Firestore
+        const usernameQuery = await db.collection('users')
+            .where('username', '==', cleanUsername)
+            .limit(1)
+            .get();
+
+        const isAvailable = usernameQuery.empty;
+
+        return {
+            available: isAvailable,
+            username: cleanUsername,
+            message: isAvailable ? 'Username is available' : 'Username already taken'
+        };
+
+    } catch (error) {
+        console.error('Error checking username availability:', error);
+        throw new HttpsError('internal', 'Failed to check username availability');
+    }
+});
+
 // Cloud Function: User Onboarding - Creates Custodial Hedera Wallet
 exports.onboardUser = onCall({ cors: true }, async (request) => {
     try {
@@ -629,7 +703,12 @@ exports.onboardUser = onCall({ cors: true }, async (request) => {
 });
 
 // Cloud Function: Earn Event Processing - Universal reward handler
-exports.earnEvent = onCall({ cors: true }, async (request) => {
+exports.earnEvent = onCall({ 
+    cors: true,
+    memory: "128MiB",
+    timeoutSeconds: 60,
+    region: "us-east1"
+}, async (request) => {
     try {
         const { uid, eventType, meta, idempotencyKey } = request.data;
         const authUid = request.auth?.uid;
@@ -861,6 +940,87 @@ exports.getUserBalance = onCall({ cors: true }, async (request) => {
     }
 });
 
+// Cloud Function: Deduct Tokens (for quiz entry fees, purchases, etc.)
+exports.deductTokens = onCall({ cors: true }, async (request) => {
+    try {
+        const { uid, amount, reason, metadata } = request.data;
+        const authUid = request.auth?.uid;
+
+        if (!authUid || authUid !== uid) {
+            throw new HttpsError('unauthenticated', 'Authentication mismatch');
+        }
+
+        if (!amount || amount <= 0) {
+            throw new HttpsError('invalid-argument', 'Invalid deduction amount');
+        }
+
+        // Get user data
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) {
+            throw new HttpsError('not-found', 'User not found');
+        }
+
+        const userData = userDoc.data();
+        const currentBalance = userData.available_balance || 0;
+
+        // Check if user has sufficient balance
+        if (currentBalance < amount) {
+            return {
+                success: false,
+                message: `Insufficient balance. Required: ${amount}, Available: ${currentBalance}`,
+                currentBalance: fromCMEUnits(currentBalance)
+            };
+        }
+
+        // Process deduction in transaction
+        await db.runTransaction(async (transaction) => {
+            const userRef = db.collection('users').doc(uid);
+            const userSnapshot = await transaction.get(userRef);
+            const currentData = userSnapshot.data();
+
+            const newAvailableBalance = currentData.available_balance - amount;
+            const newTotalBalance = currentData.points_balance - amount;
+
+            // Update user balances
+            transaction.update(userRef, {
+                available_balance: newAvailableBalance,
+                points_balance: newTotalBalance,
+                lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Log the deduction
+            const deductionLogRef = db.collection('deductions_log').doc();
+            transaction.set(deductionLogRef, {
+                id: deductionLogRef.id,
+                uid: uid,
+                amount: amount,
+                reason: reason || 'Token deduction',
+                metadata: metadata || {},
+                balanceBefore: currentData.available_balance,
+                balanceAfter: newAvailableBalance,
+                status: 'COMPLETED',
+                createdAt: Date.now()
+            });
+        });
+
+        console.log(`Successfully deducted ${amount} tokens from user ${uid} for reason: ${reason}`);
+
+        return {
+            success: true,
+            message: 'Tokens deducted successfully',
+            deductedAmount: fromCMEUnits(amount),
+            newBalance: fromCMEUnits(currentBalance - amount)
+        };
+
+    } catch (error) {
+        console.error('Error deducting tokens:', error);
+        if (error instanceof HttpsError) {
+            throw error;
+        }
+        throw new HttpsError('internal', error.message);
+    }
+});
+
 // Cloud Function: Redeem CME Tokens (Convert points to on-chain tokens)
 exports.redeemTokens = onCall({ cors: true }, async (request) => {
     try {
@@ -999,10 +1159,20 @@ async function calculateReward(eventType, meta, userData) {
         // Apply event-specific validation and logic
         switch (eventType) {
             case 'video_watch':
-                // Require minimum 70% completion
-                if (!meta.watchedPercentage || meta.watchedPercentage < 0.7) {
+                // Calculate watch percentage from duration data
+                const watchDuration = meta.watchDuration || 0;
+                const totalDuration = meta.totalDuration || 0;
+                const watchPercentage = totalDuration > 0 ? watchDuration / totalDuration : 0;
+                
+                // Require minimum 30 seconds OR 70% completion (whichever is more lenient)
+                const minWatchTime = 30;
+                const requiredPercentage = 0.7;
+                
+                if (watchDuration < minWatchTime && watchPercentage < requiredPercentage) {
+                    console.log(`Video watch validation failed: ${watchDuration}s watched, ${(watchPercentage * 100).toFixed(1)}% complete`);
                     return { amount: 0, immediate: 0, locked: 0 };
                 }
+                console.log(`Video watch validation passed: ${watchDuration}s watched, ${(watchPercentage * 100).toFixed(1)}% complete`);
                 break;
                 
             case 'ad_view':
@@ -1588,6 +1758,216 @@ exports.getSystemLocksStats = onCall({ cors: true }, async (request) => {
     } catch (error) {
         console.error('Error getting system locks stats:', error);
         throw new Error(error.message);
+    }
+});
+
+// ===== USER ACCOUNT MANAGEMENT =====
+
+// Cloud Function: Delete User Account (Admin Only)
+exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
+    try {
+        const { email, reason } = request.data;
+        const adminUid = request.auth?.uid;
+
+        if (!adminUid) {
+            throw new HttpsError('unauthenticated', 'Authentication required');
+        }
+
+        // Verify admin permissions
+        const adminDoc = await db.collection('admins').doc(adminUid).get();
+        if (!adminDoc.exists) {
+            throw new HttpsError('permission-denied', 'Admin access required');
+        }
+
+        console.log(`🗑️ Admin ${adminUid} requesting deletion of account: ${email}`);
+
+        // Find user by email
+        let userRecord;
+        try {
+            userRecord = await admin.auth().getUserByEmail(email);
+        } catch (error) {
+            if (error.code === 'auth/user-not-found') {
+                return {
+                    success: false,
+                    message: `No user found with email: ${email}`
+                };
+            }
+            throw error;
+        }
+
+        const userId = userRecord.uid;
+        console.log(`Found user: ${userId} with email: ${email}`);
+
+        // Collect user data before deletion for logging
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.exists ? userDoc.data() : null;
+
+        // Start deletion process
+        const deletionResults = {
+            auth: false,
+            userData: false,
+            rewardsLog: 0,
+            socialVerifications: 0,
+            redemptions: 0,
+            battles: 0,
+            pendingTransfers: 0,
+            adminActions: 0
+        };
+
+        try {
+            // 1. Delete from Firebase Auth
+            await admin.auth().deleteUser(userId);
+            deletionResults.auth = true;
+            console.log(`✅ Deleted Firebase Auth user: ${userId}`);
+
+            // 2. Delete user document
+            if (userDoc.exists) {
+                await db.collection('users').doc(userId).delete();
+                deletionResults.userData = true;
+                console.log(`✅ Deleted user document: ${userId}`);
+            }
+
+            // 3. Delete rewards log entries
+            const rewardsQuery = await db.collection('rewards_log')
+                .where('uid', '==', userId)
+                .get();
+            
+            const rewardsBatch = db.batch();
+            rewardsQuery.docs.forEach(doc => {
+                rewardsBatch.delete(doc.ref);
+            });
+            await rewardsBatch.commit();
+            deletionResults.rewardsLog = rewardsQuery.size;
+            console.log(`✅ Deleted ${rewardsQuery.size} rewards log entries`);
+
+            // 4. Delete social verifications
+            const socialQuery = await db.collection('users').doc(userId)
+                .collection('social_verifications').get();
+            
+            const socialBatch = db.batch();
+            socialQuery.docs.forEach(doc => {
+                socialBatch.delete(doc.ref);
+            });
+            await socialBatch.commit();
+            deletionResults.socialVerifications = socialQuery.size;
+            console.log(`✅ Deleted ${socialQuery.size} social verification entries`);
+
+            // 5. Delete redemptions
+            const redemptionsQuery = await db.collection('redemptions')
+                .where('uid', '==', userId)
+                .get();
+            
+            const redemptionsBatch = db.batch();
+            redemptionsQuery.docs.forEach(doc => {
+                redemptionsBatch.delete(doc.ref);
+            });
+            await redemptionsBatch.commit();
+            deletionResults.redemptions = redemptionsQuery.size;
+            console.log(`✅ Deleted ${redemptionsQuery.size} redemption entries`);
+
+            // 6. Remove from battle rounds (update arrays, don't delete rounds)
+            const battlesQuery = await db.collection('timedRounds')
+                .where('players', 'array-contains-any', [{ uid: userId }])
+                .get();
+            
+            const battlesBatch = db.batch();
+            battlesQuery.docs.forEach(battleDoc => {
+                const battleData = battleDoc.data();
+                const updatedPlayers = battleData.players.filter(player => player.uid !== userId);
+                battlesBatch.update(battleDoc.ref, { 
+                    players: updatedPlayers,
+                    totalStake: updatedPlayers.reduce((sum, p) => sum + p.stakeAmount, 0)
+                });
+            });
+            await battlesBatch.commit();
+            deletionResults.battles = battlesQuery.size;
+            console.log(`✅ Removed user from ${battlesQuery.size} battle rounds`);
+
+            // 7. Delete pending transfers
+            const transfersQuery = await db.collection('pending_transfers')
+                .where('uid', '==', userId)
+                .get();
+            
+            const transfersBatch = db.batch();
+            transfersQuery.docs.forEach(doc => {
+                transfersBatch.delete(doc.ref);
+            });
+            await transfersBatch.commit();
+            deletionResults.pendingTransfers = transfersQuery.size;
+            console.log(`✅ Deleted ${transfersQuery.size} pending transfer entries`);
+
+            // 8. Log the deletion action
+            await db.collection('admin_actions').add({
+                action: 'delete_user_account',
+                admin_user: adminUid,
+                target_user_id: userId,
+                target_user_email: email,
+                reason: reason || 'No reason provided',
+                user_data_snapshot: userData ? {
+                    points_balance: userData.points_balance,
+                    available_balance: userData.available_balance,
+                    locked_balance: userData.locked_balance,
+                    total_earned: userData.total_earned,
+                    createdAt: userData.createdAt,
+                    walletAddress: userData.walletAddress
+                } : null,
+                deletion_results: deletionResults,
+                created_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 9. Publish to HCS for audit trail
+            const hcsMessage = {
+                type: 'user_account_deleted',
+                admin_uid: adminUid,
+                deleted_user_id: userId,
+                deleted_user_email: email,
+                reason: reason || 'No reason provided',
+                deletion_results: deletionResults,
+                timestamp: Date.now()
+            };
+            await publishToHCS(hcsMessage);
+
+            console.log(`✅ Successfully deleted user account: ${email} (${userId})`);
+
+            return {
+                success: true,
+                message: `User account deleted successfully: ${email}`,
+                deleted_user_id: userId,
+                deletion_summary: {
+                    firebase_auth: deletionResults.auth,
+                    user_document: deletionResults.userData,
+                    rewards_entries: deletionResults.rewardsLog,
+                    social_verifications: deletionResults.socialVerifications,
+                    redemptions: deletionResults.redemptions,
+                    battle_participations: deletionResults.battles,
+                    pending_transfers: deletionResults.pendingTransfers
+                }
+            };
+
+        } catch (error) {
+            console.error(`❌ Error during user deletion: ${error.message}`);
+            
+            // Log the failed deletion attempt
+            await db.collection('admin_actions').add({
+                action: 'delete_user_account_failed',
+                admin_user: adminUid,
+                target_user_id: userId,
+                target_user_email: email,
+                reason: reason || 'No reason provided',
+                error_message: error.message,
+                partial_results: deletionResults,
+                created_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            throw new HttpsError('internal', `Deletion failed: ${error.message}`);
+        }
+
+    } catch (error) {
+        console.error('Error in deleteUserAccount:', error);
+        if (error instanceof HttpsError) {
+            throw error;
+        }
+        throw new HttpsError('internal', error.message);
     }
 });
 
@@ -3154,5 +3534,55 @@ exports.scheduledTokenTransfers = onSchedule({
     } catch (error) {
         console.error('❌ Error in scheduled token transfers:', error);
         throw error;
+    }
+});
+
+
+// Security monitoring endpoint
+exports.getSecurityMetrics = functions.https.onRequest(async (req, res) => {
+    try {
+        // Require admin authentication
+        const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
+        if (adminKey !== process.env.ADMIN_SECRET_KEY) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        await initializeSecurity();
+        
+        const metrics = await securitySystem.collectSecurityMetrics();
+        res.json({
+            success: true,
+            metrics,
+            timestamp: Date.now()
+        });
+
+    } catch (error) {
+        console.error('Security metrics error:', error);
+        res.status(500).json({ error: 'Failed to collect security metrics' });
+    }
+});
+
+// Security alert endpoint
+exports.sendSecurityAlert = functions.https.onRequest(async (req, res) => {
+    try {
+        const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
+        if (adminKey !== process.env.ADMIN_SECRET_KEY) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        await initializeSecurity();
+        
+        const { eventType, data, severity } = req.body;
+        await securitySystem.logSecurityEvent(eventType, { ...data, manualAlert: true });
+        
+        res.json({
+            success: true,
+            message: 'Security alert logged',
+            eventType
+        });
+
+    } catch (error) {
+        console.error('Security alert error:', error);
+        res.status(500).json({ error: 'Failed to send security alert' });
     }
 });

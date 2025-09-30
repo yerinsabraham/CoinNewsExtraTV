@@ -1,0 +1,12 @@
+{
+  "migrationDate": "2025-09-30T17:17:47.091Z",
+  "tokenId": "0.0.10007647",
+  "totalUsers": 4,
+  "successfulMigrations": 0,
+  "totalTokensMinted": 0,
+  "auditTrail": "https://hashscan.io/mainnet/topic/0.0.10007691",
+  "verificationFiles": [
+    "migration-report-2025-09-30T17-17-50-474Z.json",
+    "successful-migrations-2025-09-30T17-17-50-474Z.json"
+  ]
+}
