@@ -244,6 +244,15 @@ class _EarningPageState extends State<EarningPage> {
                       _buildDailyCheckInMethod(context, balanceService),
                       _buildSocialMediaEarningMethod(context, balanceService),
                       _buildEarningMethod(
+                        icon: Icons.casino,
+                        title: 'Spin2Earn',
+                        subtitle: 'Spin the wheel to win',
+                        reward: '+10-1000 CNE per spin',
+                        onTap: () {
+                          _navigateToSpin2Earn(context);
+                        },
+                      ),
+                      _buildEarningMethod(
                         icon: Icons.video_camera_front,
                         title: 'Watch Live',
                         subtitle: 'Join live streams',
@@ -401,7 +410,7 @@ class _EarningPageState extends State<EarningPage> {
             ),
             const Spacer(),
             Text(
-              '+${balanceService.rewardAmounts.socialReward.toInt()} CNE per follow',
+              '+10-20 CNE per follow',
               style: const TextStyle(
                 color: Color(0xFF006833),
                 fontSize: 11,
@@ -610,9 +619,9 @@ class _EarningPageState extends State<EarningPage> {
           mode: LaunchMode.externalApplication,
         );
         
-        // After launching, show option to claim reward
+        // After launching, show verification dialog after a short delay
         Future.delayed(const Duration(seconds: 2), () {
-          _showSocialRewardClaimDialog(url);
+          _showVerificationForUrl(url);
         });
       } else {
         // Handle error - could show snackbar or try in-app browser
@@ -696,6 +705,10 @@ class _EarningPageState extends State<EarningPage> {
         builder: (context) => const DailyCheckinPage(),
       ),
     );
+  }
+
+  void _navigateToSpin2Earn(BuildContext context) {
+    Navigator.pushNamed(context, '/spin2earn');
   }
 
   // Daily reward claim
@@ -820,7 +833,29 @@ class _EarningPageState extends State<EarningPage> {
     );
   }
 
-  // Show social reward claim dialog
+  // Show verification for specific URL
+  void _showVerificationForUrl(String url) {
+    // Extract platform from URL
+    String platformId = 'twitter'; // default
+    if (url.contains('tiktok.com')) platformId = 'twitter'; // TikTok not in verification service yet
+    else if (url.contains('t.me') || url.contains('telegram')) platformId = 'telegram';
+    else if (url.contains('youtube.com')) platformId = 'youtube';
+    else if (url.contains('linkedin.com')) platformId = 'linkedin';
+    else if (url.contains('facebook.com')) platformId = 'facebook';
+    else if (url.contains('twitter.com') || url.contains('x.com')) platformId = 'twitter';
+    else if (url.contains('instagram.com')) platformId = 'instagram';
+
+    // Find the platform in verification service
+    final platforms = SocialMediaVerificationService.getSupportedPlatforms();
+    final platform = platforms.firstWhere(
+      (p) => p['id'] == platformId,
+      orElse: () => platforms.first, // fallback to first platform
+    );
+
+    _showVerificationDialog(platform);
+  }
+
+  // Show social reward claim dialog (legacy - keeping for compatibility)
   void _showSocialRewardClaimDialog(String url) {
     if (!mounted) return;
 

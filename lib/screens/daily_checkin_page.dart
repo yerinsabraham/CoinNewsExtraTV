@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
@@ -40,13 +42,47 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
     });
 
     try {
+      // Get user-specific status
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _checkinStatus = {'canClaim': false};
+          _calculateTimeUntilNextClaim();
+        });
+        return;
+      }
+
       final status = await RewardService.getDailyRewardStatus();
+      
+      // Enhance status with user-specific data from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final userId = user.uid;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final lastClaimDate = prefs.getString('daily_claim_date_$userId');
+      final lastClaimTimestamp = prefs.getInt('daily_claim_timestamp_$userId');
+      
+      // Determine if user can claim today
+      bool canClaimToday = lastClaimDate != today;
+      
+      // Merge server status with local user-specific data
+      final enhancedStatus = {
+        ...?status,
+        'canClaim': canClaimToday,
+        'lastClaimAt': lastClaimTimestamp,
+        'lastClaimDate': lastClaimDate,
+        'currentUserId': userId,
+      };
+      
       setState(() {
-        _checkinStatus = status;
+        _checkinStatus = enhancedStatus;
         _calculateTimeUntilNextClaim();
       });
     } catch (e) {
       debugPrint('Error loading checkin status: $e');
+      setState(() {
+        _checkinStatus = {'canClaim': false};
+        _calculateTimeUntilNextClaim();
+      });
     } finally {
       setState(() {
         _isLoading = false;
@@ -63,14 +99,51 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
       return;
     }
     
-    // If user can't claim, calculate time until tomorrow's claim
+    // Calculate user-specific next claim time based on their last claim
+    final lastClaimAt = _checkinStatus!['lastClaimAt'];
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    _timeUntilNextClaim = tomorrow.difference(now);
+    
+    if (lastClaimAt != null) {
+      // Convert timestamp to DateTime (handle both milliseconds and seconds)
+      DateTime lastClaim;
+      if (lastClaimAt is int) {
+        // If timestamp is too small, it's likely in seconds, convert to milliseconds
+        final timestamp = lastClaimAt > 1000000000000 ? lastClaimAt : lastClaimAt * 1000;
+        lastClaim = DateTime.fromMillisecondsSinceEpoch(timestamp);
+      } else if (lastClaimAt is Map) {
+        // Firestore Timestamp format
+        final seconds = lastClaimAt['_seconds'] ?? (lastClaimAt['seconds'] ?? 0);
+        lastClaim = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+      } else {
+        // Fallback to current time
+        lastClaim = now;
+      }
+      
+      // Next claim is 24 hours after last claim
+      final nextClaimTime = DateTime(
+        lastClaim.year,
+        lastClaim.month, 
+        lastClaim.day + 1,
+        0, 0, 0, 0 // Reset to start of next day
+      );
+      
+      _timeUntilNextClaim = nextClaimTime.isAfter(now) 
+          ? nextClaimTime.difference(now)
+          : Duration.zero;
+    } else {
+      // No previous claim, can claim immediately
+      _timeUntilNextClaim = Duration.zero;
+    }
   }
 
   void _startCountdownTimer() {
     _countdownTimer?.cancel();
+    
+    // Only start timer if there's actually a countdown needed
+    if (_timeUntilNextClaim.inSeconds <= 0) {
+      return; // No countdown needed
+    }
+    
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeUntilNextClaim.inSeconds > 0) {
         setState(() {
@@ -78,6 +151,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
         });
       } else {
         // Time's up, refresh the status
+        timer.cancel();
         _loadCheckinStatus();
       }
     });
@@ -117,6 +191,18 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
           'reward': result.reward,
           'message': result.message,
         });
+
+        // Save user-specific claim data
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final prefs = await SharedPreferences.getInstance();
+          final now = DateTime.now();
+          final userId = user.uid;
+          final today = now.toIso8601String().substring(0, 10);
+          
+          await prefs.setString('daily_claim_date_$userId', today);
+          await prefs.setInt('daily_claim_timestamp_$userId', now.millisecondsSinceEpoch);
+        }
 
         // Refresh status
         await _loadCheckinStatus();

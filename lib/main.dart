@@ -20,6 +20,8 @@ import 'screens/news_page.dart';
 import 'screens/notification_screen.dart';
 import 'screens/explore_page.dart';
 import 'screens/spin2earn_game_page.dart';
+import 'screens/working_spin_game_page.dart';
+import 'screens/ultimate_spin_game_page.dart';
 import 'screens/admin_delete_user_page.dart';
 import 'play_extra/screens/play_extra_main.dart';
 import 'play_extra/services/play_extra_service.dart'; 
@@ -97,7 +99,7 @@ class Watch2EarnApp extends StatelessWidget {
             case '/explore':
               return MaterialPageRoute(builder: (_) => const ExplorePage());
             case '/spin2earn':
-              return MaterialPageRoute(builder: (_) => const Spin2EarnGamePage());
+              return MaterialPageRoute(builder: (_) => const UltimateSpinGamePage());
             case '/play-extra':
               return MaterialPageRoute(builder: (_) => const PlayExtraMain());
             case '/admin-delete-user':

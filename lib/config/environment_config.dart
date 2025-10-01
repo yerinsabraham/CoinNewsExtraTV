@@ -5,7 +5,7 @@ library environment_config;
 enum AppEnvironment { testnet, mainnet }
 
 class EnvironmentConfig {
-  static AppEnvironment _currentEnvironment = AppEnvironment.testnet;
+  static AppEnvironment _currentEnvironment = AppEnvironment.mainnet;
   
   static AppEnvironment get currentEnvironment => _currentEnvironment;
   
@@ -32,10 +32,10 @@ class EnvironmentConfig {
       case AppEnvironment.mainnet:
         return {
           'networkName': 'mainnet',
-          'operatorId': const String.fromEnvironment('HEDERA_MAINNET_OPERATOR_ID', defaultValue: ''),
-          'operatorKey': const String.fromEnvironment('HEDERA_MAINNET_OPERATOR_KEY', defaultValue: ''),
-          'cneTokenId': const String.fromEnvironment('CNE_MAINNET_TOKEN_ID', defaultValue: ''),
-          'hcsTopicId': const String.fromEnvironment('HCS_MAINNET_TOPIC_ID', defaultValue: ''),
+          'operatorId': const String.fromEnvironment('HEDERA_MAINNET_OPERATOR_ID', defaultValue: '0.0.9764298'),
+          'operatorKey': const String.fromEnvironment('HEDERA_MAINNET_OPERATOR_KEY', defaultValue: 'SECURE_KEY_PLACEHOLDER'),
+          'cneTokenId': const String.fromEnvironment('CNE_MAINNET_TOKEN_ID', defaultValue: '0.0.10007647'),
+          'hcsTopicId': const String.fromEnvironment('HCS_MAINNET_TOPIC_ID', defaultValue: '0.0.10007691'),
           'mirrorNodeUrl': 'https://mainnet-public.mirrornode.hedera.com',
           'nodeEndpoints': [
             'https://mainnet.hedera.com:50211',

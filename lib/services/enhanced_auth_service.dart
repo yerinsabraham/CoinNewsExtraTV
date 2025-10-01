@@ -2,8 +2,8 @@
 /// Integrates Firebase Auth with Hedera wallet creation and DID management
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'wallet_creation_service.dart';
-import 'did_auth_service.dart';
+import 'simplified_wallet_service.dart';
+import 'simplified_did_service.dart';
 
 class EnhancedAuthService {
   static EnhancedAuthService? _instance;
@@ -39,8 +39,15 @@ class EnhancedAuthService {
       await firebaseUser.updateDisplayName(displayName);
       
       try {
-        // Step 2: Create custodial Hedera wallet
-        final walletResult = await WalletCreationService.instance.createCustodialWallet(
+        // Step 2: Create basic user document first
+        await _createBasicUserDocument(
+          userId: firebaseUser.uid,
+          email: email,
+          displayName: displayName,
+        );
+        
+        // Step 3: Create custodial Hedera wallet
+        final walletResult = await SimplifiedWalletCreationService.instance.createCustodialWallet(
           userId: firebaseUser.uid,
           userEmail: email,
           displayName: displayName,
@@ -54,8 +61,8 @@ class EnhancedAuthService {
         
         final wallet = walletResult.wallet!;
         
-        // Step 3: Create DID with wallet address
-        final didResult = await DIDAuthService.instance.registerUserWithDID(
+        // Step 4: Create DID with wallet address
+        final didResult = await SimplifiedDIDAuthService.instance.registerUserWithDID(
           email: email,
           password: password,
           walletAddress: wallet.accountId,
@@ -69,7 +76,7 @@ class EnhancedAuthService {
           return OnboardingResult.error('Failed to create DID: ${didResult.error}');
         }
         
-        // Step 4: Create comprehensive user document
+        // Step 5: Update user document with complete data
         await _createUserDocument(
           userId: firebaseUser.uid,
           email: email,
@@ -79,7 +86,7 @@ class EnhancedAuthService {
           didData: didResult.data!,
         );
         
-        // Step 5: Initialize user rewards and welcome bonus
+        // Step 6: Initialize user rewards and welcome bonus
         await _initializeUserRewards(firebaseUser.uid);
         
         _logDebug('✅ Complete user onboarding successful');
@@ -163,7 +170,7 @@ class EnhancedAuthService {
       // Check wallet exists
       CustodialWallet? wallet;
       if (hasWallet && walletAddress != null) {
-        wallet = await WalletCreationService.instance.getUserWallet(userId);
+        wallet = await SimplifiedWalletCreationService.instance.getUserWallet(userId);
       }
       
       return UserSetupStatus(
@@ -194,7 +201,7 @@ class EnhancedAuthService {
       
       // Create wallet if missing
       if (!status.hasWallet) {
-        final walletResult = await WalletCreationService.instance.createCustodialWallet(
+        final walletResult = await SimplifiedWalletCreationService.instance.createCustodialWallet(
           userId: firebaseUser.uid,
           userEmail: firebaseUser.email!,
           displayName: firebaseUser.displayName,
@@ -209,7 +216,7 @@ class EnhancedAuthService {
       
       // Create DID if missing
       if (!status.hasDID && wallet != null) {
-        final didResult = await DIDAuthService.instance.registerUserWithDID(
+        final didResult = await SimplifiedDIDAuthService.instance.registerUserWithDID(
           email: firebaseUser.email!,
           password: '', // User is already authenticated
           walletAddress: wallet.accountId,
@@ -241,6 +248,21 @@ class EnhancedAuthService {
     }
   }
   
+  /// Create basic user document first
+  Future<void> _createBasicUserDocument({
+    required String userId,
+    required String email,
+    required String displayName,
+  }) async {
+    await _firestore.collection('users').doc(userId).set({
+      'uid': userId,
+      'email': email,
+      'displayName': displayName,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'creating',
+    });
+  }
+  
   /// Create comprehensive user document
   Future<void> _createUserDocument({
     required String userId,
@@ -250,19 +272,15 @@ class EnhancedAuthService {
     required CustodialWallet wallet,
     required DIDUserData didData,
   }) async {
-    await _firestore.collection('users').doc(userId).set({
-      'uid': userId,
-      'email': email,
-      'displayName': displayName,
+    await _firestore.collection('users').doc(userId).update({
       'username': username?.toLowerCase(),
       'walletAddress': wallet.accountId,
       'didIdentifier': wallet.didIdentifier,
       'hasWallet': true,
       'hasDID': true,
-      'createdAt': FieldValue.serverTimestamp(),
       'setupCompletedAt': FieldValue.serverTimestamp(),
       'onboardingVersion': '1.0',
-      'walletType': 'custodial',
+      'walletType': 'custodial_simplified',
       'status': 'active',
     });
   }

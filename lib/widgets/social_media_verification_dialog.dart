@@ -153,49 +153,61 @@ class _SocialMediaVerificationDialogState extends State<SocialMediaVerificationD
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final maxHeight = screenHeight * 0.85; // Use 85% of screen height
+    
     return Dialog(
       backgroundColor: Colors.grey[900],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
       child: Container(
-        padding: const EdgeInsets.all(20),
-        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+        constraints: BoxConstraints(
+          maxWidth: 400, 
+          maxHeight: maxHeight,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                Icon(
-                  _getPlatformIcon(widget.platform['id']),
-                  color: const Color(0xFF006833),
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Verify ${widget.platform['displayName']} Follow',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Lato',
+            // Fixed header
+            Container(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(
+                    _getPlatformIcon(widget.platform['id']),
+                    color: const Color(0xFF006833),
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Verify ${widget.platform['displayName']} Follow',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
             ),
             
-            const SizedBox(height: 16),
-            
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             // Current Status
             if (_currentStatus != null) ...[
               _buildStatusWidget(_currentStatus!),
@@ -322,35 +334,49 @@ class _SocialMediaVerificationDialogState extends State<SocialMediaVerificationD
               ],
             ],
             
-            // Reward Information
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF006833).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF006833).withOpacity(0.3),
+                    // End of scrollable content
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.monetization_on,
-                    color: Color(0xFF006833),
-                    size: 20,
+            ),
+            
+            // Fixed footer with reward info
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.grey[700]!),
+                ),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006833).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF006833).withOpacity(0.3),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Reward: +${widget.platform['reward']} CNE',
-                    style: const TextStyle(
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.monetization_on,
                       color: Color(0xFF006833),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Lato',
+                      size: 20,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Text(
+                      'Reward: +${widget.platform['reward']} CNE',
+                      style: const TextStyle(
+                        color: Color(0xFF006833),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

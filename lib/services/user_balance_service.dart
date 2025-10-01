@@ -342,6 +342,16 @@ class UserBalanceService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Add transaction to recent transactions list for immediate UI feedback
+  void addRecentTransaction(Map<String, dynamic> transaction) {
+    _transactionHistory.insert(0, transaction);
+    // Keep only the last 10 transactions
+    if (_transactionHistory.length > 10) {
+      _transactionHistory = _transactionHistory.take(10).toList();
+    }
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _authSubscription?.cancel();

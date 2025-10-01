@@ -1,4 +1,17 @@
 
+
+// MAINNET MIGRATION - 2025-09-30T17:24:29.281Z
+// Token ID: 0.0.10007647
+// Treasury: 0.0.10007646
+// Network: mainnet
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const admin = require("firebase-admin");
+
+// Initialize Firebase Admin first
+admin.initializeApp();
+
 // Security Hardening Import - Added by mainnet security integration
 const SecurityHardening = require('./security-hardening');
 const securitySystem = new SecurityHardening();
@@ -12,15 +25,6 @@ async function initializeSecurity() {
         console.log('🔒 Security system active for mainnet operations');
     }
 }
-
-// MAINNET MIGRATION - 2025-09-30T17:24:29.281Z
-// Token ID: 0.0.10007647
-// Treasury: 0.0.10007646
-// Network: mainnet
-const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
-const { onSchedule } = require("firebase-functions/v2/scheduler");
-const admin = require("firebase-admin");
 const { 
     Client, 
     AccountId, 
@@ -58,8 +62,6 @@ const {
     cleanupOldTransfers
 } = require("./src/rewards/hederaTransfers");
 
-// Initialize Firebase Admin
-admin.initializeApp();
 const db = admin.firestore();
 
 // Hedera Configuration
@@ -707,7 +709,7 @@ exports.earnEvent = onCall({
     cors: true,
     memory: "128MiB",
     timeoutSeconds: 60,
-    region: "us-east1"
+    region: "us-central1"
 }, async (request) => {
     try {
         const { uid, eventType, meta, idempotencyKey } = request.data;
@@ -3539,7 +3541,7 @@ exports.scheduledTokenTransfers = onSchedule({
 
 
 // Security monitoring endpoint
-exports.getSecurityMetrics = functions.https.onRequest(async (req, res) => {
+exports.getSecurityMetrics = onRequest(async (req, res) => {
     try {
         // Require admin authentication
         const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
@@ -3563,7 +3565,7 @@ exports.getSecurityMetrics = functions.https.onRequest(async (req, res) => {
 });
 
 // Security alert endpoint
-exports.sendSecurityAlert = functions.https.onRequest(async (req, res) => {
+exports.sendSecurityAlert = onRequest(async (req, res) => {
     try {
         const adminKey = req.headers['x-admin-key'] || req.body.adminKey;
         if (adminKey !== process.env.ADMIN_SECRET_KEY) {
