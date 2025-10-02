@@ -70,7 +70,7 @@ class Watch2EarnApp extends StatelessWidget {
             onSurfaceVariant: Color(0xFFE0E0E0),
             outline: Color(0xFF404040),
           ),
-          cardTheme: const CardTheme(
+          cardTheme: const CardThemeData(
             elevation: 8,
             shadowColor: Colors.black26,
             shape: RoundedRectangleBorder(

@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'programs_page.dart';
+import 'program_page.dart';
 import 'earning_page.dart';
 import 'wallet_page.dart';
 import 'profile_screen.dart';
@@ -27,7 +27,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   late final List<Widget> _pages = [
     const BinanceHomePage(),
-    const ProgramsPage(),
+    const ProgramPage(),
     const EarningPage(),
     const WalletPage(),
     const ProfileScreen(),
