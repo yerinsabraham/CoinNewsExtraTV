@@ -40,42 +40,94 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.black,
-        selectedItemColor: const Color(0xFF006833),
-        unselectedItemColor: Colors.grey[600],
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            selectedItemColor: const Color(0xFF00B359),
+            unselectedItemColor: Colors.grey[500],
+            selectedFontSize: 13,
+            unselectedFontSize: 12,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w400,
+            ),
+            items: const [
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.home_outlined, size: 24),
+                ),
+                activeIcon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.home_rounded, size: 26),
+                ),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.tv_outlined, size: 24),
+                ),
+                activeIcon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.tv_rounded, size: 26),
+                ),
+                label: 'Program',
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.monetization_on_outlined, size: 24),
+                ),
+                activeIcon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.monetization_on_rounded, size: 26),
+                ),
+                label: 'Earn',
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.account_balance_wallet_outlined, size: 24),
+                ),
+                activeIcon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.account_balance_wallet_rounded, size: 26),
+                ),
+                label: 'Wallet',
+              ),
+              BottomNavigationBarItem(
+                icon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.person_outline_rounded, size: 24),
+                ),
+                activeIcon: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Icon(Icons.person_rounded, size: 26),
+                ),
+                label: 'Profile',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.tv_outlined),
-            activeIcon: Icon(Icons.tv),
-            label: 'Program',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.monetization_on_outlined),
-            activeIcon: Icon(Icons.monetization_on),
-            label: 'Earn',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            activeIcon: Icon(Icons.account_balance_wallet),
-            label: 'Wallet',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }

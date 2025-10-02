@@ -11,28 +11,34 @@ class MiddleFeatureGrid extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Services',
-            style: TextStyle(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Lato',
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: GridView.count(
               crossAxisCount: 4,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 8,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 12,
               childAspectRatio: 1.0,
               children: [
                 _buildGridItem(
@@ -97,35 +103,68 @@ class MiddleFeatureGrid extends StatelessWidget {
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: const Color(0xFF006833),
-              size: 20,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        splashColor: const Color(0xFF00B359).withOpacity(0.2),
+        highlightColor: const Color(0xFF00B359).withOpacity(0.1),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF2A2A2A),
+                const Color(0xFF1F1F1F),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontFamily: 'Lato',
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00B359).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: const Color(0xFF00B359),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

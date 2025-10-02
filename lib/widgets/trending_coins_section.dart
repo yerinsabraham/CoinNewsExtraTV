@@ -13,13 +13,12 @@ class TrendingCoinsSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Trending',
-                style: TextStyle(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Lato',
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
               TextButton(
@@ -69,15 +68,30 @@ class TrendingCoinsSection extends StatelessWidget {
     bool isPositive,
   ) {
     return Container(
-      width: 120,
+      width: 130,
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey[800]!,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1A1A1A),
+            const Color(0xFF0F0F0F),
+          ],
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

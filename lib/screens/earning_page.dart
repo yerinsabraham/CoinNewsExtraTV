@@ -733,11 +733,13 @@ class _EarningPageState extends State<EarningPage> {
                 await _claimSocialReward(social);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF006833),
+                backgroundColor: const Color(0xFF00B359),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                elevation: 8,
+                shadowColor: const Color(0xFF00B359).withOpacity(0.3),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: const Text(

@@ -55,11 +55,65 @@ class Watch2EarnApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'CoinNewsExtra TV',
         theme: ThemeData.dark().copyWith(
-          scaffoldBackgroundColor: Colors.black,
+          useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFF0A0A0A),
           primaryColor: const Color(0xFF006833),
           colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF006833),
-            secondary: Color(0xFF006833),
+            primary: Color(0xFF00B359),
+            primaryContainer: Color(0xFF006833),
+            secondary: Color(0xFF4CAF50),
+            secondaryContainer: Color(0xFF1B5E20),
+            surface: Color(0xFF1A1A1A),
+            surfaceVariant: Color(0xFF2A2A2A),
+            onPrimary: Colors.white,
+            onSurface: Colors.white,
+            onSurfaceVariant: Color(0xFFE0E0E0),
+            outline: Color(0xFF404040),
+          ),
+          cardTheme: const CardTheme(
+            elevation: 8,
+            shadowColor: Colors.black26,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              elevation: 4,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          textTheme: const TextTheme(
+            headlineLarge: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+              height: 1.2,
+            ),
+            headlineMedium: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.25,
+              height: 1.3,
+            ),
+            titleLarge: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0,
+            ),
+            bodyLarge: TextStyle(
+              fontSize: 16,
+              height: 1.5,
+              letterSpacing: 0.15,
+            ),
+            bodyMedium: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              letterSpacing: 0.25,
+            ),
           ),
         ),
         home: StreamBuilder<User?>(
