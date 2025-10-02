@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:provider/provider.dart';
 import '../models/event.dart';
 import 'event_detail_page.dart';
-import '../provider/admin_provider.dart';
-import '../widgets/chat_ad_carousel.dart';
+import '../widgets/ads_carousel.dart';
 
 class SummitPage extends StatefulWidget {
   const SummitPage({super.key});
@@ -26,7 +24,7 @@ class _SummitPageState extends State<SummitPage> {
       isPaid: true,
       price: 150.00,
       currency: "USD",
-      imageUrl: "https://via.placeholder.com/400x200/006833/FFFFFF?text=FinTech+Summit",
+      imageUrl: "assets/images/fintech_summit.png",
       category: "FinTech",
       attendeeCount: 487,
       maxAttendees: 500,
@@ -48,7 +46,7 @@ class _SummitPageState extends State<SummitPage> {
       isPaid: false,
       price: 0,
       currency: "USD",
-      imageUrl: "https://via.placeholder.com/400x200/8B4513/FFFFFF?text=Fashion+Week",
+      imageUrl: "assets/images/fashion_week.png",
       category: "Fashion",
       attendeeCount: 1250,
       maxAttendees: 1500,
@@ -70,7 +68,7 @@ class _SummitPageState extends State<SummitPage> {
       isPaid: true,
       price: 200.00,
       currency: "USD",
-      imageUrl: "https://via.placeholder.com/400x200/2E8B57/FFFFFF?text=Credit+Expo",
+      imageUrl: "assets/images/credit_expo.png",
       category: "Finance",
       attendeeCount: 312,
       maxAttendees: 400,
@@ -98,7 +96,7 @@ class _SummitPageState extends State<SummitPage> {
       // Show ad carousel after first event
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8.0),
-        child: ChatAdCarousel(),
+        child: AdsCarousel(),
       );
     }
     
@@ -137,9 +135,11 @@ class _SummitPageState extends State<SummitPage> {
           IconButton(
             icon: const Icon(FeatherIcons.search, color: Colors.white),
             onPressed: () {
-              // TODO: Implement search functionality
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search functionality coming soon!')),
+                const SnackBar(
+                  content: Text('Search functionality coming soon!'),
+                  backgroundColor: Color(0xFF006833),
+                ),
               );
             },
           ),
@@ -218,20 +218,6 @@ class _SummitPageState extends State<SummitPage> {
           ),
         ],
       ),
-      floatingActionButton: Consumer<AdminProvider>(
-        builder: (context, adminProvider, child) {
-          if (!adminProvider.isAdmin || adminProvider.isLoading) {
-            return const SizedBox.shrink();
-          }
-          
-          return FloatingActionButton(
-            onPressed: () => _showAdminMenu(context),
-            backgroundColor: const Color(0xFF006833),
-            foregroundColor: Colors.white,
-            child: const Icon(FeatherIcons.plus),
-          );
-        },
-      ),
     );
   }
 
@@ -282,10 +268,19 @@ class _SummitPageState extends State<SummitPage> {
                           width: 1,
                         ),
                       ),
-                      child: const Icon(
-                        FeatherIcons.calendar,
-                        color: Color(0xFF006833),
-                        size: 32,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          event.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              FeatherIcons.calendar,
+                              color: Color(0xFF006833),
+                              size: 32,
+                            );
+                          },
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -438,9 +433,9 @@ class _SummitPageState extends State<SummitPage> {
                     const Spacer(),
                     
                     // View details button
-                    Text(
+                    const Text(
                       'View Details',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Color(0xFF006833),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -493,134 +488,6 @@ class _SummitPageState extends State<SummitPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showAdminMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Container(
-          padding: const EdgeInsets.all(20),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[600],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Event Management',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildAdminMenuItem(
-                  icon: FeatherIcons.plus,
-                  title: 'Add New Event',
-                  subtitle: 'Create a new summit or event',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showComingSoon(context, 'Add Event');
-                  },
-                ),
-                _buildAdminMenuItem(
-                  icon: FeatherIcons.edit,
-                  title: 'Edit Events',
-                  subtitle: 'Modify existing event details',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showComingSoon(context, 'Edit Events');
-                  },
-                ),
-                _buildAdminMenuItem(
-                  icon: FeatherIcons.trash2,
-                  title: 'Remove Events',
-                  subtitle: 'Delete events from the list',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showComingSoon(context, 'Remove Events');
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdminMenuItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: const Color(0xFF006833),
-          size: 24,
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 14,
-          ),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.grey,
-          size: 16,
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        tileColor: const Color(0xFF006833).withOpacity(0.1),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature coming soon!'),
-        backgroundColor: const Color(0xFF006833),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }

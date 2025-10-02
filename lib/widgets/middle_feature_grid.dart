@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import '../screens/summit_page.dart';
-import '../screens/quiz_page.dart';
-import '../screens/more_page.dart';
 
 class MiddleFeatureGrid extends StatelessWidget {
   const MiddleFeatureGrid({super.key});
@@ -34,90 +31,59 @@ class MiddleFeatureGrid extends StatelessWidget {
               crossAxisCount: 4,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.8,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.0,
               children: [
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.trendingUp,
-                label: 'Market Cap',
-                onTap: () {
-                  Navigator.pushNamed(context, '/market-cap');
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.compass,
-                label: 'Explore',
-                onTap: () {
-                  Navigator.pushNamed(context, '/explore');
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.fileText,
-                label: 'News',
-                onTap: () {
-                  Navigator.pushNamed(context, '/news');
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.target,
-                label: 'Spin2Earn',
-                onTap: () {
-                  Navigator.pushNamed(context, '/spin2earn');
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.calendar,
-                label: 'Summit',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SummitPage(),
-                    ),
-                  );
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.play,
-                label: 'Play Extra',
-                onTap: () {
-                  Navigator.pushNamed(context, '/play-extra');
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.helpCircle,
-                label: 'Quiz',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const QuizPage(),
-                    ),
-                  );
-                },
-              ),
-              _buildGridItem(
-                context,
-                icon: FeatherIcons.moreHorizontal,
-                label: 'More',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MorePage(),
-                    ),
-                  );
-                },
-              ),
-            ],
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.trendingUp,
+                  label: 'Market',
+                  onTap: () => Navigator.pushNamed(context, '/market-cap'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.compass,
+                  label: 'Explore',
+                  onTap: () => Navigator.pushNamed(context, '/explore'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.fileText,
+                  label: 'News',
+                  onTap: () => Navigator.pushNamed(context, '/news'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.target,
+                  label: 'Spin2Earn',
+                  onTap: () => Navigator.pushNamed(context, '/spin-game'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.calendar,
+                  label: 'Summit',
+                  onTap: () => Navigator.pushNamed(context, '/summit'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.play,
+                  label: 'Program',
+                  onTap: () => Navigator.pushNamed(context, '/program'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.helpCircle,
+                  label: 'Quiz',
+                  onTap: () => Navigator.pushNamed(context, '/quiz'),
+                ),
+                _buildGridItem(
+                  context,
+                  icon: FeatherIcons.moreHorizontal,
+                  label: 'More',
+                  onTap: () => Navigator.pushNamed(context, '/more'),
+                ),
+              ],
             ),
           ),
         ],
@@ -133,39 +99,44 @@ class MiddleFeatureGrid extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: const Color(0xFF006833).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
               icon,
               color: const Color(0xFF006833),
               size: 20,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'Lato',
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontFamily: 'Lato',
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature coming soon!'),
+        backgroundColor: const Color(0xFF006833),
+      ),
+    );
+  }
 }

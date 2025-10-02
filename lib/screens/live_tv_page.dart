@@ -4,7 +4,6 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../services/live_video_config.dart';
-import '../services/reward_service.dart';
 import '../services/user_balance_service.dart';
 
 class LiveTvPage extends StatefulWidget {
@@ -151,55 +150,35 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
     });
 
     try {
-      final result = await RewardService.claimLiveStreamReward(
-        streamId: LiveVideoConfig.getVideoId(),
-        watchDurationSeconds: _watchTimeSeconds,
-      );
+      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+      await balanceService.addBalance(LiveVideoConfig.watchReward, 'Live TV Watch Reward');
 
-      if (result.success) {
-        final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-        await balanceService.processRewardClaim({
-          'success': result.success,
-          'reward': result.reward,
-          'message': result.message,
-        });
+      setState(() {
+        _hasClaimedReward = true;
+        _isClaimingReward = false;
+      });
 
-        setState(() {
-          _hasClaimedReward = true;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Live stream reward claimed! +${result.reward?.toStringAsFixed(2) ?? '0.00'} CNE'),
-              backgroundColor: const Color(0xFF006833),
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.message),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error claiming live stream reward'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: Text('Earned ${LiveVideoConfig.watchReward} CNE for watching live TV!'),
+            backgroundColor: const Color(0xFF006833),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-    } finally {
+    } catch (e) {
+      setState(() {
+        _isClaimingReward = false;
+      });
+      
       if (mounted) {
-        setState(() {
-          _isClaimingReward = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error claiming reward: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -209,166 +188,249 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        title: const Text(
+          'Live TV',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Lato',
+          ),
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'LIVE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'CNETV Live',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lato',
-              ),
-            ),
-          ],
-        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: Icon(
-              isLiked ? Icons.favorite : Icons.favorite_border,
-              color: isLiked ? Colors.red : Colors.white,
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(12),
             ),
-            onPressed: _toggleLike,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // YouTube Player
-          YoutubePlayerBuilder(
-            player: YoutubePlayer(
-              controller: _controller,
-              showVideoProgressIndicator: true,
-              progressIndicatorColor: const Color(0xFF006833),
-              bottomActions: [
-                CurrentPosition(),
-                ProgressBar(
-                  isExpanded: true,
-                  colors: const ProgressBarColors(
-                    playedColor: Color(0xFF006833),
-                    handleColor: Color(0xFF006833),
-                  ),
-                ),
-                PlaybackSpeedButton(),
-              ],
+          // YouTube Video Player
+          YoutubePlayer(
+            controller: _controller,
+            showVideoProgressIndicator: true,
+            progressIndicatorColor: const Color(0xFF006833),
+            progressColors: const ProgressBarColors(
+              playedColor: Color(0xFF006833),
+              handleColor: Color(0xFF006833),
             ),
-            builder: (context, player) => player,
           ),
           
-          // Watch progress indicator
-          _buildWatchProgressIndicator(),
-          
-          // Live stream info
+          // Video Info and Stats
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.grey[900],
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Crypto Market Analysis & News',
-                        style: TextStyle(
+                // Title and Live Badge
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        LiveVideoConfig.liveStreamTitle,
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Lato',
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$viewerCount viewers',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  LiveVideoConfig.liveStreamDescription,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    // Like Button
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isLiked) {
+                            likeCount--;
+                            isLiked = false;
+                          } else {
+                            likeCount++;
+                            isLiked = true;
+                          }
+                        });
+                      },
+                      child: Row(
                         children: [
                           Icon(
-                            FeatherIcons.eye,
-                            color: Colors.grey[400],
-                            size: 14,
+                            isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                            color: isLiked ? const Color(0xFF006833) : Colors.white.withOpacity(0.7),
+                            size: 20,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '$viewerCount viewers',
+                            likeCount.toString(),
                             style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Icon(
-                            Icons.favorite,
-                            color: Colors.red,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$likeCount likes',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                              fontFamily: 'Lato',
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 14,
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 24),
+                    
+                    // Share Button
+                    GestureDetector(
+                      onTap: () {
+                        // Share functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Share link copied to clipboard!'),
+                            backgroundColor: Color(0xFF006833),
+                          ),
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.share_outlined,
+                            color: Colors.white.withOpacity(0.7),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Share',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    
+                    // Watch Progress and Reward Button
+                    if (LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds))
+                      ElevatedButton(
+                        onPressed: _hasClaimedReward ? null : _claimWatchReward,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _hasClaimedReward ? Colors.grey : const Color(0xFF006833),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: _isClaimingReward
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                _hasClaimedReward ? 'Claimed!' : 'Claim ${LiveVideoConfig.watchReward} CNE',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[800],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Watch ${LiveVideoConfig.formatWatchTime(LiveVideoConfig.getRemainingWatchTime(_watchTimeSeconds))} more',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
           
-          // Tabs for Comments and Polls
+          // Tab Bar
           Container(
             color: Colors.grey[900],
             child: TabBar(
               controller: _tabController,
               indicatorColor: const Color(0xFF006833),
-              labelColor: const Color(0xFF006833),
-              unselectedLabelColor: Colors.grey[400],
-              labelStyle: const TextStyle(fontSize: 12, fontFamily: 'Lato'),
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white.withOpacity(0.7),
               tabs: const [
-                Tab(
-                  icon: Icon(FeatherIcons.messageSquare, size: 16),
-                  text: 'Chat',
-                ),
-                Tab(
-                  icon: Icon(FeatherIcons.barChart, size: 16),
-                  text: 'Polls',
-                ),
+                Tab(text: 'Chat'),
+                Tab(text: 'Poll'),
               ],
             ),
           ),
           
-          // Tab content
+          // Tab Content
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildCommentsSection(),
-                _buildPollsSection(),
+                _buildChatTab(),
+                _buildPollTab(),
               ],
             ),
           ),
@@ -377,30 +439,97 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCommentsSection() {
+  Widget _buildChatTab() {
     return Container(
-      color: Colors.black,
+      color: Colors.grey[900],
       child: Column(
         children: [
+          // Chat Messages
           Expanded(
             child: ListView.builder(
-              reverse: true,
               padding: const EdgeInsets.all(16),
               itemCount: comments.length,
               itemBuilder: (context, index) {
-                final comment = comments[comments.length - 1 - index];
-                return _buildCommentItem(comment);
+                final comment = comments[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: const Color(0xFF006833),
+                        child: Text(
+                          comment.username[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  comment.username,
+                                  style: const TextStyle(
+                                    color: Color(0xFF006833),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  comment.timestamp,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.5),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              comment.message,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            comment.isLiked = !comment.isLiked;
+                          });
+                        },
+                        child: Icon(
+                          comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: comment.isLiked ? Colors.red : Colors.white.withOpacity(0.5),
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               },
             ),
           ),
           
-          // Comment input
+          // Chat Input
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[900],
+              color: Colors.black,
               border: Border(
-                top: BorderSide(color: Colors.grey[800]!),
+                top: BorderSide(color: Colors.white.withOpacity(0.1)),
               ),
             ),
             child: Row(
@@ -409,32 +538,36 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
                   child: TextField(
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Say something...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
-                      filled: true,
-                      fillColor: Colors.grey[800],
+                      hintText: 'Type a message...',
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                       ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                        borderSide: BorderSide(color: Color(0xFF006833)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: const Color(0xFF006833),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: () {
-                      // Handle send comment
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Comment sent!')),
-                      );
-                    },
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF006833),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.send,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
               ],
@@ -445,58 +578,9 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCommentItem(LiveComment comment) {
+  Widget _buildPollTab() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                comment.username,
-                style: const TextStyle(
-                  color: Color(0xFF006833),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Lato',
-                ),
-              ),
-              const Spacer(),
-              Text(
-                comment.timestamp,
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 10,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            comment.message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontFamily: 'Lato',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPollsSection() {
-    final totalVotes = pollResults.values.fold(0, (sum, votes) => sum + votes);
-    
-    return Container(
-      color: Colors.black,
+      color: Colors.grey[900],
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -510,277 +594,68 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
               fontFamily: 'Lato',
             ),
           ),
-          const SizedBox(height: 16),
-          
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Do you think Bitcoin will cross \$100K this year?',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Poll Options
-                ...pollResults.entries.map((entry) {
-                  final option = entry.key;
-                  final votes = entry.value;
-                  final percentage = totalVotes > 0 ? (votes / totalVotes * 100) : 0.0;
-                  final isSelected = selectedPollOption == option;
-                  
-                  return GestureDetector(
-                    onTap: () => _votePoll(option),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isSelected 
-                          ? const Color(0xFF006833).withOpacity(0.2)
-                          : Colors.grey[800],
-                        borderRadius: BorderRadius.circular(8),
-                        border: isSelected 
-                          ? Border.all(color: const Color(0xFF006833))
-                          : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      option,
-                                      style: TextStyle(
-                                        color: isSelected ? const Color(0xFF006833) : Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        fontFamily: 'Lato',
-                                      ),
-                                    ),
-                                    Text(
-                                      '${percentage.toStringAsFixed(1)}%',
-                                      style: TextStyle(
-                                        color: Colors.grey[400],
-                                        fontSize: 12,
-                                        fontFamily: 'Lato',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                LinearProgressIndicator(
-                                  value: percentage / 100,
-                                  backgroundColor: Colors.grey[700],
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    isSelected ? const Color(0xFF006833) : Colors.grey[500]!,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-                
-                const SizedBox(height: 12),
-                Text(
-                  '$totalVotes total votes',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _toggleLike() {
-    setState(() {
-      if (isLiked) {
-        likeCount--;
-        isLiked = false;
-      } else {
-        likeCount++;
-        isLiked = true;
-      }
-    });
-  }
-
-  void _votePoll(String option) {
-    setState(() {
-      if (selectedPollOption != null) {
-        pollResults[selectedPollOption!] = pollResults[selectedPollOption]! - 1;
-      }
-      
-      selectedPollOption = option;
-      pollResults[option] = pollResults[option]! + 1;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Voted for: $option'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Widget _buildWatchProgressIndicator() {
-    final progress = LiveVideoConfig.getWatchProgress(_watchTimeSeconds);
-    final canClaim = LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds);
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF006833).withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[800]!,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Watch Progress',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Lato',
-                ),
-              ),
-              Text(
-                LiveVideoConfig.formatWatchTime(_watchTimeSeconds),
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ],
-          ),
-          
           const SizedBox(height: 8),
-          
-          // Progress bar
-          Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: Colors.grey[800],
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: progress,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: canClaim ? const Color(0xFF006833) : Colors.orange,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
+          const Text(
+            'Will Bitcoin reach \$100K this month?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontFamily: 'Lato',
             ),
           ),
+          const SizedBox(height: 20),
           
-          const SizedBox(height: 8),
-          
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  LiveVideoConfig.getTimeRemainingMessage(_watchTimeSeconds),
-                  style: TextStyle(
-                    color: canClaim ? const Color(0xFF006833) : Colors.orange,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ),
-              
-              if (canClaim && !_hasClaimedReward)
-                ElevatedButton(
-                  onPressed: _isClaimingReward ? null : _claimWatchReward,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF006833),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    minimumSize: const Size(0, 32),
-                  ),
-                  child: _isClaimingReward
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          '+${LiveVideoConfig.watchReward.toInt()} CNE',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                )
-              else if (_hasClaimedReward)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          // Poll Options
+          ...pollResults.entries.map((entry) {
+            final option = entry.key;
+            final votes = entry.value;
+            final totalVotes = pollResults.values.reduce((a, b) => a + b);
+            final percentage = (votes / totalVotes * 100).round();
+            final isSelected = selectedPollOption == option;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedPollOption = option;
+                    pollResults[option] = votes + 1;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF006833).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
+                    color: isSelected ? const Color(0xFF006833).withOpacity(0.3) : Colors.black,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFF006833) : Colors.white.withOpacity(0.3),
+                    ),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(
-                        Icons.check_circle,
-                        color: Color(0xFF006833),
-                        size: 16,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          option,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
                       ),
-                      SizedBox(width: 4),
                       Text(
-                        'Claimed',
+                        '$percentage% ($votes)',
                         style: TextStyle(
-                          color: Color(0xFF006833),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
-            ],
-          ),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -797,6 +672,6 @@ class LiveComment {
     required this.username,
     required this.message,
     required this.timestamp,
-    this.isLiked = false,
+    required this.isLiked,
   });
 }

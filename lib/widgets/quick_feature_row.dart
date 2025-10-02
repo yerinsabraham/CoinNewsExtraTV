@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 
 class QuickFeatureRow extends StatelessWidget {
@@ -22,7 +22,6 @@ class QuickFeatureRow extends StatelessWidget {
             icon: FeatherIcons.messageCircle,
             label: 'Chat',
             onTap: () {
-              // Navigate to Chat screen
               Navigator.pushNamed(context, '/chat');
             },
           ),
@@ -31,7 +30,6 @@ class QuickFeatureRow extends StatelessWidget {
             icon: FeatherIcons.cpu, 
             label: 'Extra AI',
             onTap: () {
-              // Navigate to AI Chat screen
               Navigator.pushNamed(context, '/extra-ai');
             },
           ),
@@ -115,6 +113,4 @@ class QuickFeatureRow extends StatelessWidget {
       ),
     );
   }
-
-
 }

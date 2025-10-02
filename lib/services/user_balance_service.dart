@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import 'reward_service.dart';
 
 class UserBalance {
   final double totalBalance;
@@ -45,120 +45,37 @@ class UserBalance {
       lastUpdated: DateTime.now().toIso8601String(),
     );
   }
-}
 
-class EarningStats {
-  final int videosWatched;
-  final int adsWatched;
-  final int dailyRewardsClaimed;
-  final int socialRewardsClaimed;
-  final int referralRewardsClaimed;
-  final double totalEarned;
-  final String lastActivity;
-
-  EarningStats({
-    required this.videosWatched,
-    required this.adsWatched,
-    required this.dailyRewardsClaimed,
-    required this.socialRewardsClaimed,
-    required this.referralRewardsClaimed,
-    required this.totalEarned,
-    required this.lastActivity,
-  });
-
-  factory EarningStats.fromMap(Map<String, dynamic> data) {
-    return EarningStats(
-      videosWatched: data['videosWatched'] ?? 0,
-      adsWatched: data['adsWatched'] ?? 0,
-      dailyRewardsClaimed: data['dailyRewardsClaimed'] ?? 0,
-      socialRewardsClaimed: data['socialRewardsClaimed'] ?? 0,
-      referralRewardsClaimed: data['referralRewardsClaimed'] ?? 0,
-      totalEarned: (data['totalEarned'] ?? 0.0).toDouble(),
-      lastActivity: data['lastActivity'] ?? DateTime.now().toIso8601String(),
-    );
-  }
-
-  factory EarningStats.empty() {
-    return EarningStats(
-      videosWatched: 0,
-      adsWatched: 0,
-      dailyRewardsClaimed: 0,
-      socialRewardsClaimed: 0,
-      referralRewardsClaimed: 0,
-      totalEarned: 0.0,
-      lastActivity: DateTime.now().toIso8601String(),
-    );
-  }
-}
-
-class RewardAmounts {
-  final double videoReward;
-  final double adReward;
-  final double dailyReward;
-  final double socialReward;
-  final double referralReward;
-  final double signupBonus;
-  final double quizReward;
-  final double liveStreamReward;
-  final int currentEpoch;
-
-  RewardAmounts({
-    required this.videoReward,
-    required this.adReward,
-    required this.dailyReward,
-    required this.socialReward,
-    required this.referralReward,
-    required this.signupBonus,
-    required this.quizReward,
-    required this.liveStreamReward,
-    required this.currentEpoch,
-  });
-
-  factory RewardAmounts.fromMap(Map<String, dynamic> data) {
-    return RewardAmounts(
-      videoReward: (data['video_watch'] ?? 1.0).toDouble(),
-      adReward: (data['ad_view'] ?? 0.5).toDouble(),
-      dailyReward: (data['daily_airdrop'] ?? 5.0).toDouble(),
-      socialReward: (data['social_follow'] ?? 2.0).toDouble(),
-      referralReward: (data['referral_reward'] ?? 10.0).toDouble(),
-      signupBonus: (data['signup'] ?? 50.0).toDouble(),
-      quizReward: (data['quiz_completion'] ?? 3.0).toDouble(),
-      liveStreamReward: (data['live_stream'] ?? 2.0).toDouble(),
-      currentEpoch: (data['currentEpoch'] ?? 1).toInt(),
-    );
-  }
-
-  factory RewardAmounts.defaultAmounts() {
-    return RewardAmounts(
-      videoReward: 1.0,
-      adReward: 0.5,
-      dailyReward: 5.0,
-      socialReward: 2.0,
-      referralReward: 10.0,
-      signupBonus: 50.0,
-      quizReward: 3.0,
-      liveStreamReward: 2.0,
-      currentEpoch: 1,
-    );
+  Map<String, dynamic> toMap() {
+    return {
+      'totalBalance': totalBalance,
+      'lockedBalance': lockedBalance,
+      'unlockedBalance': unlockedBalance,
+      'pendingBalance': pendingBalance,
+      'totalEarnings': totalEarnings,
+      'totalUsdValue': totalUsdValue,
+      'lastUpdated': lastUpdated,
+    };
   }
 }
 
 class UserBalanceService extends ChangeNotifier {
-  UserBalance _balance = UserBalance.empty();
-  EarningStats _earningStats = EarningStats.empty();
-  RewardAmounts _rewardAmounts = RewardAmounts.defaultAmounts();
-  List<Map<String, dynamic>> _transactionHistory = [];
-  
+  UserBalance _userBalance = UserBalance.empty();
   bool _isLoading = false;
   String? _error;
   StreamSubscription? _authSubscription;
+  StreamSubscription? _firestoreSubscription;
+  
+  // Firebase Firestore instance
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  // Simple in-memory balance for demo
+  double _balance = 10.0; // Start with 10 CNE from backend
   
   // Getters
-  UserBalance get balance => _balance;
-  EarningStats get earningStats => _earningStats;
-  RewardAmounts get rewardAmounts => _rewardAmounts;
-  List<Map<String, dynamic>> get transactionHistory => _transactionHistory;
-  List<Map<String, dynamic>> get recentTransactions => _transactionHistory;
+  UserBalance get userBalance => _userBalance;
+  double get balance => _balance;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -168,10 +85,10 @@ class UserBalanceService extends ChangeNotifier {
 
   void _initializeService() {
     // Listen to auth state changes
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+    _authSubscription = _auth.authStateChanges().listen((user) {
       if (user != null) {
-        // User signed in, load their balance
-        loadUserBalance();
+        // User signed in, load their balance and listen to real-time updates
+        _listenToUserBalance(user.uid);
       } else {
         // User signed out, reset to empty state
         _resetToEmpty();
@@ -180,29 +97,86 @@ class UserBalanceService extends ChangeNotifier {
   }
 
   void _resetToEmpty() {
-    _balance = UserBalance.empty();
-    _earningStats = EarningStats.empty();
-    _rewardAmounts = RewardAmounts.defaultAmounts();
-    _transactionHistory = [];
+    _firestoreSubscription?.cancel();
+    _userBalance = UserBalance.empty();
+    _balance = 0.0;
     _error = null;
     notifyListeners();
   }
 
+  void _listenToUserBalance(String userId) {
+    _firestoreSubscription?.cancel();
+    
+    _firestoreSubscription = _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        _updateBalanceFromFirestore(data);
+      } else {
+        // Create new user document with initial balance
+        _createInitialUserDocument(userId);
+      }
+    }, onError: (error) {
+      _error = 'Failed to load balance: $error';
+      debugPrint('Firestore error: $error');
+      notifyListeners();
+    });
+  }
+
+  void _updateBalanceFromFirestore(Map<String, dynamic> data) {
+    _balance = (data['totalBalance'] ?? 10.0).toDouble();
+    _userBalance = UserBalance.fromMap(data);
+    _error = null;
+    notifyListeners();
+  }
+
+  Future<void> _createInitialUserDocument(String userId) async {
+    try {
+      final initialBalance = UserBalance(
+        totalBalance: 10.0, // Start with 10 CNE
+        lockedBalance: 0.0,
+        unlockedBalance: 10.0,
+        pendingBalance: 0.0,
+        totalEarnings: 10,
+        totalUsdValue: 5.0, // 10 CNE * $0.50
+        lastUpdated: DateTime.now().toIso8601String(),
+      );
+
+      await _firestore.collection('users').doc(userId).set(initialBalance.toMap());
+      
+      _balance = 10.0;
+      _userBalance = initialBalance;
+      _error = null;
+      notifyListeners();
+      
+      debugPrint('Created initial user document with 10 CNE for user: $userId');
+    } catch (e) {
+      _error = 'Failed to create user document: $e';
+      debugPrint('Error creating user document: $e');
+      notifyListeners();
+    }
+  }
+
   Future<void> loadUserBalance() async {
-    if (_isLoading) return;
+    final user = _auth.currentUser;
+    if (user == null || _isLoading) return;
     
     _setLoading(true);
     _error = null;
 
     try {
-      // Load balance
-      final data = await RewardService.getUserBalance();
-      if (data != null && data['success'] == true) {
-        _balance = UserBalance.fromMap(data['balance'] ?? {});
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        _updateBalanceFromFirestore(data);
       } else {
-        _balance = UserBalance.empty();
+        // Create new user document
+        await _createInitialUserDocument(user.uid);
       }
-      notifyListeners();
     } catch (e) {
       _error = 'Failed to load balance: $e';
       debugPrint('Error loading user balance: $e');
@@ -211,130 +185,113 @@ class UserBalanceService extends ChangeNotifier {
     }
   }
 
-  Future<void> loadEarningStats() async {
-    try {
-      final data = await RewardService.getUserEarningStats();
-      if (data != null && data['success'] == true) {
-        _earningStats = EarningStats.fromMap(data['stats'] ?? {});
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Error loading earning stats: $e');
+  // Add balance (for rewards)
+  Future<void> addBalance(double amount, String reason) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      debugPrint('Cannot add balance: User not authenticated');
+      return;
     }
-  }
 
-  Future<void> loadRewardAmounts() async {
     try {
-      final data = await RewardService.getCurrentRewardAmounts();
-      if (data != null && data['success'] == true) {
-        _rewardAmounts = RewardAmounts.fromMap(data['data'] ?? {});
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Error loading reward amounts: $e');
-    }
-  }
-
-  Future<void> loadTransactionHistory({String? lastTransactionId}) async {
-    try {
-      final transactions = await RewardService.getTransactionHistory(
-        limit: 50,
+      // Update local balance immediately for responsive UI
+      final newBalance = _balance + amount;
+      final updatedBalance = UserBalance(
+        totalBalance: newBalance,
+        lockedBalance: 0.0,
+        unlockedBalance: newBalance,
+        pendingBalance: 0.0,
+        totalEarnings: newBalance.toInt(),
+        totalUsdValue: newBalance * 0.50,
+        lastUpdated: DateTime.now().toIso8601String(),
       );
-      
-      if (transactions != null) {
-        if (lastTransactionId == null) {
-          _transactionHistory = transactions;
-        } else {
-          _transactionHistory.addAll(transactions);
-        }
-        notifyListeners();
-      }
+
+      // Update Firestore
+      await _firestore.collection('users').doc(user.uid).set(updatedBalance.toMap());
+
+      // Also log the earning activity
+      await _logEarningActivity(user.uid, amount, reason);
+
+      debugPrint('Added $amount CNE: $reason. New balance: $newBalance CNE');
     } catch (e) {
-      debugPrint('Error loading transaction history: $e');
+      _error = 'Failed to add balance: $e';
+      debugPrint('Error adding balance: $e');
+      notifyListeners();
     }
   }
 
-  Future<void> refreshAllData() async {
-    await Future.wait([
-      loadUserBalance(),
-      loadEarningStats(),
-      loadRewardAmounts(),
-      loadTransactionHistory(),
-    ]);
+  Future<void> _logEarningActivity(String userId, double amount, String reason) async {
+    try {
+      await _firestore.collection('users').doc(userId).collection('earnings').add({
+        'amount': amount,
+        'reason': reason,
+        'timestamp': FieldValue.serverTimestamp(),
+        'date': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Error logging earning activity: $e');
+    }
   }
 
-  Map<String, dynamic> getBalanceDisplay() {
-    return {
-      'totalBalance': _balance.totalBalance,
-      'lockedBalance': _balance.lockedBalance,
-      'unlockedBalance': _balance.unlockedBalance,
-      'pendingBalance': _balance.pendingBalance,
-      'totalUsdValue': _balance.totalUsdValue,
-    };
+  // Spend balance
+  Future<bool> spendBalance(double amount) async {
+    final user = _auth.currentUser;
+    if (user == null || _balance < amount) {
+      return false;
+    }
+
+    try {
+      final newBalance = _balance - amount;
+      final updatedBalance = UserBalance(
+        totalBalance: newBalance,
+        lockedBalance: 0.0,
+        unlockedBalance: newBalance,
+        pendingBalance: 0.0,
+        totalEarnings: _userBalance.totalEarnings, // Keep original total earnings
+        totalUsdValue: newBalance * 0.50,
+        lastUpdated: DateTime.now().toIso8601String(),
+      );
+
+      // Update Firestore
+      await _firestore.collection('users').doc(user.uid).set(updatedBalance.toMap());
+
+      // Log the spending activity
+      await _logSpendingActivity(user.uid, amount);
+
+      return true;
+    } catch (e) {
+      _error = 'Failed to spend balance: $e';
+      debugPrint('Error spending balance: $e');
+      notifyListeners();
+      return false;
+    }
   }
 
-  double get availableBalance => _balance.unlockedBalance;
-  
-  bool canAfford(double amount) {
-    return _balance.unlockedBalance >= amount;
+  Future<void> _logSpendingActivity(String userId, double amount) async {
+    try {
+      await _firestore.collection('users').doc(userId).collection('spendings').add({
+        'amount': amount,
+        'timestamp': FieldValue.serverTimestamp(),
+        'date': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Error logging spending activity: $e');
+    }
   }
 
   // Formatting methods
   String getFormattedBalance() {
-    return _balance.totalBalance.toStringAsFixed(2);
+    return _balance.toStringAsFixed(2);
   }
 
   String getFormattedUsdValue() {
-    return '\$${_balance.totalUsdValue.toStringAsFixed(2)}';
+    return '\$${(_balance * 0.50).toStringAsFixed(2)}';
   }
 
-  // Refresh methods
-  Future<void> refreshAll() async {
-    await refreshAllData();
-  }
-
-  Future<void> initialize() async {
-    await initializeUser();
-  }
-
-  void listenToAuthChanges() {
-    // Already handled in constructor
-  }
-
-  Future<bool> spendBalance(double amount) async {
-    if (!canAfford(amount)) {
-      return false;
-    }
-
-    // This would typically make an API call to spend the balance
-    // For now, we'll just refresh the balance
-    await loadUserBalance();
-    return true;
-  }
-
-  // Process a reward claim result
-  Future<void> processRewardClaim(Map<String, dynamic> result) async {
-    if (result['success'] == true) {
-      // Refresh balance after successful claim
-      await loadUserBalance();
-      await loadEarningStats();
-    }
-  }
-
-  // Initialize user in reward system
-  Future<bool> initializeUser() async {
-    try {
-      final result = await RewardService.initializeUserRewards();
-      if (result != null && result['success'] == true) {
-        await loadUserBalance();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      _error = 'Failed to initialize user: $e';
-      debugPrint('Error initializing user: $e');
-      return false;
-    }
+  double get availableBalance => _balance;
+  
+  bool canAfford(double amount) {
+    return _balance >= amount;
   }
 
   void _setLoading(bool loading) {
@@ -342,19 +299,10 @@ class UserBalanceService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Add transaction to recent transactions list for immediate UI feedback
-  void addRecentTransaction(Map<String, dynamic> transaction) {
-    _transactionHistory.insert(0, transaction);
-    // Keep only the last 10 transactions
-    if (_transactionHistory.length > 10) {
-      _transactionHistory = _transactionHistory.take(10).toList();
-    }
-    notifyListeners();
-  }
-
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _firestoreSubscription?.cancel();
     super.dispose();
   }
 }

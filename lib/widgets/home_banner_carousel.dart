@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../screens/video_detail_screen.dart';
-import '../services/youtube_thumbnail_service.dart';
-import '../widgets/youtube_thumbnail_widget.dart';
+import '../screens/video_detail_page.dart';
 import '../data/video_data.dart';
 import '../models/video_model.dart';
+import 'youtube_thumbnail_widget.dart';
 
 class HomeBannerCarousel extends StatefulWidget {
   const HomeBannerCarousel({super.key});
@@ -89,10 +88,16 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => VideoDetailScreen(
-                          videoId: video.youtubeId,
-                          title: video.title,
-                          channelName: video.channelName ?? 'CoinNews Extra',
+                        builder: (context) => VideoDetailPage(
+                          video: video,
+                          onRewardClaimed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Earned ${video.reward} CNE for watching ${video.title}!'),
+                                backgroundColor: const Color(0xFF006833),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     );

@@ -1,0 +1,61 @@
+# Firebase ignore file - prevents uploading unnecessary files
+
+# Dependencies
+functions/node_modules/**
+**/node_modules/**
+
+# Build outputs
+functions/lib/**
+functions/dist/**
+
+# Logs
+functions/logs/**
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+functions/pids
+functions/*.pid
+functions/*.seed
+functions/*.pid.lock
+
+# Coverage directory used by tools like istanbul
+functions/coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Firebase cache and logs
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+
+# Flutter specific
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Testing
+functions/test/coverage/
+
+# Temporary files
+*.tmp
+*.temp

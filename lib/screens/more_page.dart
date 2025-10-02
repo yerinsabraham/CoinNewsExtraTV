@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:provider/provider.dart';
-import '../provider/admin_provider.dart';
 
 class MorePage extends StatefulWidget {
   const MorePage({super.key});
@@ -242,20 +240,6 @@ class _MorePageState extends State<MorePage> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: Consumer<AdminProvider>(
-        builder: (context, adminProvider, child) {
-          if (!adminProvider.isAdmin || adminProvider.isLoading) {
-            return const SizedBox.shrink();
-          }
-          
-          return FloatingActionButton(
-            onPressed: () => _showAdminMenu(context),
-            backgroundColor: const Color(0xFF006833),
-            foregroundColor: Colors.white,
-            child: const Icon(FeatherIcons.plus),
-          );
-        },
       ),
     );
   }
@@ -556,9 +540,9 @@ class _MorePageState extends State<MorePage> {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
+                const Text(
                   'feedback@coinnewsextra.com',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Color(0xFF006833),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -581,124 +565,6 @@ class _MorePageState extends State<MorePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showAdminMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Feature Management',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.plus,
-              title: 'Add Feature',
-              subtitle: 'Add new upcoming features',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Add Feature');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.edit,
-              title: 'Edit Features',
-              subtitle: 'Modify existing features',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Edit Features');
-              },
-            ),
-            _buildAdminMenuItem(
-              icon: FeatherIcons.trash2,
-              title: 'Remove Features',
-              subtitle: 'Delete features from the list',
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon(context, 'Remove Features');
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdminMenuItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: const Color(0xFF006833),
-          size: 24,
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 14,
-          ),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.grey,
-          size: 16,
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        tileColor: const Color(0xFF006833).withOpacity(0.1),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature coming soon!'),
-        backgroundColor: const Color(0xFF006833),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }

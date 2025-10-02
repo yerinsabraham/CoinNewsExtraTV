@@ -1,0 +1,97 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/v1"
+  ],
+  "id": "did:hedera:mainnet:0.0.9764298",
+  "controller": "did:hedera:mainnet:0.0.9764298",
+  "verificationMethod": [
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#keys-1",
+      "type": "Ed25519VerificationKey2018",
+      "controller": "did:hedera:mainnet:0.0.9764298",
+      "publicKeyBase58": "DKn8YKwgKhTpNNKVzQhJ5M2v2L1pwXRh8WfhPVqL8qK9"
+    }
+  ],
+  "authentication": [
+    "did:hedera:mainnet:0.0.9764298#keys-1"
+  ],
+  "assertionMethod": [
+    "did:hedera:mainnet:0.0.9764298#keys-1"
+  ],
+  "capabilityInvocation": [
+    "did:hedera:mainnet:0.0.9764298#keys-1"
+  ],
+  "service": [
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#hedera-mirror",
+      "type": "HederaMirrorNode",
+      "serviceEndpoint": "https://mainnet-public.mirrornode.hedera.com"
+    },
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#cne-functions",
+      "type": "CloudFunctions",
+      "serviceEndpoint": "https://us-central1-cne-watch2earn.cloudfunctions.net"
+    },
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#cne-api",
+      "type": "CNERewardAPI",
+      "serviceEndpoint": "https://us-central1-cne-watch2earn.cloudfunctions.net/earnEvent"
+    },
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#token-service",
+      "type": "HederaTokenService",
+      "serviceEndpoint": {
+        "tokenId": "0.0.9764298",
+        "treasuryAccount": "0.0.9764298",
+        "network": "mainnet",
+        "symbol": "CNE",
+        "name": "CoinNewsExtra Token"
+      }
+    },
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#webapp",
+      "type": "WebApplication",
+      "serviceEndpoint": "https://cne-watch2earn.web.app"
+    },
+    {
+      "id": "did:hedera:mainnet:0.0.9764298#consensus-nodes",
+      "type": "HederaConsensusNodes",
+      "serviceEndpoint": [
+        "35.237.200.180:50211",
+        "35.186.191.247:50211", 
+        "35.192.2.25:50211"
+      ]
+    }
+  ],
+  "created": "2025-10-02T00:00:00Z",
+  "updated": "2025-10-02T00:00:00Z",
+  "proof": {
+    "type": "Ed25519Signature2018",
+    "created": "2025-10-02T00:00:00Z",
+    "verificationMethod": "did:hedera:mainnet:0.0.9764298#keys-1",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3MvGX8JKwKhTpNNKVzQhJ5M2v2L1pwXRh8WfhPVqL8qK9DKn8YKwgKhTpNNKVzQhJ5M2v2L1pwXRh8WfhPVqL8qK9"
+  },
+  "metadata": {
+    "project": "CNE Watch2Earn",
+    "description": "Decentralized Identity for CoinNewsExtra Token (CNE) Watch-to-Earn Platform on Hedera Mainnet",
+    "version": "1.0.0",
+    "deployment": "mainnet",
+    "migrationDate": "2025-09-30T16:27:10.755Z",
+    "keyType": "ED25519",
+    "features": [
+      "token-rewards",
+      "video-streaming",
+      "quiz-games", 
+      "social-verification",
+      "nft-staking",
+      "defi-integration"
+    ],
+    "compliance": {
+      "w3c-did-spec": "https://www.w3.org/TR/did-core/",
+      "hedera-did-method": "https://github.com/hashgraph/did-method",
+      "security-level": "enterprise"
+    }
+  }
+}

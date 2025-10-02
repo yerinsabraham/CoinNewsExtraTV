@@ -214,8 +214,8 @@ class VideoService {
   /// Get video thumbnail with fallback options
   static String getThumbnailWithFallback(VideoModel video) {
     // Try the video's specific thumbnail first
-    if (video.thumbnailUrl.isNotEmpty) {
-      return video.thumbnailUrl;
+    if (video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty) {
+      return video.thumbnailUrl!;
     }
     
     // Fallback to YouTube thumbnail

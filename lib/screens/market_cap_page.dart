@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:feather_icons/feather_icons.dart';
-import '../widgets/market_ad_carousel.dart';
+import '../widgets/ads_carousel.dart';
 
 class MarketCapPage extends StatefulWidget {
   const MarketCapPage({super.key});
@@ -43,13 +43,13 @@ class _MarketCapPageState extends State<MarketCapPage> {
         });
       } else {
         setState(() {
-          errorMessage = 'Failed to load data. Status: ${response.statusCode}';
+          errorMessage = 'Failed to load market data. Status: ${response.statusCode}';
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        errorMessage = 'Network error: ${e.toString()}';
+        errorMessage = 'Network error: Unable to fetch market data';
         isLoading = false;
       });
     }
@@ -94,8 +94,31 @@ class _MarketCapPageState extends State<MarketCapPage> {
   Widget _buildBody() {
     if (isLoading) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF006833),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: Color(0xFF006833),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Loading market data...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontFamily: 'Lato',
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Fetching live prices from CoinGecko',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -112,9 +135,9 @@ class _MarketCapPageState extends State<MarketCapPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Error loading data',
+              'Error loading market data',
               style: TextStyle(
-                color: Colors.grey[400],
+                color: Colors.grey[300],
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Lato',
@@ -139,8 +162,18 @@ class _MarketCapPageState extends State<MarketCapPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF006833),
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Retry'),
+              child: const Text(
+                'Retry',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lato',
+                ),
+              ),
             ),
           ],
         ),
@@ -153,7 +186,10 @@ class _MarketCapPageState extends State<MarketCapPage> {
       itemBuilder: (context, index) {
         // Show ad carousel after the first 3 cryptocurrency entries
         if (index == 3) {
-          return const MarketAdCarousel();
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: AdsCarousel(),
+          );
         }
         
         // Adjust index for crypto data after ad insertion

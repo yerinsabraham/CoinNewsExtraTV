@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../data/video_data.dart';
-import '../models/video_model.dart';
 
 class AdsCarousel extends StatefulWidget {
   const AdsCarousel({super.key});
@@ -16,34 +15,46 @@ class _AdsCarouselState extends State<AdsCarousel> {
   final PageController _controller = PageController();
   Timer? _timer;
 
-  // Use centralized video data for promotional banners
+  // Use real ad data with video URLs
   List<Map<String, String>> get _bannerAds {
     final videos = VideoData.getAllVideos();
     return [
       {
         'image': 'assets/images/ad1.png',
         'title': 'Exclusive Crypto Trading Course',
-        'url': videos.isNotEmpty ? videos[0].youtubeWatchUrl : '',
+        'url': videos.isNotEmpty ? (videos[0].url ?? '') : '',
       },
       {
         'image': 'assets/images/ad2.png', 
         'title': 'Join Our Premium Community',
-        'url': videos.length > 1 ? videos[1].youtubeWatchUrl : '',
+        'url': videos.length > 1 ? (videos[1].url ?? '') : '',
       },
       {
         'image': 'assets/images/ad3.png',
         'title': 'Earn 50% More Rewards',
-        'url': videos.length > 2 ? videos[2].youtubeWatchUrl : '',
+        'url': videos.length > 2 ? (videos[2].url ?? '') : '',
       },
       {
         'image': 'assets/images/ad4.png',
         'title': 'Limited Time: Double Coins',
-        'url': videos.length > 3 ? videos[3].youtubeWatchUrl : '',
+        'url': videos.length > 3 ? (videos[3].url ?? '') : '',
+      },
+      {
+        'image': 'assets/images/ad5.png',
+        'title': 'New Features Available',
+        'url': videos.length > 4 ? (videos[4].url ?? '') : '',
       },
     ];
   }
 
   Future<void> _launchUrl(String urlString) async {
+    if (urlString.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Feature coming soon!')),
+      );
+      return;
+    }
+
     final Uri url = Uri.parse(urlString);
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -76,11 +87,13 @@ class _AdsCarouselState extends State<AdsCarousel> {
       } else {
         _currentIndex = 0;
       }
-      _controller.animateToPage(
-        _currentIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      if (mounted) {
+        _controller.animateToPage(
+          _currentIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
     });
   }
 
@@ -92,7 +105,7 @@ class _AdsCarouselState extends State<AdsCarousel> {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Text(
-            'Promotions',
+            'Special Offers',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -101,8 +114,9 @@ class _AdsCarouselState extends State<AdsCarousel> {
             ),
           ),
         ),
-        SizedBox(
+        Container(
           height: 120,
+          margin: const EdgeInsets.symmetric(horizontal: 20),
           child: PageView.builder(
             controller: _controller,
             itemCount: _bannerAds.length,
@@ -112,100 +126,100 @@ class _AdsCarouselState extends State<AdsCarousel> {
               });
             },
             itemBuilder: (context, index) {
-            final banner = _bannerAds[index];
-            return Container(
-              width: MediaQuery.of(context).size.width,
-              margin: const EdgeInsets.symmetric(horizontal: 5.0),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    // Banner image
-                    Image.asset(
-                      banner['image']!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                const Color(0xFF006833),
-                                const Color(0xFF006833).withOpacity(0.7),
-                              ],
-                            ),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.campaign,
-                                  color: Colors.white,
-                                  size: 32,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  banner['title']!,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    fontFamily: 'Lato',
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    
-                    // Subtle gradient overlay for better text readability
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.3),
-                          ],
-                        ),
-                      ),
-                    ),
-                    
-                    // Tap detector
-                    Positioned.fill(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _launchUrl(banner['url']!),
-                          child: Container(),
-                        ),
-                      ),
+              final banner = _bannerAds[index];
+              return Container(
+                width: MediaQuery.of(context).size.width,
+                margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-              ),
-            );
-          },
-        ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      // Banner image
+                      Image.asset(
+                        banner['image']!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  const Color(0xFF006833),
+                                  const Color(0xFF006833).withOpacity(0.7),
+                                ],
+                              ),
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.campaign,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    banner['title']!,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      fontFamily: 'Lato',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      
+                      // Subtle gradient overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.2),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // Tap detector
+                      Positioned.fill(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _launchUrl(banner['url']!),
+                            child: Container(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         
         // Carousel indicators
@@ -220,9 +234,9 @@ class _AdsCarouselState extends State<AdsCarousel> {
                 curve: Curves.easeInOut,
               ),
               child: Container(
-                width: 6,
-                height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _currentIndex == entry.key 

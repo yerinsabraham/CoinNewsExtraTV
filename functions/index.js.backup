@@ -1,0 +1,297 @@
+﻿const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onRequest } = require("firebase-functions/v2/https");
+const admin = require("firebase-admin");
+const { Client, PrivateKey, AccountCreateTransaction, AccountId, Hbar } = require("@hashgraph/sdk");
+
+// Initialize Firebase Admin
+admin.initializeApp();
+const db = admin.firestore();
+
+// Hedera configuration
+const HEDERA_NETWORK = "testnet"; // Use testnet for development
+const OPERATOR_ID = AccountId.fromString("0.0.3009"); // Replace with your operator account
+const OPERATOR_KEY = PrivateKey.fromString("302e020100300506032b657004220420..."); // Replace with your private key
+
+// Initialize Hedera client
+const client = Client.forTestnet();
+client.setOperator(OPERATOR_ID, OPERATOR_KEY);
+
+// ===== HEDERA WALLET & SIGNUP BONUS SYSTEM =====
+
+// Create a new Hedera custodian wallet
+async function createHederaWallet() {
+  try {
+    console.log('🏦 Creating new Hedera custodian wallet...');
+    
+    // Generate new key pair for the account
+    const newAccountPrivateKey = PrivateKey.generateED25519();
+    const newAccountPublicKey = newAccountPrivateKey.publicKey;
+
+    // Create new account transaction
+    const newAccount = await new AccountCreateTransaction()
+      .setKey(newAccountPublicKey)
+      .setInitialBalance(Hbar.fromTinybars(1000)) // Minimum balance
+      .execute(client);
+
+    // Get the new account ID
+    const getReceipt = await newAccount.getReceipt(client);
+    const newAccountId = getReceipt.accountId;
+
+    console.log('✅ Hedera wallet created successfully:', newAccountId.toString());
+
+    return {
+      accountId: newAccountId.toString(),
+      privateKey: newAccountPrivateKey.toString(),
+      publicKey: newAccountPublicKey.toString(),
+      network: HEDERA_NETWORK,
+      createdAt: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('❌ Error creating Hedera wallet:', error);
+    throw new HttpsError('internal', 'Failed to create Hedera wallet');
+  }
+}
+
+// Process new user signup with Hedera wallet creation and 700 CNE bonus
+exports.processSignup = onCall({
+  enforceAppCheck: false,
+  cors: {
+    origin: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }
+}, async (data, context) => {
+  console.log('🎯 processSignup called for new user');
+  
+  // Verify authentication
+  if (!context.auth || !context.auth.uid) {
+    console.error('❌ No authentication context');
+    throw new HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  const uid = context.auth.uid;
+  console.log('👤 Processing signup for user:', uid);
+
+  try {
+    // Use Firestore transaction for idempotency
+    const result = await db.runTransaction(async (transaction) => {
+      const userRef = db.collection('users').doc(uid);
+      const userDoc = await transaction.get(userRef);
+
+      // Check if user already processed (idempotency check)
+      if (userDoc.exists && userDoc.data().signupBonusProcessed) {
+        console.log('⚠️ Signup bonus already processed for user:', uid);
+        return {
+          success: true,
+          alreadyProcessed: true,
+          balance: userDoc.data().balance || 700,
+          message: 'Signup bonus already awarded'
+        };
+      }
+
+      // Create Hedera wallet
+      console.log('🏦 Creating Hedera wallet for user:', uid);
+      const hederaWallet = await createHederaWallet();
+      console.log('✅ Created Hedera wallet:', hederaWallet.accountId);
+
+      // Prepare user data with signup bonus
+      const userData = {
+        uid: uid,
+        balance: 700, // 700 CNE signup bonus
+        hederaWallet: hederaWallet,
+        signupBonusProcessed: true,
+        signupBonusAmount: 700,
+        signupDate: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        version: 1,
+        // Add audit trail
+        auditTrail: [{
+          action: 'SIGNUP_BONUS_AWARDED',
+          amount: 700,
+          timestamp: new Date().toISOString(),
+          source: 'processSignup',
+          metadata: {
+            hederaAccountId: hederaWallet.accountId
+          }
+        }]
+      };
+
+      // Create or update user document
+      if (userDoc.exists) {
+        // User exists but no signup bonus processed yet
+        const existingData = userDoc.data();
+        userData.balance = (existingData.balance || 0) + 700;
+        userData.auditTrail = [...(existingData.auditTrail || []), ...userData.auditTrail];
+      }
+
+      // Save to Firestore
+      transaction.set(userRef, userData, { merge: true });
+
+      console.log('✅ User data saved with Hedera wallet and signup bonus');
+      
+      return {
+        success: true,
+        balance: userData.balance,
+        hederaAccountId: hederaWallet.accountId,
+        signupBonusAmount: 700,
+        message: 'Signup completed successfully with 700 CNE bonus'
+      };
+    });
+
+    return result;
+
+  } catch (error) {
+    console.error('❌ Error processing signup:', error);
+    throw new HttpsError('internal', 'Failed to process signup: ' + error.message);
+  }
+});
+
+// ===== EXISTING CNE TOKEN SYSTEM =====
+
+// Get user balance (existing function)
+exports.getbalancehttp = onRequest({
+  cors: {
+    origin: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }
+}, async (req, res) => {
+  console.log('🔍 getBalance called - Manual auth mode');
+  console.log('🔍 Headers:', req.headers);
+
+  let uid;
+  try {
+    // Extract token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('No authorization header or invalid format');
+    }
+
+    const idToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('🔑 Verifying token...');
+    
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    uid = decodedToken.uid;
+    console.log('✅ Authentication successful! UID:', uid);
+
+  } catch (error) {
+    console.error('❌ Authentication failed:', error.message);
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Authentication failed: ' + error.message 
+    });
+  }
+
+  console.log('📊 Getting balance for user:', uid);
+
+  try {
+    const userRef = db.collection('users').doc(uid);
+    const snap = await userRef.get();
+    const balance = snap.exists ? (snap.data().balance || 0) : 0;
+    
+    console.log('✅ Balance retrieved:', balance);
+    return res.json({ 
+      success: true, 
+      balance, 
+      uid, 
+      timestamp: new Date().toISOString() 
+    });
+  } catch (error) {
+    console.error('❌ Error getting balance:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get balance: ' + error.message 
+    });
+  }
+});
+
+// Award tokens/claim reward (existing function)
+exports.claimrewardhttp = onRequest({
+  cors: {
+    origin: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }
+}, async (req, res) => {
+  console.log('🎯 claimReward called');
+  console.log('📝 Request body:', req.body);
+
+  let uid;
+  try {
+    // Extract token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('No authorization header or invalid format');
+    }
+
+    const idToken = authHeader.substring(7);
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    uid = decodedToken.uid;
+    console.log('✅ Authentication successful! UID:', uid);
+
+  } catch (error) {
+    console.error('❌ Authentication failed:', error.message);
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Authentication failed: ' + error.message 
+    });
+  }
+
+  const { source, amount } = req.body;
+  
+  if (!source || !amount || amount <= 0) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Invalid source or amount' 
+    });
+  }
+
+  console.log('💰 Awarding', amount, 'tokens from', source, 'to user:', uid);
+
+  try {
+    // Use transaction for atomic update
+    const result = await db.runTransaction(async (transaction) => {
+      const userRef = db.collection('users').doc(uid);
+      const userDoc = await transaction.get(userRef);
+      
+      const currentData = userDoc.exists ? userDoc.data() : {};
+      const currentBalance = currentData.balance || 0;
+      const newBalance = currentBalance + amount;
+
+      // Create audit trail entry
+      const auditEntry = {
+        action: 'REWARD_CLAIMED',
+        amount: amount,
+        source: source,
+        timestamp: new Date().toISOString(),
+        balanceBefore: currentBalance,
+        balanceAfter: newBalance
+      };
+
+      const updateData = {
+        balance: newBalance,
+        lastUpdated: new Date().toISOString(),
+        auditTrail: [...(currentData.auditTrail || []), auditEntry]
+      };
+
+      transaction.set(userRef, updateData, { merge: true });
+      
+      return { 
+        success: true, 
+        added: amount, 
+        newBalance: newBalance,
+        source: source 
+      };
+    });
+
+    console.log('✅ Reward claimed successfully:', result);
+    return res.json(result);
+
+  } catch (error) {
+    console.error('❌ Error claiming reward:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to claim reward: ' + error.message 
+    });
+  }
+});

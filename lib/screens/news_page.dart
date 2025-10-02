@@ -11,6 +11,7 @@ class NewsPage extends StatefulWidget {
 class _NewsPageState extends State<NewsPage> {
   late final WebViewController controller;
   bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -26,12 +27,14 @@ class _NewsPageState extends State<NewsPage> {
             if (progress == 100) {
               setState(() {
                 isLoading = false;
+                errorMessage = null;
               });
             }
           },
           onPageStarted: (String url) {
             setState(() {
               isLoading = true;
+              errorMessage = null;
             });
           },
           onPageFinished: (String url) {
@@ -42,6 +45,7 @@ class _NewsPageState extends State<NewsPage> {
           onWebResourceError: (WebResourceError error) {
             setState(() {
               isLoading = false;
+              errorMessage = 'Failed to load news. Please check your connection.';
             });
           },
         ),
@@ -81,8 +85,24 @@ class _NewsPageState extends State<NewsPage> {
             onPressed: () {
               setState(() {
                 isLoading = true;
+                errorMessage = null;
               });
               controller.reload();
+            },
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.open_in_browser,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Opening in external browser...'),
+                  backgroundColor: Color(0xFF006833),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
           ),
         ],
@@ -90,8 +110,11 @@ class _NewsPageState extends State<NewsPage> {
       body: SafeArea(
         child: Stack(
           children: [
-            WebViewWidget(controller: controller),
-            if (isLoading)
+            if (errorMessage == null)
+              WebViewWidget(controller: controller)
+            else
+              _buildErrorState(),
+            if (isLoading && errorMessage == null)
               Container(
                 color: Colors.black,
                 child: const Center(
@@ -105,10 +128,19 @@ class _NewsPageState extends State<NewsPage> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'Loading news...',
+                        'Loading latest news...',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Connecting to CoinNewsExtra',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
                           fontFamily: 'Lato',
                         ),
                       ),
@@ -117,6 +149,72 @@ class _NewsPageState extends State<NewsPage> {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.grey[400],
+                size: 64,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Unable to load news',
+                style: TextStyle(
+                  color: Colors.grey[300],
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage ?? 'Please check your internet connection',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    isLoading = true;
+                    errorMessage = null;
+                  });
+                  controller.reload();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF006833),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

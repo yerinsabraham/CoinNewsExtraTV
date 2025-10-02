@@ -45,7 +45,7 @@
 - ✅ **Firebase Functions**: 50+ functions deployed (some quota limited)
 - ✅ **Firestore Rules**: Security rules deployed successfully
 - ✅ **Core Functions Working**: Health endpoint confirmed operational
-- ✅ **Hedera Integration**: Connected to mainnet (Token: 0.0.9764298)
+- ✅ **Hedera Integration**: Connected to mainnet (Token: 0.0.6917127)
 
 **⚠️ Quota Limitations:**
 - Some functions hit Firebase free tier CPU quota limits
@@ -84,7 +84,7 @@
   "timestamp": "2025-09-30T11:03:13.740Z",
   "environment": "firebase-functions",
   "hederaConnected": true,
-  "tokenId": "0.0.9764298",
+  "tokenId": "0.0.6917127",
   "topicId": "0.0.6917128"
 }
 ```

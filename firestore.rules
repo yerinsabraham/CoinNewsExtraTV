@@ -15,6 +15,17 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       
+      // Social claims subcollection
+      match /social_claims/{claimId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Transactions subcollection - allow users to read/write their own transactions
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+      }
+      
       // Wallet subcollection
       match /wallets/{walletId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -201,6 +212,20 @@ service cloud.firestore {
     match /reward_logs/{rewardId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null; // Allow system to create rewards
+      allow update, delete: if false; // Only system can modify
+    }
+    
+    // Transfer log - system can create, users can read their own
+    match /transfer_log/{transferId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Allow system to create transfers
+      allow update, delete: if false; // Only system can modify
+    }
+    
+    // Admin log - system only
+    match /admin_log/{logId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Allow system to create logs
       allow update, delete: if false; // Only system can modify
     }
   }

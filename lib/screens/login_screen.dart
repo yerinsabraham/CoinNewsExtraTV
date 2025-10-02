@@ -1,8 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../services/enhanced_auth_service.dart';
-import 'home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -20,43 +17,23 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     setState(() => _loading = true);
     try {
-      // Use enhanced authentication service to ensure complete setup
-      final result = await EnhancedAuthService.instance.signInUser(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      await AuthService.signInWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
       
-      if (!result.success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Login failed: ${result.error}")),
-          );
-        }
-        return;
-      }
-      
+      // Force immediate navigation to home screen
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Login successful! ✅"),
-            backgroundColor: Color(0xFF006833),
-          ),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          SnackBar(content: Text("Login failed: $e")),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -64,16 +41,15 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       await AuthService.signInWithGoogle();
+      
+      // Force immediate navigation to home screen
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          SnackBar(content: Text("Google sign-in failed: $e")),
         );
       }
     } finally {
@@ -89,10 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.black,
-              Colors.grey[900]!,
-            ],
+            colors: [Colors.black, Colors.grey[900]!],
           ),
         ),
         child: SafeArea(
@@ -115,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
-                      fontFamily: 'Lato',
                     ),
                   ),
                   const SizedBox(height: 48),
@@ -125,9 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: "Email",
                       prefixIcon: const Icon(Icons.email),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -138,9 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: "Password",
                       prefixIcon: const Icon(Icons.lock),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -156,68 +124,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             backgroundColor: const Color(0xFF006833),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text(
-                            "LOGIN",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
+                          child: const Text("LOGIN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                         ),
                         const SizedBox(height: 20),
                         const Row(
                           children: [
                             Expanded(child: Divider(color: Colors.grey)),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text("OR", style: TextStyle(color: Colors.grey)),
-                            ),
+                            Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("OR", style: TextStyle(color: Colors.grey))),
                             Expanded(child: Divider(color: Colors.grey)),
                           ],
                         ),
                         const SizedBox(height: 20),
                         OutlinedButton.icon(
                           onPressed: _googleSignIn,
-                          icon: Image.asset(
-                            'assets/icons/google.png',
-                            height: 24,
-                            width: 24,
-                          ),
-                          label: const Text(
-                            "Sign in with Google",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
+                          icon: Image.asset('assets/icons/google.png', height: 24, width: 24),
+                          label: const Text("Sign in with Google", style: TextStyle(fontSize: 16, color: Colors.white)),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             side: BorderSide(color: Colors.grey[700]!),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ],
                     ),
                   const SizedBox(height: 24),
                   TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SignupScreen()),
-                      );
-                    },
-                    child: const Text(
-                      "Don't have an account? Sign up",
-                      style: TextStyle(color: Color(0xFF006833)),
-                    ),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen())),
+                    child: const Text("Don't have an account? Sign up", style: TextStyle(color: Color(0xFF006833))),
                   ),
                 ],
               ),
