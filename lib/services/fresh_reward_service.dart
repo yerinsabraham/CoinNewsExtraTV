@@ -1,5 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 /// Clean, minimal reward service - bulletproof implementation
 class FreshRewardService {
@@ -43,30 +45,37 @@ class FreshRewardService {
         throw Exception('Failed to get valid ID token');
       }
       
-      // Create a completely fresh Functions instance to ensure proper auth linkage
-      final freshAuth = FirebaseAuth.instance;
-      final freshFunctions = FirebaseFunctions.instanceFor(
-        region: 'us-central1',
-        app: freshAuth.app, // Explicitly link to the same app as auth
+      // Use HTTP endpoint instead of callable function for better auth handling
+      const String baseUrl = 'https://us-central1-coinnewsextratv-9c75a.cloudfunctions.net';
+      final Uri url = Uri.parse('$baseUrl/getBalanceHttp');
+      
+      print('🚀 Calling HTTP getBalance endpoint...');
+      
+      // Make HTTP request with proper authentication
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
       
-      print('🔧 Fresh functions app: ${freshFunctions.app.name}');
-      print('🔧 Fresh auth app: ${freshAuth.app.name}');
-      print('🔧 Current user: ${freshAuth.currentUser?.uid}');
+      print('� HTTP Response status: ${response.statusCode}');
+      print('� HTTP Response body: ${response.body}');
       
-      // Wait for auth token to propagate to Firebase SDK
-      await Future.delayed(Duration(seconds: 3));
-      
-      // Use the fresh functions instance with manual token passing
-      print('🚀 Calling getBalance function with manual token...');
-      final callable = freshFunctions.httpsCallable("getBalance");
-      final result = await callable.call({
-        'idToken': token, // Pass token manually as backup
-      });
-      
-      final balance = result.data["balance"] ?? 0;
-      print('✅ FreshRewardService: Balance retrieved: $balance');
-      return balance;
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          final balance = responseData['balance'] ?? 0;
+          print('✅ FreshRewardService: Balance retrieved: $balance');
+          return balance;
+        } else {
+          throw Exception('Get balance failed: ${responseData['error'] ?? 'Unknown error'}');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception('HTTP ${response.statusCode}: ${errorData['error'] ?? 'Network error'}');
+      }
     } catch (e) {
       print('❌ FreshRewardService: Error getting balance: $e');
       print('❌ Full error details: ${e.toString()}');
@@ -142,31 +151,41 @@ class FreshRewardService {
         throw Exception('Failed to get valid ID token');
       }
       
-      // Create a completely fresh Functions instance to ensure proper auth linkage
-      final freshAuth = FirebaseAuth.instance;
-      final freshFunctions = FirebaseFunctions.instanceFor(
-        region: 'us-central1',
-        app: freshAuth.app, // Explicitly link to the same app as auth
+      // Use HTTP endpoint instead of callable function for better auth handling
+      const String baseUrl = 'https://us-central1-coinnewsextratv-9c75a.cloudfunctions.net';
+      final Uri url = Uri.parse('$baseUrl/claimRewardHttp');
+      
+      print('🚀 Calling HTTP claimReward endpoint...');
+      
+      // Make HTTP request with proper authentication
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'source': source,
+          'amount': amount,
+        }),
       );
       
-      print('🔧 Fresh functions app: ${freshFunctions.app.name}');
-      print('🔧 Fresh auth app: ${freshAuth.app.name}');
-      print('🔧 Current user: ${freshAuth.currentUser?.uid}');
+      print('📡 HTTP Response status: ${response.statusCode}');
+      print('📡 HTTP Response body: ${response.body}');
       
-      // Wait for auth token to propagate to Firebase SDK
-      await Future.delayed(Duration(seconds: 3));
-      
-      print('🚀 Calling claimReward function with manual token...');
-      final callable = freshFunctions.httpsCallable("claimReward");
-      final result = await callable.call({
-        "source": source,
-        "amount": amount,
-        'idToken': token, // Pass token manually as backup
-      });
-      
-      final added = result.data["added"] ?? 0;
-      print('✅ FreshRewardService: Reward claimed successfully: $added');
-      return added;
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          final claimedAmount = responseData['amount'] ?? amount;
+          print('✅ FreshRewardService: Reward claimed successfully: $claimedAmount');
+          return claimedAmount;
+        } else {
+          throw Exception('Claim failed: ${responseData['error'] ?? 'Unknown error'}');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception('HTTP ${response.statusCode}: ${errorData['error'] ?? 'Network error'}');
+      }
     } catch (e) {
       print('❌ FreshRewardService: Error claiming reward: $e');
       print('❌ Full error details: ${e.toString()}');

@@ -76,7 +76,8 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
     });
 
     try {
-      await _rewardService.claimReward('spotlight_view', 2);
+      print('🎯 Starting reward claim for spotlight view...');
+      final claimedAmount = await _rewardService.claimReward('spotlight_view', 2);
       
       if (mounted) {
         setState(() {
@@ -84,6 +85,7 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
           _claimingReward = false;
         });
 
+        print('✅ Spotlight reward claimed successfully: $claimedAmount CNE');
         // Show success animation/notification
         _showRewardClaimedDialog();
       }
@@ -93,10 +95,30 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
           _claimingReward = false;
         });
         
+        print('❌ Failed to claim spotlight reward: $e');
+        
+        // Show user-friendly error message
+        String errorMessage = 'Failed to claim reward';
+        if (e.toString().contains('unauthenticated') || e.toString().contains('authentication')) {
+          errorMessage = 'Please sign in again to claim your reward';
+        } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again';
+        } else if (e.toString().contains('HTTP 500')) {
+          errorMessage = 'Server error. Please try again in a moment';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to claim reward: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                // Retry claiming the reward
+                _claimReward();
+              },
+            ),
           ),
         );
       }
