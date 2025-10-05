@@ -626,7 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Consumer<UserBalanceService>(
                           builder: (context, balanceService, child) {
                             return Text(
-                              '\$${(balanceService.balance * 0.5).toStringAsFixed(2)} USD',
+                              '${balanceService.getFormattedUsdValue()} USD',
                               style: TextStyle(
                                 color: Colors.grey[300],
                                 fontSize: 14,

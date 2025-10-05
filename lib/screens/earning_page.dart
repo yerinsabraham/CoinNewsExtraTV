@@ -159,7 +159,7 @@ class _EarningPageState extends State<EarningPage> {
                   Consumer<UserBalanceService>(
                     builder: (context, balanceService, child) {
                       return Text(
-                        'Worth \$${(balanceService.balance * 0.5).toStringAsFixed(2)} USD',
+                        'Worth ${balanceService.getFormattedUsdValue()} USD',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,

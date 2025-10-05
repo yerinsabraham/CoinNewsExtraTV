@@ -49,6 +49,7 @@ class UserBalance {
   Map<String, dynamic> toMap() {
     return {
       'totalBalance': totalBalance,
+      'cneBalance': totalBalance, // Keep both fields in sync for compatibility
       'lockedBalance': lockedBalance,
       'unlockedBalance': unlockedBalance,
       'pendingBalance': pendingBalance,
@@ -127,10 +128,38 @@ class UserBalanceService extends ChangeNotifier {
   }
 
   void _updateBalanceFromFirestore(Map<String, dynamic> data) {
-    _balance = (data['totalBalance'] ?? 10.0).toDouble();
+    // Check both totalBalance and cneBalance for compatibility
+    final totalBalance = (data['totalBalance'] ?? 0.0).toDouble();
+    final cneBalance = (data['cneBalance'] ?? 0.0).toDouble();
+    
+    // Use the higher value to ensure we don't lose rewards
+    final actualBalance = totalBalance > cneBalance ? totalBalance : cneBalance;
+    
+    // If there's a mismatch, sync them by updating totalBalance to match cneBalance
+    if (totalBalance != cneBalance && cneBalance > 0) {
+      print('🔄 Syncing balance fields: totalBalance=$totalBalance, cneBalance=$cneBalance');
+      _syncBalanceFields(cneBalance);
+    }
+    
+    _balance = actualBalance > 0 ? actualBalance : 10.0; // Default to 10 if both are 0
     _userBalance = UserBalance.fromMap(data);
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> _syncBalanceFields(double cneBalance) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'totalBalance': cneBalance,
+        'lastSyncAt': FieldValue.serverTimestamp(),
+      });
+      print('✅ Balance fields synchronized: totalBalance updated to $cneBalance');
+    } catch (e) {
+      print('❌ Failed to sync balance fields: $e');
+    }
   }
 
   Future<void> _createInitialUserDocument(String userId) async {
@@ -292,6 +321,25 @@ class UserBalanceService extends ChangeNotifier {
   
   bool canAfford(double amount) {
     return _balance >= amount;
+  }
+
+  /// Force refresh balance from Firestore
+  Future<void> refreshBalance() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        _updateBalanceFromFirestore(data);
+        print('🔄 Balance manually refreshed from Firestore');
+      }
+    } catch (e) {
+      print('❌ Failed to refresh balance: $e');
+      _error = 'Failed to refresh balance: $e';
+      notifyListeners();
+    }
   }
 
   void _setLoading(bool loading) {

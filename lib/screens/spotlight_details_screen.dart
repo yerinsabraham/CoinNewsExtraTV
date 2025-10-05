@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../models/spotlight_model.dart';
-import '../services/fresh_reward_service.dart';
+import '../services/user_balance_service.dart';
 
 class SpotlightDetailsScreen extends StatefulWidget {
   final SpotlightItem item;
@@ -28,7 +29,6 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
   bool _timerStarted = false;
   bool _rewardClaimed = false;
   bool _claimingReward = false;
-  final FreshRewardService _rewardService = FreshRewardService();
 
   @override
   void initState() {
@@ -77,7 +77,10 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
 
     try {
       print('🎯 Starting reward claim for spotlight view...');
-      final claimedAmount = await _rewardService.claimReward('spotlight_view', 2);
+      
+      // Use the SAME method as all other games (Spin2Earn, Quiz, etc.)
+      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+      await balanceService.addBalance(2.0, 'Spotlight View');
       
       if (mounted) {
         setState(() {
@@ -85,7 +88,8 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
           _claimingReward = false;
         });
 
-        print('✅ Spotlight reward claimed successfully: $claimedAmount CNE');
+        print('✅ Spotlight reward claimed successfully: 2 CNE (using UserBalanceService)');
+        
         // Show success animation/notification
         _showRewardClaimedDialog();
       }
