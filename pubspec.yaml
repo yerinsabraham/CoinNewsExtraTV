@@ -28,6 +28,8 @@ dependencies:
   confetti: ^0.7.0
   carousel_slider: ^4.2.1
   lottie: ^3.1.0
+  emoji_picker_flutter: ^2.0.0
+  image_picker: ^1.0.4
   # DID and Blockchain dependencies
   crypto: ^3.0.3
   convert: ^3.1.1
@@ -35,6 +37,14 @@ dependencies:
   web3dart: ^2.7.3
   # Hedera SDK (when available for Flutter)
   # hedera_sdk: ^1.0.0
+  
+  # Help & Support System dependencies
+  agora_rtc_engine: ^6.3.2
+  firebase_messaging: ^14.7.9
+  flutter_local_notifications: ^17.2.2
+  permission_handler: ^11.0.1
+  timeago: ^3.7.0
+  share_plus: ^7.2.1
 
 flutter:
   uses-material-design: true
@@ -45,6 +55,7 @@ flutter:
     - assets/svgs/
     - assets/fonts/
     - assets/avatars/
+    - assets/spotlight/
     - assets/play-extra/
     - assets/play-extra/battle-icons/
     - assets/play-extra/characters/

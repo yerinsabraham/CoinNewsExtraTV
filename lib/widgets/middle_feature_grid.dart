@@ -73,9 +73,9 @@ class MiddleFeatureGrid extends StatelessWidget {
                 ),
                 _buildGridItem(
                   context,
-                  icon: FeatherIcons.play,
-                  label: 'Program',
-                  onTap: () => Navigator.pushNamed(context, '/program'),
+                  icon: FeatherIcons.zap,
+                  label: 'Play Extra',
+                  onTap: () => Navigator.pushNamed(context, '/play-extra'),
                 ),
                 _buildGridItem(
                   context,

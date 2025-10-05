@@ -5,8 +5,10 @@ import 'dart:async';
 import 'dart:math' as math;
 import '../models/quiz_models.dart';
 import '../services/quiz_data_service.dart';
+import '../services/quiz_progress_service.dart';
 import '../services/user_balance_service.dart';
 import '../widgets/ads_carousel.dart';
+import 'quiz_content_manager.dart';
 
 class QuizPage extends StatefulWidget {
   const QuizPage({super.key});
@@ -32,10 +34,37 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   bool showAnswerFeedback = false;
   bool lastAnswerCorrect = false;
   
+  // Category availability tracking
+  Map<String, bool> categoryAvailability = {};
+  bool loadingAvailability = true;
+  
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loadCategoryAvailability();
+  }
+
+  Future<void> _loadCategoryAvailability() async {
+    setState(() => loadingAvailability = true);
+    
+    // Check if user has played any category today
+    final hasPlayedToday = await QuizProgressService.hasPlayedToday();
+    final playedCategory = await QuizProgressService.getTodayPlayedCategory();
+    
+    final availability = <String, bool>{};
+    for (final category in QuizDataService.categories) {
+      // If user hasn't played today, all categories are available
+      // If user has played today, all categories are locked
+      availability[category.id] = !hasPlayedToday;
+    }
+    
+    if (mounted) {
+      setState(() {
+        categoryAvailability = availability;
+        loadingAvailability = false;
+      });
+    }
   }
   
   void _initializeAnimations() {
@@ -76,6 +105,13 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   
   void _startGame(String categoryId) async {
     try {
+      // Check if category is available today
+      final canPlay = categoryAvailability[categoryId] ?? false;
+      if (!canPlay) {
+        _showCategoryUnavailableDialog(categoryId);
+        return;
+      }
+
       final balanceService = Provider.of<UserBalanceService>(context, listen: false);
       final availableBalance = balanceService.balance;
       
@@ -199,6 +235,19 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
         } else {
           debugPrint('Quiz completed: Player broke even (entry fee only)');
         }
+
+        // Record that this category was played today
+        await QuizProgressService.recordCategoryPlay(
+          currentSession!.categoryId,
+          currentSession!.generateResult().toJson(),
+        );
+
+        // Update availability - once any category is played, all become unavailable
+        setState(() {
+          for (final category in QuizDataService.categories) {
+            categoryAvailability[category.id] = false;
+          }
+        });
         
         await Future.delayed(const Duration(milliseconds: 300));
         
@@ -283,6 +332,67 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> _showCategoryUnavailableDialog(String categoryId) async {
+    final nextPlayTime = await QuizProgressService.getNextPlayTime(categoryId);
+    final playedCategory = await QuizProgressService.getTodayPlayedCategory();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Already Played Today',
+          style: TextStyle(color: Colors.orange, fontFamily: 'Lato'),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              playedCategory != null
+                  ? 'You have already played "${playedCategory.toUpperCase()}" today.'
+                  : 'You have already played a quiz today.',
+              style: const TextStyle(color: Colors.white70, fontFamily: 'Lato'),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'You can only play one category per day. Come back tomorrow to play again!',
+              style: TextStyle(color: Colors.white70, fontFamily: 'Lato'),
+            ),
+            if (nextPlayTime != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Next play available: ${_formatNextPlayTime(nextPlayTime)}',
+                style: const TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatNextPlayTime(DateTime nextTime) {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    
+    if (nextTime.isBefore(tomorrow.add(const Duration(days: 1)))) {
+      return 'Tomorrow';
+    } else {
+      return '${nextTime.day}/${nextTime.month}/${nextTime.year}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -353,6 +463,18 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
           ),
         ),
       ),
+      floatingActionButton: !isInGame && !showResult ? FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const QuizContentManager(),
+            ),
+          );
+        },
+        backgroundColor: const Color(0xFF006833),
+        child: const Icon(Icons.settings, color: Colors.white),
+      ) : null,
     );
   }
 
@@ -396,7 +518,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '• Entry Fee: ${QuizDataService.defaultEntryFee} CNE\n• Questions: ${QuizDataService.questionsPerQuiz} per quiz\n• Time Limit: ${QuizDataService.questionTimeLimit}s per question\n• Correct Answer: +1 CNE\n• Wrong Answer: -1 CNE\n• Game ends when tokens reach 0',
+                  '• Entry Fee: ${QuizDataService.defaultEntryFee} CNE\n• Only ONE category can be played per day\n• Questions: ${QuizDataService.questionsPerQuiz} per quiz\n• Time Limit: ${QuizDataService.questionTimeLimit}s per question\n• Correct Answer: +1 CNE\n• Wrong Answer: -1 CNE\n• Game ends when tokens reach 0',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
@@ -444,60 +566,94 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   }
 
   Widget _buildCategoryCard(QuizCategory category) {
+    final isAvailable = categoryAvailability[category.id] ?? true;
+    final colors = category.colors.map((c) => Color(int.parse('0xFF${c.substring(1)}'))).toList();
+    
     return GestureDetector(
-      onTap: () => _startGame(category.id),
+      onTap: isAvailable ? () => _startGame(category.id) : () => _showCategoryUnavailableDialog(category.id),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: category.colors.map((c) => Color(int.parse('0xFF${c.substring(1)}'))).toList(),
+            colors: isAvailable 
+                ? colors
+                : colors.map((c) => c.withOpacity(0.3)).toList(),
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
+          border: !isAvailable 
+              ? Border.all(color: Colors.grey[600]!, width: 1)
+              : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
-            _getCategoryIcon(category.iconName),
-            const SizedBox(height: 4),
-            Text(
-              category.name,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lato',
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 1),
-            Text(
-              category.description,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 9,
-                fontFamily: 'Lato',
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.quiz, color: Colors.white70, size: 10),
-                const SizedBox(width: 2),
+                _getCategoryIcon(category.iconName),
+                const SizedBox(height: 4),
                 Text(
-                  '${category.totalQuestions} Q',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
+                  category.name,
+                  style: TextStyle(
+                    color: isAvailable ? Colors.white : Colors.white.withOpacity(0.5),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                     fontFamily: 'Lato',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  category.description,
+                  style: TextStyle(
+                    color: isAvailable ? Colors.white70 : Colors.white.withOpacity(0.3),
+                    fontSize: 9,
+                    fontFamily: 'Lato',
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                // Status indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isAvailable 
+                        ? Colors.green.withOpacity(0.8) 
+                        : Colors.orange.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isAvailable ? 'Available' : 'Locked Today',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Lato',
+                    ),
                   ),
                 ),
               ],
             ),
+            if (!isAvailable)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.lock_outline,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

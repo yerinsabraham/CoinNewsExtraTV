@@ -4,7 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:feather_icons/feather_icons.dart';
 import '../services/auth_service.dart';
 import '../services/user_balance_service.dart';
+import '../provider/admin_provider.dart';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
+import '../help_support/screens/help_support_screen.dart';
+import '../admin/screens/admin_dashboard_screen.dart';
 import 'login_screen.dart';
+import 'settings_page.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,6 +21,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+      adminProvider.initializeAdminStatus();
+    });
+  }
 
   void _signOut() async {
     showDialog(
@@ -93,7 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return ListView.builder(
                 itemCount: watchHistory.length,
                 itemBuilder: (context, index) {
-                  final video = watchHistory[index];
+                  final item = watchHistory[index];
+                  final VideoModel video = item['video'];
+                  
                   return ListTile(
                     leading: Container(
                       width: 60,
@@ -102,20 +119,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.grey[800],
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(Icons.play_arrow, color: Colors.white),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.network(
+                          'https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.play_arrow, color: Colors.white);
+                          },
+                        ),
+                      ),
                     ),
                     title: Text(
-                      video['title'] ?? 'Video ${index + 1}',
+                      video.title,
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      _formatWatchDate(video['watchedAt']),
+                      _formatWatchDate(item['watchedAt']),
                       style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
                     ),
                     trailing: Text(
-                      '${video['duration'] ?? '0:00'}',
+                      _formatDuration(video.durationSeconds ?? 0),
                       style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
                     ),
                   );
@@ -173,7 +199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return ListView.builder(
                 itemCount: likedVideos.length,
                 itemBuilder: (context, index) {
-                  final video = likedVideos[index];
+                  final item = likedVideos[index];
+                  final VideoModel video = item['video'];
+                  
                   return ListTile(
                     leading: Container(
                       width: 60,
@@ -182,20 +210,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.grey[800],
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(Icons.favorite, color: Colors.red),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.network(
+                              'https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg',
+                              fit: BoxFit.cover,
+                              width: 60,
+                              height: 40,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[800],
+                                  child: const Icon(Icons.play_arrow, color: Colors.white),
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: const Icon(
+                                Icons.favorite,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     title: Text(
-                      video['title'] ?? 'Video ${index + 1}',
+                      video.title,
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      _formatWatchDate(video['likedAt']),
+                      _formatWatchDate(item['likedAt']),
                       style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
                     ),
                     trailing: const Icon(
-                      Icons.favorite_border,
+                      Icons.favorite,
                       color: Colors.red,
                       size: 16,
                     ),
@@ -310,43 +372,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<List<Map<String, dynamic>>> _getWatchHistory() async {
     await Future.delayed(const Duration(milliseconds: 500));
     
-    return [
-      {
-        'videoId': 'video1',
-        'title': 'Bitcoin Price Analysis Today',
-        'duration': '5:32',
+    // Get real videos from video data and simulate watch history
+    final allVideos = VideoData.getAllVideos();
+    final watchHistory = <Map<String, dynamic>>[];
+    
+    // Add some recent videos as watched with random timing
+    if (allVideos.isNotEmpty) {
+      watchHistory.add({
+        'video': allVideos[0],
         'watchedAt': DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
-      },
-      {
-        'videoId': 'video2', 
-        'title': 'Ethereum vs Cardano: Which is Better?',
-        'duration': '8:15',
+      });
+    }
+    if (allVideos.length > 1) {
+      watchHistory.add({
+        'video': allVideos[1],
         'watchedAt': DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch,
-      },
-      {
-        'videoId': 'video3',
-        'title': 'DeFi Explained for Beginners',
-        'duration': '12:05',
+      });
+    }
+    if (allVideos.length > 2) {
+      watchHistory.add({
+        'video': allVideos[2],
         'watchedAt': DateTime.now().subtract(const Duration(days: 3)).millisecondsSinceEpoch,
-      },
-    ];
+      });
+    }
+    
+    return watchHistory;
   }
 
   Future<List<Map<String, dynamic>>> _getLikedVideos() async {
     await Future.delayed(const Duration(milliseconds: 500));
     
-    return [
-      {
-        'videoId': 'video1',
-        'title': 'Top 10 Cryptocurrencies to Watch',
+    // Get real videos from video data and simulate liked videos
+    final allVideos = VideoData.getAllVideos();
+    final likedVideos = <Map<String, dynamic>>[];
+    
+    // Add some videos as liked with random timing
+    if (allVideos.length > 3) {
+      likedVideos.add({
+        'video': allVideos[3],
         'likedAt': DateTime.now().subtract(const Duration(hours: 5)).millisecondsSinceEpoch,
-      },
-      {
-        'videoId': 'video4',
-        'title': 'NFT Market Analysis 2024',
+      });
+    }
+    if (allVideos.length > 4) {
+      likedVideos.add({
+        'video': allVideos[4],
         'likedAt': DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch,
-      },
-    ];
+      });
+    }
+    
+    return likedVideos;
   }
 
   Future<List<Map<String, dynamic>>> _getEarningsHistory() async {
@@ -407,6 +481,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -427,8 +507,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsPage(),
+                ),
               );
             },
           ),
@@ -593,13 +676,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Track your rewards and earnings',
               onTap: () => _showEarningsHistory(),
             ),
+            // Admin Dashboard - Only visible to admins
+            Consumer<AdminProvider>(
+              builder: (context, adminProvider, child) {
+                if (!adminProvider.isAdmin) return const SizedBox.shrink();
+                
+                return _buildMenuOption(
+                  icon: FeatherIcons.shield,
+                  title: 'Admin Dashboard',
+                  subtitle: 'Manage app content and settings',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminDashboardScreen(),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
             _buildMenuOption(
               icon: Icons.help_outline,
               title: 'Help & Support',
               subtitle: 'Get help and contact support',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Help & support coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HelpSupportScreen(),
+                  ),
                 );
               },
             ),

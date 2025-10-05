@@ -26,8 +26,19 @@ import 'screens/more_page.dart';
 import 'screens/summit_page.dart';
 import 'screens/explore_page.dart';
 import 'screens/program_page.dart';
+import 'screens/spotlight_screen.dart';
+import 'play_extra/screens/play_extra_main.dart';
 import 'provider/admin_provider.dart'; 
 import 'services/user_balance_service.dart';
+import 'services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Background message handler (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('🔔 Background message received: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +48,12 @@ void main() async {
   
   // Initialize Firebase Analytics
   FirebaseAnalytics.instance;
+  
+  // Set background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  
+  // Initialize notification service
+  await NotificationService().initialize();
   
   runApp(const Watch2EarnApp());
 }
@@ -150,6 +167,8 @@ class Watch2EarnApp extends StatelessWidget {
           '/summit': (context) => const SummitPage(),
           '/explore': (context) => const ExplorePage(),
           '/program': (context) => const ProgramPage(),
+          '/spotlight': (context) => const SpotlightScreen(),
+          '/play-extra': (context) => const PlayExtraMain(),
         },
       ),
     );

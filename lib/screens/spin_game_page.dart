@@ -23,15 +23,17 @@ class _SpinGamePageState extends State<SpinGamePage>
   double _lastSpinRotation = 0;
   Map<String, dynamic>? _lastPrize;
 
+  // Original prize structure from the old code with proper weightings
   final List<Map<String, dynamic>> _prizes = [
-    {'label': '1 CNE', 'value': 1.0, 'color': const Color(0xFF006833)},
-    {'label': '5 CNE', 'value': 5.0, 'color': const Color(0xFFFF9800)},
-    {'label': '10 CNE', 'value': 10.0, 'color': const Color(0xFF2196F3)},
-    {'label': '2 CNE', 'value': 2.0, 'color': const Color(0xFF9C27B0)},
-    {'label': '15 CNE', 'value': 15.0, 'color': const Color(0xFFE91E63)},
-    {'label': '3 CNE', 'value': 3.0, 'color': const Color(0xFF4CAF50)},
-    {'label': '20 CNE', 'value': 20.0, 'color': const Color(0xFFFF5722)},
-    {'label': '7 CNE', 'value': 7.0, 'color': const Color(0xFF607D8B)},
+    {'label': '1,000 CNE', 'value': 1000.0, 'color': const Color(0xFFFFD700), 'type': 'cne', 'weight': 1},  // 1% chance
+    {'label': '500 CNE', 'value': 500.0, 'color': const Color(0xFFFF6B35), 'type': 'cne', 'weight': 4},   // 4% chance
+    {'label': '200 CNE', 'value': 200.0, 'color': const Color(0xFF9B59B6), 'type': 'cne', 'weight': 10},  // 10% chance
+    {'label': '100 CNE', 'value': 100.0, 'color': const Color(0xFF3498DB), 'type': 'cne', 'weight': 20},  // 20% chance
+    {'label': '50 CNE', 'value': 50.0, 'color': const Color(0xFF2ECC71), 'type': 'cne', 'weight': 30},    // 30% chance
+    {'label': '10 CNE', 'value': 10.0, 'color': const Color(0xFFE67E22), 'type': 'cne', 'weight': 5},     // 5% chance
+    {'label': 'NFT', 'value': 0.0, 'color': const Color(0xFFE91E63), 'type': 'nft', 'weight': 10},       // 10% chance
+    {'label': 'NFT', 'value': 0.0, 'color': const Color(0xFFE91E63), 'type': 'nft', 'weight': 10},       // 10% chance
+    {'label': 'NFT', 'value': 0.0, 'color': const Color(0xFFE91E63), 'type': 'nft', 'weight': 10},       // 10% chance
   ];
 
   @override
@@ -58,6 +60,22 @@ class _SpinGamePageState extends State<SpinGamePage>
     });
   }
 
+  int _getWeightedRandomIndex() {
+    // Calculate total weight
+    final totalWeight = _prizes.fold<int>(0, (sum, prize) => sum + (prize['weight'] as int));
+    final random = Random().nextInt(totalWeight);
+    
+    int cumulativeWeight = 0;
+    for (int i = 0; i < _prizes.length; i++) {
+      cumulativeWeight += _prizes[i]['weight'] as int;
+      if (random < cumulativeWeight) {
+        return i;
+      }
+    }
+    
+    return 4; // Fallback to 50 CNE (most common prize)
+  }
+
   @override
   void dispose() {
     _spinController.dispose();
@@ -75,8 +93,8 @@ class _SpinGamePageState extends State<SpinGamePage>
     try {
       final random = Random();
       
-      // First, determine which prize will be awarded
-      final prizeIndex = random.nextInt(_prizes.length);
+      // First, determine which prize will be awarded using weighted selection
+      final prizeIndex = _getWeightedRandomIndex();
       final selectedPrize = _prizes[prizeIndex];
       
       // Calculate the angle for this prize (center of the slice)
@@ -126,29 +144,39 @@ class _SpinGamePageState extends State<SpinGamePage>
 
   Future<void> _awardPrize(Map<String, dynamic> prize) async {
     try {
-      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-      final amount = prize['value'] as double;
-      
-      await balanceService.addBalance(amount, 'Spin2Earn Game');
-      
-      if (mounted) {
-        _showPrizeDialog(prize);
+      if (prize['type'] == 'cne') {
+        // Award CNE tokens
+        final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+        final amount = prize['value'] as double;
+        
+        await balanceService.addBalance(amount, 'Spin2Earn Game');
+        
+        if (mounted) {
+          _showPrizeDialog(prize, true);
+        }
+      } else if (prize['type'] == 'nft') {
+        // Handle NFT prize
+        if (mounted) {
+          _showPrizeDialog(prize, true);
+        }
       }
     } catch (e) {
       _showMessage('Error awarding prize: $e', isError: true);
     }
   }
 
-  void _showPrizeDialog(Map<String, dynamic> prize) {
+  void _showPrizeDialog(Map<String, dynamic> prize, bool isWin) {
+    final isNft = prize['type'] == 'nft';
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Congratulations!',
-          style: TextStyle(
+        title: Text(
+          isWin ? '🎉 Congratulations!' : '💫 Try Again',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -165,19 +193,28 @@ class _SpinGamePageState extends State<SpinGamePage>
                 color: prize['color'] as Color,
                 shape: BoxShape.circle,
               ),
-              child: Text(
-                prize['label'],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Lato',
-                ),
-              ),
+              child: isNft 
+                ? const Icon(
+                    Icons.palette,
+                    color: Colors.white,
+                    size: 32,
+                  )
+                : Text(
+                    prize['label'],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Lato',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
             ),
             const SizedBox(height: 16),
             Text(
-              'You won ${prize['label']} tokens!',
+              isNft 
+                ? '🎨 Amazing! You won an NFT!\n\nYour NFT will be sent to your wallet soon.'
+                : 'You won ${prize['label']}!\n\nYour balance has been updated!',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -185,6 +222,35 @@ class _SpinGamePageState extends State<SpinGamePage>
               ),
               textAlign: TextAlign.center,
             ),
+            if (!isNft) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF006833),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    Consumer<UserBalanceService>(
+                      builder: (context, balanceService, child) {
+                        return Text(
+                          'Balance: ${balanceService.balance.toStringAsFixed(1)} CNE',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -417,8 +483,6 @@ class _SpinGamePageState extends State<SpinGamePage>
               ),
             const SizedBox(height: 32),
             if (_lastPrize != null) _buildLastWinDisplay(),
-            const SizedBox(height: 16),
-            _buildPrizeList(),
             const SizedBox(height: 24),
             const AdsCarousel(),
           ],

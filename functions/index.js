@@ -1,6 +1,6 @@
 ﻿const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
-const functions = require('firebase-functions');
 const { Client, PrivateKey, AccountCreateTransaction, AccountId, Hbar } = require("@hashgraph/sdk");
 
 // Initialize Firebase Admin
@@ -111,4 +111,311 @@ const bypass = require('./bypass');
 exports.getBalanceHttp = bypass.getBalanceHttp;
 exports.claimRewardHttp = bypass.claimRewardHttp;
 exports.processSignupHttp = bypass.processSignupHttp;
+
+// ================================
+// PUSH NOTIFICATION FUNCTIONS
+// ================================
+
+/**
+ * Cloud Function to send push notifications when announcements are created
+ * Triggers when a document is created in the 'admin_notifications' collection
+ */
+exports.sendAnnouncementPushNotification = onDocumentCreated('admin_notifications/{notificationId}', async (event) => {
+  const snap = event.data;
+  try {
+      const notificationData = snap.data();
+      
+      // Check if push notification should be sent
+      if (!notificationData.sendPush) {
+        console.log('Push notification not requested for notification:', event.params.notificationId);
+        return null;
+      }
+
+      console.log('Processing push notification for announcement:', notificationData.title);
+
+      // Get all users with FCM tokens
+      const usersSnapshot = await admin.firestore()
+        .collection('users')
+        .where('fcmToken', '!=', null)
+        .get();
+
+      if (usersSnapshot.empty) {
+        console.log('No users with FCM tokens found');
+        return null;
+      }
+
+      const tokens = [];
+      const tokenUserMap = new Map();
+
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        if (userData.fcmToken) {
+          tokens.push(userData.fcmToken);
+          tokenUserMap.set(userData.fcmToken, doc.id);
+        }
+      });
+
+      if (tokens.length === 0) {
+        console.log('No valid FCM tokens found');
+        return null;
+      }
+
+      // Prepare notification payload
+      const payload = {
+        notification: {
+          title: notificationData.title || 'CoinNewsExtra Announcement',
+          body: notificationData.message || 'New announcement available',
+          icon: '/assets/icons/app_icon_white_bg.png',
+          badge: '/assets/icons/app_icon_white_bg.png'
+        },
+        data: {
+          type: 'announcement',
+          notificationId: event.params.notificationId,
+          priority: notificationData.priority || 'normal',
+          createdAt: notificationData.createdAt?.toMillis?.()?.toString() || Date.now().toString(),
+          click_action: 'FLUTTER_NOTIFICATION_CLICK'
+        },
+        android: {
+          notification: {
+            channelId: 'coinnewsextra_notifications',
+            priority: 'high',
+            defaultSound: true,
+            defaultVibrateTimings: true,
+            icon: 'ic_launcher'
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              badge: 1,
+              sound: 'default'
+            }
+          }
+        }
+      };
+
+      // Send notifications in batches (FCM limit is 500 tokens per batch)
+      const batchSize = 500;
+      const batches = [];
+      
+      for (let i = 0; i < tokens.length; i += batchSize) {
+        const batchTokens = tokens.slice(i, i + batchSize);
+        batches.push(batchTokens);
+      }
+
+      let totalSuccessful = 0;
+      let totalFailed = 0;
+      const failedTokens = [];
+
+      // Process each batch
+      for (const batchTokens of batches) {
+        try {
+          const response = await admin.messaging().sendMulticast({
+            tokens: batchTokens,
+            ...payload
+          });
+
+          totalSuccessful += response.successCount;
+          totalFailed += response.failureCount;
+
+          // Collect failed tokens for cleanup
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              const failedToken = batchTokens[idx];
+              const error = resp.error;
+              
+              console.error(`Failed to send to token ${failedToken}:`, error?.code);
+              
+              // If token is invalid, mark for removal
+              if (error?.code === 'messaging/registration-token-not-registered' ||
+                  error?.code === 'messaging/invalid-registration-token') {
+                failedTokens.push(failedToken);
+              }
+            }
+          });
+
+          console.log(`Batch processed: ${response.successCount} successful, ${response.failureCount} failed`);
+        } catch (error) {
+          console.error('Error sending batch:', error);
+          totalFailed += batchTokens.length;
+        }
+      }
+
+      // Clean up invalid tokens
+      if (failedTokens.length > 0) {
+        console.log(`Cleaning up ${failedTokens.length} invalid tokens`);
+        await cleanupInvalidTokens(failedTokens, tokenUserMap);
+      }
+
+      // Update notification document with delivery stats
+      await snap.ref.update({
+        pushNotificationSent: true,
+        deliveryStats: {
+          totalTokens: tokens.length,
+          successful: totalSuccessful,
+          failed: totalFailed,
+          sentAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      });
+
+      console.log(`Push notification sent successfully: ${totalSuccessful} delivered, ${totalFailed} failed`);
+      return { success: true, delivered: totalSuccessful, failed: totalFailed };
+
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+      
+      // Update notification document with error
+      await snap.ref.update({
+        pushNotificationSent: false,
+        pushNotificationError: error.message,
+        errorAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      throw error;
+    }
+});
+
+/**
+ * Clean up invalid FCM tokens from user documents
+ */
+async function cleanupInvalidTokens(invalidTokens, tokenUserMap) {
+  const batch = admin.firestore().batch();
+
+  invalidTokens.forEach(token => {
+    const userId = tokenUserMap.get(token);
+    if (userId) {
+      const userRef = admin.firestore().collection('users').doc(userId);
+      batch.update(userRef, {
+        fcmToken: admin.firestore.FieldValue.delete(),
+        tokenRemovedAt: admin.firestore.FieldValue.serverTimestamp(),
+        tokenRemovalReason: 'invalid_token'
+      });
+    }
+  });
+
+  try {
+    await batch.commit();
+    console.log(`Cleaned up ${invalidTokens.length} invalid tokens`);
+  } catch (error) {
+    console.error('Error cleaning up invalid tokens:', error);
+  }
+}
+
+/**
+ * Callable function to send custom push notifications
+ * Can be called from admin panel for immediate notifications
+ */
+exports.sendCustomPushNotification = onCall({
+  cors: true
+}, async (request) => {
+  // Verify admin authentication
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  // Check if user is admin
+  const userDoc = await admin.firestore()
+    .collection('users')
+    .doc(request.auth.uid)
+    .get();
+
+  const userData = userDoc.data();
+  if (!userData?.isAdmin && !userData?.isSuperAdmin) {
+    throw new HttpsError('permission-denied', 'User must be admin');
+  }
+
+  try {
+    const { title, message, targetUsers, priority = 'normal' } = request.data;
+
+    if (!title || !message) {
+      throw new HttpsError('invalid-argument', 'Title and message are required');
+    }
+
+    // Get target user tokens
+    let tokensQuery = admin.firestore().collection('users').where('fcmToken', '!=', null);
+    
+    // If specific users targeted, filter by user IDs
+    if (targetUsers && targetUsers.length > 0) {
+      tokensQuery = tokensQuery.where(admin.firestore.FieldPath.documentId(), 'in', targetUsers);
+    }
+
+    const usersSnapshot = await tokensQuery.get();
+    const tokens = usersSnapshot.docs
+      .map(doc => doc.data().fcmToken)
+      .filter(token => token);
+
+    if (tokens.length === 0) {
+      return { success: false, message: 'No valid FCM tokens found for target users' };
+    }
+
+    // Prepare notification payload
+    const payload = {
+      notification: {
+        title: title,
+        body: message,
+        icon: '/assets/icons/app_icon_white_bg.png'
+      },
+      data: {
+        type: 'custom',
+        priority: priority,
+        createdAt: Date.now().toString(),
+        sentBy: request.auth.uid,
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      }
+    };
+
+    // Send notification
+    const response = await admin.messaging().sendMulticast({
+      tokens: tokens,
+      ...payload
+    });
+
+    return {
+      success: true,
+      delivered: response.successCount,
+      failed: response.failureCount,
+      totalTokens: tokens.length
+    };
+
+  } catch (error) {
+    console.error('Error sending custom push notification:', error);
+    throw new HttpsError('internal', 'Failed to send push notification');
+  }
+});
+
+/**
+ * Function to handle user token updates
+ * Ensures tokens are properly managed
+ */
+exports.updateUserToken = onCall({
+  cors: true
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  try {
+    const { fcmToken, platform } = request.data;
+
+    if (!fcmToken) {
+      throw new HttpsError('invalid-argument', 'FCM token is required');
+    }
+
+    // Update user document with new token
+    await admin.firestore()
+      .collection('users')
+      .doc(request.auth.uid)
+      .update({
+        fcmToken: fcmToken,
+        platform: platform || 'unknown',
+        tokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    return { success: true, message: 'Token updated successfully' };
+
+  } catch (error) {
+    console.error('Error updating user token:', error);
+    throw new HttpsError('internal', 'Failed to update token');
+  }
+});
 

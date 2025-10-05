@@ -51,6 +51,7 @@ class QuickFeatureRow extends StatelessWidget {
               Navigator.pushNamed(context, '/extra-ai');
             },
           ),
+          _buildSpotlightFeatureItem(context),
         ],
       ),
     );
@@ -84,6 +85,50 @@ class QuickFeatureRow extends StatelessWidget {
               color: Colors.white,
               fontSize: 11,
               fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpotlightFeatureItem(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, '/spotlight');
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.amber.withOpacity(0.3),
+                  Colors.orange.withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              FeatherIcons.star,
+              color: Colors.amber,
+              size: 22,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Spotlight',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Lato',
             ),
             textAlign: TextAlign.center,
           ),

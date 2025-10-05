@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:flutter/foundation.dart' as foundation;
 import '../services/user_balance_service.dart';
 
 class ChatMessage {
@@ -67,6 +69,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
   bool _isOnline = true;
   int _onlineUsers = 42; // Mock count, would be real in production
   String _currentUserName = '';
+  bool _showEmojiPicker = false;
 
   @override
   void initState() {
@@ -84,6 +87,11 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       parent: _connectionAnimationController,
       curve: Curves.easeInOut,
     ));
+    
+    // Listen to text changes for send button state
+    _messageController.addListener(() {
+      setState(() {});
+    });
     
     _getCurrentUserName();
     _addWelcomeMessage();
@@ -149,24 +157,38 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     if (_messageController.text.trim().isEmpty) return;
 
     User? user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to send messages'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
+    final messageText = _messageController.text.trim();
+    print('Sending message: $messageText'); // Debug
+    
     final message = ChatMessage(
-      id: '',
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       userId: user.uid,
-      username: _currentUserName,
-      message: _messageController.text.trim(),
+      username: _currentUserName.isNotEmpty ? _currentUserName : 'User',
+      message: messageText,
       timestamp: DateTime.now(),
     );
 
     try {
-      // In a real implementation, save to Firestore
+      // Clear the message immediately for better UX
+      _messageController.clear();
+      setState(() {}); // Update UI
+      
+      // Save to Firestore
       await _firestore.collection('chat_messages').add(message.toFirestore());
       
-      _messageController.clear();
-      
-      // Auto-scroll to bottom
-      Future.delayed(const Duration(milliseconds: 100), () {
+      // Auto-scroll to bottom after message is added
+      Future.delayed(const Duration(milliseconds: 500), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
@@ -185,7 +207,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           const SnackBar(
             content: Text('+0.1 CNE for chat participation!'),
             backgroundColor: Color(0xFF006833),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -204,7 +226,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       margin: EdgeInsets.only(
         left: isCurrentUser ? 60 : 16,
         right: isCurrentUser ? 16 : 60,
-        bottom: 8,
+        bottom: 12,
       ),
       child: Column(
         crossAxisAlignment: isCurrentUser 
@@ -213,28 +235,80 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         children: [
           if (!isCurrentUser && !message.isSystem)
             Padding(
-              padding: const EdgeInsets.only(left: 12, bottom: 4),
-              child: Text(
-                message.username,
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+              padding: const EdgeInsets.only(left: 16, bottom: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Avatar circle
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF006833),
+                          Color(0xFF00A651),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        message.username[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    message.username,
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: message.isSystem
-                  ? const Color(0xFF006833).withOpacity(0.2)
+                  ? const Color(0xFF006833).withOpacity(0.15)
                   : isCurrentUser
-                      ? const Color(0xFF006833)
-                      : Colors.grey[800],
-              borderRadius: BorderRadius.circular(20),
-              border: message.isSystem
-                  ? Border.all(color: const Color(0xFF006833), width: 1)
+                      ? const LinearGradient(
+                          colors: [Color(0xFF006833), Color(0xFF00A651)],
+                        ).createShader(const Rect.fromLTWH(0, 0, 200, 70)) != null
+                          ? null : const Color(0xFF006833)
+                      : Colors.grey[850],
+              gradient: isCurrentUser && !message.isSystem
+                  ? const LinearGradient(
+                      colors: [Color(0xFF006833), Color(0xFF00A651)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
                   : null,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: Radius.circular(isCurrentUser ? 20 : 6),
+                bottomRight: Radius.circular(isCurrentUser ? 6 : 20),
+              ),
+              border: message.isSystem
+                  ? Border.all(color: const Color(0xFF006833).withOpacity(0.5), width: 1)
+                  : null,
+              boxShadow: !message.isSystem ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ] : null,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,32 +317,38 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: const Color(0xFF006833),
-                        size: 16,
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF006833),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 12,
+                        ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'System',
+                      const SizedBox(width: 8),
+                      const Text(
+                        'CoinNews Extra',
                         style: TextStyle(
-                          color: const Color(0xFF006833),
-                          fontSize: 12,
+                          color: Color(0xFF006833),
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                if (message.isSystem) const SizedBox(height: 4),
+                if (message.isSystem) const SizedBox(height: 6),
                 Text(
                   message.message,
                   style: TextStyle(
                     color: message.isSystem 
                         ? Colors.white
-                        : isCurrentUser
-                            ? Colors.white
-                            : Colors.white,
+                        : Colors.white,
                     fontSize: 14,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -276,16 +356,29 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           ),
           Padding(
             padding: EdgeInsets.only(
-              left: isCurrentUser ? 0 : 12,
-              right: isCurrentUser ? 12 : 0,
-              top: 4,
+              left: isCurrentUser ? 0 : 16,
+              right: isCurrentUser ? 16 : 0,
+              top: 6,
             ),
-            child: Text(
-              _formatTime(message.timestamp),
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 11,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _formatTime(message.timestamp),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 10,
+                  ),
+                ),
+                if (isCurrentUser) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.done_all,
+                    color: Colors.grey[600],
+                    size: 12,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -308,130 +401,161 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     }
   }
 
-  Widget _buildMockMessages() {
-    final mockMessages = [
-      ChatMessage(
-        id: '1',
-        userId: 'system',
-        username: 'CoinNews Extra',
-        message: 'Welcome to CoinNews Extra Chat! 🚀 Discuss crypto, share insights, and earn rewards!',
-        timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-        isSystem: true,
-      ),
-      ChatMessage(
-        id: '2',
-        userId: 'user1',
-        username: 'CryptoTrader',
-        message: 'Bitcoin looking strong today! 📈',
-        timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
-      ),
-      ChatMessage(
-        id: '3',
-        userId: 'user2',
-        username: 'BlockchainPro',
-        message: 'Anyone else bullish on ETH? The merge was a game changer',
-        timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-      ),
-      ChatMessage(
-        id: '4',
-        userId: 'user3',
-        username: 'DeFiEnthusiast',
-        message: 'Just earned 5 CNE tokens from the spin wheel! 🎰',
-        timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
-      ),
-      ChatMessage(
-        id: '5',
-        userId: 'user4',
-        username: 'AltcoinHunter',
-        message: 'Love this platform! The videos are super informative 👍',
-        timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-      ),
-    ];
 
-    return Column(
-      children: mockMessages.map((message) {
-        final isCurrentUser = message.userId == _auth.currentUser?.uid;
-        return _buildMessageBubble(message, isCurrentUser);
-      }).toList(),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.grey[900],
+        backgroundColor: Colors.black,
         elevation: 0,
+        centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[800]?.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            const Text(
-              'Community Chat',
-              style: TextStyle(
+            // Chat icon with gradient background
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF006833), Color(0xFF00A651)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.forum,
                 color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+                size: 20,
               ),
             ),
-            Row(
-              children: [
-                AnimatedBuilder(
-                  animation: _connectionAnimation,
-                  builder: (context, child) {
-                    return Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _isOnline 
-                            ? const Color(0xFF006833).withOpacity(_connectionAnimation.value)
-                            : Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$_onlineUsers online',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Community Chat',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                  Row(
+                    children: [
+                      AnimatedBuilder(
+                        animation: _connectionAnimation,
+                        builder: (context, child) {
+                          return Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: _isOnline 
+                                  ? const Color(0xFF00A651).withOpacity(_connectionAnimation.value)
+                                  : Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_onlineUsers online',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[800]?.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.info_outline, color: Colors.white, size: 20),
+            ),
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
                   backgroundColor: Colors.grey[900],
-                  title: const Text(
-                    'Chat Rules',
-                    style: TextStyle(color: Colors.white),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  title: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF006833), Color(0xFF00A651)],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.info, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Chat Guidelines',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                   content: const Text(
-                    '• Be respectful to all members\n'
-                    '• No spam or excessive messaging\n'
-                    '• Crypto discussion encouraged\n'
-                    '• Earn 0.1 CNE per message\n'
-                    '• Have fun and learn together!',
-                    style: TextStyle(color: Colors.white70),
+                    '• Be respectful to all members 🤝\n'
+                    '• No spam or excessive messaging 🚫\n'
+                    '• Crypto discussion encouraged 💰\n'
+                    '• Earn 0.1 CNE per message 🎁\n'
+                    '• Have fun and learn together! 🚀',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      height: 1.5,
+                    ),
                   ),
                   actions: [
                     TextButton(
+                      style: TextButton.styleFrom(
+                        backgroundColor: const Color(0xFF006833),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Got it!',
-                        style: TextStyle(color: Color(0xFF006833)),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: Text(
+                          'Got it!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -439,6 +563,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               );
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
       backgroundColor: Colors.black,
@@ -457,14 +582,45 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                children: [
-                  // In a real implementation, this would be a StreamBuilder
-                  // listening to Firestore chat messages
-                  _buildMockMessages(),
-                ],
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('chat_messages')
+                    .orderBy('timestamp', descending: false)
+                    .limit(50)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Text(
+                        'Error loading messages',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+                      ),
+                    );
+                  }
+
+                  final messages = snapshot.data?.docs ?? [];
+                  
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final messageDoc = messages[index];
+                      final message = ChatMessage.fromFirestore(messageDoc);
+                      final isCurrentUser = message.userId == _auth.currentUser?.uid;
+                      
+                      return _buildMessageBubble(message, isCurrentUser);
+                    },
+                  );
+                },
               ),
             ),
           ),
@@ -486,19 +642,18 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                 children: [
                   // Emoji button
                   IconButton(
-                    icon: const Icon(
-                      Icons.emoji_emotions_outlined,
-                      color: Colors.grey,
+                    icon: Icon(
+                      _showEmojiPicker 
+                          ? Icons.keyboard
+                          : Icons.emoji_emotions_outlined,
+                      color: _showEmojiPicker 
+                          ? const Color(0xFF006833)
+                          : Colors.grey,
                     ),
                     onPressed: () {
-                      // In a real app, show emoji picker
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Emoji picker coming soon! 😊'),
-                          backgroundColor: Color(0xFF006833),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
+                      setState(() {
+                        _showEmojiPicker = !_showEmojiPicker;
+                      });
                     },
                   ),
                   
@@ -521,20 +676,43 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                         maxLines: null,
                         textCapitalization: TextCapitalization.sentences,
                         onSubmitted: (_) => _sendMessage(),
+                        onTap: () {
+                          if (_showEmojiPicker) {
+                            setState(() {
+                              _showEmojiPicker = false;
+                            });
+                          }
+                        },
                       ),
                     ),
                   ),
                   
                   const SizedBox(width: 8),
                   
-                  // Send button
+                  // Send button - Enhanced with better visual feedback
                   GestureDetector(
-                    onTap: _sendMessage,
+                    onTap: () {
+                      print('Send button tapped!'); // Debug
+                      print('Message text: "${_messageController.text}"'); // Debug
+                      
+                      final text = _messageController.text.trim();
+                      if (text.isNotEmpty) {
+                        _sendMessage();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter a message first'),
+                            backgroundColor: Colors.orange,
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    },
                     child: Container(
                       width: 44,
                       height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF006833),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF006833), // Always active for testing
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -548,6 +726,55 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               ),
             ),
           ),
+          
+          // Emoji Picker
+          if (_showEmojiPicker)
+            SizedBox(
+              height: 250,
+              child: EmojiPicker(
+                textEditingController: _messageController,
+                config: Config(
+                  height: 256,
+                  checkPlatformCompatibility: true,
+                  emojiViewConfig: EmojiViewConfig(
+                    backgroundColor: Colors.grey[900]!,
+                    columns: 7,
+                    emojiSizeMax: 28.0,
+                    recentsLimit: 28,
+                    replaceEmojiOnLimitExceed: false,
+                    noRecents: const Text(
+                      'No recent emojis',
+                      style: TextStyle(fontSize: 20, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    loadingIndicator: const SizedBox.shrink(),
+
+                    buttonMode: ButtonMode.MATERIAL,
+                  ),
+                  bottomActionBarConfig: const BottomActionBarConfig(
+                    backgroundColor: Color(0xFF2C2C2C),
+                    buttonColor: Colors.grey,
+                    buttonIconColor: Colors.white,
+                    showSearchViewButton: true,
+                  ),
+                  searchViewConfig: SearchViewConfig(
+                    backgroundColor: Colors.grey[900]!,
+                    buttonIconColor: Colors.white,
+                    hintText: 'Search emoji...',
+                  ),
+                  categoryViewConfig: const CategoryViewConfig(
+                    initCategory: Category.RECENT,
+                    backgroundColor: Color(0xFF2C2C2C),
+                    indicatorColor: Color(0xFF006833),
+                    iconColorSelected: Color(0xFF006833),
+                    iconColor: Colors.grey,
+                    tabBarHeight: 46,
+                    dividerColor: Colors.grey,
+                    categoryIcons: CategoryIcons(),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

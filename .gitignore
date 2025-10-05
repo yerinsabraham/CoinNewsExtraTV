@@ -81,3 +81,26 @@ Thumbs.db
 
 # Project specific
 package.json
+
+# Old code and backup folders
+original-app/
+backup_broken_files/
+temp-browserquest/
+
+# Damaged/test files
+**/test-*.js
+treasury_private_key.SECURE
+*.backup-*
+**/pre_mainnet_*
+**/test_admin_*
+**/test_referral_*
+**/test_username_*
+**/reward_test_*
+SPOTLIGHT_SAMPLE_DATA.txt
+
+# Development/testing scripts
+create-sample-*.js
+create-test-*.js
+test-*.js
+reset-user-account.js
+check-rounds.js

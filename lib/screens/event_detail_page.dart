@@ -15,27 +15,38 @@ class _EventDetailPageState extends State<EventDetailPage> {
   bool isRegistered = false;
 
   Widget _buildEventImage() {
+    // Map event IDs to summit images - same as original implementation
+    String getImagePath() {
+      switch (widget.event.id) {
+        case '1':
+          return 'assets/images/summit1.png';
+        case '2':
+          return 'assets/images/summit2.png';
+        case '3':
+          return 'assets/images/summit3.png';
+        default:
+          return 'assets/images/summit1.png';
+      }
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(0),
-          child: Image.asset(
-            widget.event.imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: const Color(0xFF006833).withOpacity(0.3),
-                child: const Center(
-                  child: Icon(
-                    FeatherIcons.calendar,
-                    color: Colors.white,
-                    size: 80,
-                  ),
+        Image.asset(
+          getImagePath(),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: const Color(0xFF006833).withOpacity(0.3),
+              child: const Center(
+                child: Icon(
+                  FeatherIcons.calendar,
+                  color: Colors.white,
+                  size: 80,
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
         Container(
           decoration: BoxDecoration(
