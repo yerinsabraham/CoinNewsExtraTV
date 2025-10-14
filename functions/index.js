@@ -419,3 +419,10 @@ exports.updateUserToken = onCall({
   }
 });
 
+// Export the askOpenAI function implementation
+try {
+  exports.askOpenAI = require('./ask_openai').askOpenAI;
+} catch (e) {
+  console.warn('ask_openai not available to export:', e.message);
+}
+

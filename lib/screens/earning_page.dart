@@ -155,19 +155,7 @@ class _EarningPageState extends State<EarningPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 4),
-                  Consumer<UserBalanceService>(
-                    builder: (context, balanceService, child) {
-                      return Text(
-                        'Worth ${balanceService.getFormattedUsdValue()} USD',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontFamily: 'Lato',
-                        ),
-                      );
-                    },
-                  ),
+                  // Fiat / USD display removed — showing token-only balance
                 ],
               ),
             ),

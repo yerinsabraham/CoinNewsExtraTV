@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:flutter/foundation.dart' as foundation;
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji_picker;
 import '../services/user_balance_service.dart';
 import '../services/openai_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AIMessage {
   final String id;
@@ -35,6 +34,10 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
   final ScrollController _scrollController = ScrollController();
   final List<AIMessage> _messages = [];
   final OpenAIService _openAIService = OpenAIService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Removed user-facing toggles: responses will use trusted sources and a
+  // concise-but-helpful style by default (no options shown to users).
   
   late AnimationController _typingAnimationController;
   late Animation<double> _typingAnimation;
@@ -62,7 +65,9 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
       curve: Curves.easeInOut,
     ));
     
-    _addWelcomeMessage();
+    // Load persisted messages from Firestore. If none exist, show the welcome
+    // message. Attempt anonymous sign-in if the user is not authenticated.
+    _loadMessages();
   }
 
   @override
@@ -117,6 +122,9 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
       _isProcessing = true;
     });
 
+  // Persist the user message to Firestore (best-effort)
+  _saveMessageToFirestore(userAIMessage);
+
     _messageController.clear();
     
     // Add loading message
@@ -135,18 +143,30 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
     _scrollToBottom();
 
     try {
-      // Use enhanced natural AI responses
-      final aiResponse = await _generateAIResponse(userMessage);
+      // If an API key is configured, use the OpenAIService. Otherwise fall back to local generator.
+      String aiResponse;
+      try {
+        // Use OpenAIService defaults: trusted sources are included and replies
+        // are concise-but-helpful. No user-facing toggles/options are shown.
+        aiResponse = await _openAIService.sendMessage(userMessage);
+      } catch (_) {
+        aiResponse = await _generateAIResponse(userMessage);
+      }
       
+      final assistantMessage = AIMessage(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: aiResponse,
+        isFromUser: false,
+        timestamp: DateTime.now(),
+      );
+
       setState(() {
         _messages.removeLast(); // Remove loading message
-        _messages.add(AIMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          content: aiResponse,
-          isFromUser: false,
-          timestamp: DateTime.now(),
-        ));
+        _messages.add(assistantMessage);
       });
+
+  // Persist assistant reply
+  _saveMessageToFirestore(assistantMessage);
 
       // Award tokens for AI interaction
       if (mounted) {
@@ -178,6 +198,132 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
     }
 
     _scrollToBottom();
+  }
+
+  // Load messages from Firestore for the current user. Falls back to a
+  // welcome message if none are found. Counts today's user messages to set
+  // the daily question usage counter.
+  Future<void> _loadMessages() async {
+    try {
+      var user = _auth.currentUser;
+      if (user == null) {
+        final cred = await _auth.signInAnonymously();
+        user = cred.user;
+      }
+
+      if (user == null) return;
+
+      final query = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('ai_messages')
+          .orderBy('timestamp', descending: false)
+          .get();
+
+      final loaded = <AIMessage>[];
+      for (final doc in query.docs) {
+        final data = doc.data();
+        final ts = data['timestamp'];
+        DateTime when;
+        if (ts is Timestamp) {
+          when = ts.toDate();
+        } else {
+          when = DateTime.now();
+        }
+
+        loaded.add(AIMessage(
+          id: doc.id,
+          content: (data['content'] ?? '').toString(),
+          isFromUser: (data['isFromUser'] ?? false) as bool,
+          timestamp: when,
+        ));
+      }
+
+      setState(() {
+        _messages.clear();
+        _messages.addAll(loaded);
+        // Compute today's user-sent messages for daily limit tracking
+        final today = DateTime.now();
+        _questionsAsked = _messages.where((m) {
+          return m.isFromUser &&
+              m.timestamp.year == today.year &&
+              m.timestamp.month == today.month &&
+              m.timestamp.day == today.day;
+        }).length;
+      });
+
+      if (_messages.isEmpty) {
+        setState(() {
+          _addWelcomeMessage();
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load AI messages: $e');
+      // Show welcome message if loading fails
+      if (_messages.isEmpty) _addWelcomeMessage();
+    }
+  }
+
+  // Save a single message to Firestore under users/{uid}/ai_messages/{id}
+  Future<void> _saveMessageToFirestore(AIMessage message) async {
+    try {
+      var user = _auth.currentUser;
+      if (user == null) {
+        final cred = await _auth.signInAnonymously();
+        user = cred.user;
+      }
+      if (user == null) return;
+
+      final docRef = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('ai_messages')
+          .doc(message.id);
+
+      await docRef.set({
+        'content': message.content,
+        'isFromUser': message.isFromUser,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error saving AI message: $e');
+    }
+  }
+
+  // Clear all persisted messages for the current user (cloud + UI)
+  Future<void> _clearMessages() async {
+    try {
+      var user = _auth.currentUser;
+      if (user == null) return;
+
+      final colRef = _firestore.collection('users').doc(user.uid).collection('ai_messages');
+      final snapshot = await colRef.get();
+      if (snapshot.docs.isEmpty) {
+        setState(() {
+          _messages.clear();
+          _questionsAsked = 0;
+          _addWelcomeMessage();
+        });
+        return;
+      }
+
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      setState(() {
+        _messages.clear();
+        _questionsAsked = 0;
+        _addWelcomeMessage();
+      });
+    } catch (e) {
+      debugPrint('Failed to clear AI messages: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to clear messages. Try again.')),
+      );
+    }
   }
 
   Future<String> _generateAIResponse(String userMessage) async {
@@ -591,6 +737,41 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            tooltip: 'Clear chat',
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: Colors.grey[900],
+                  title: const Text('Clear chat history', style: TextStyle(color: Colors.white)),
+                  content: const Text(
+                    'This will permanently delete your ExtraAI conversation history from the cloud and clear the current screen. Continue?',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete', style: TextStyle(color: Color(0xFF006833))),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirmed == true) {
+                await _clearMessages();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Chat history cleared'), backgroundColor: Color(0xFF006833)),
+                );
+              }
+            },
+          ),
+
+          IconButton(
             icon: const Icon(Icons.help_outline, color: Colors.white),
             onPressed: () {
               showDialog(
@@ -656,6 +837,7 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
           
           // Quick prompts (only show when no messages sent)
           if (_questionsAsked == 0) _buildQuickPrompts(),
+                // (Play/test prompt button removed per user request)
           
           // Message input area
           Container(
@@ -758,12 +940,12 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
           if (_showEmojiPicker)
             SizedBox(
               height: 250,
-              child: EmojiPicker(
+              child: emoji_picker.EmojiPicker(
                 textEditingController: _messageController,
-                config: Config(
+                config: emoji_picker.Config(
                   height: 256,
                   checkPlatformCompatibility: true,
-                  emojiViewConfig: EmojiViewConfig(
+                  emojiViewConfig: emoji_picker.EmojiViewConfig(
                     backgroundColor: Colors.grey[900]!,
                     columns: 7,
                     emojiSizeMax: 28.0,
@@ -776,21 +958,21 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
                     ),
                     loadingIndicator: const SizedBox.shrink(),
 
-                    buttonMode: ButtonMode.MATERIAL,
+                    buttonMode: emoji_picker.ButtonMode.MATERIAL,
                   ),
-                  bottomActionBarConfig: const BottomActionBarConfig(
+                  bottomActionBarConfig: const emoji_picker.BottomActionBarConfig(
                     backgroundColor: Color(0xFF2C2C2C),
                     buttonColor: Colors.grey,
                     buttonIconColor: Colors.white,
                     showSearchViewButton: true,
                   ),
-                  searchViewConfig: SearchViewConfig(
+                  searchViewConfig: emoji_picker.SearchViewConfig(
                     backgroundColor: Colors.grey[900]!,
                     buttonIconColor: Colors.white,
                     hintText: 'Search emoji...',
                   ),
-                  categoryViewConfig: const CategoryViewConfig(
-                    initCategory: Category.RECENT,
+                  categoryViewConfig: const emoji_picker.CategoryViewConfig(
+                    initCategory: emoji_picker.Category.RECENT,
                     backgroundColor: Color(0xFF2C2C2C),
                     indicatorColor: Color(0xFF006833),
                     iconColorSelected: Color(0xFF006833),

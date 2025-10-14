@@ -91,8 +91,10 @@ class DashboardMenuCard extends StatelessWidget {
                           const SizedBox(height: 6),
                           
                           // Center section with title and description
-                          Expanded(
+                          Flexible(
+                            fit: FlexFit.loose,
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

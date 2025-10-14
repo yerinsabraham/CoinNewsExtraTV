@@ -1,74 +1,79 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
+
+// The Cloud Function URL can be provided at build/run time via
+// --dart-define=OPENAI_FUNCTION_URL=https://us-central1-.../askOpenAI
+// Default to the deployed function so the app works without extra flags.
+const String _openaiFunctionUrl = String.fromEnvironment(
+  'OPENAI_FUNCTION_URL',
+  defaultValue: 'https://askopenai-ftg3tdhi7q-uc.a.run.app',
+);
 
 class OpenAIService {
   // In production, this should be stored securely (environment variables, Firebase config, etc.)
-  static const String _apiKey = 'YOUR_OPENAI_API_KEY_HERE';
-  static const String _baseUrl = 'https://api.openai.com/v1/chat/completions';
+  // Allow overriding the API key at build/run time with --dart-define=OPENAI_API_KEY=sk-...
+  // This avoids hardcoding secrets in source for devs who prefer that.
+  // No client-side OpenAI API key required — calls are proxied via the
+  // deployed Cloud Function which holds the secret server-side.
 
-  Future<String> sendMessage(String message) async {
-    try {
-      // Check if API key is configured
-      if (_apiKey == 'YOUR_OPENAI_API_KEY_HERE') {
-        return _getDemoResponse(message);
+  Future<String> sendMessage(String message, {bool includeSources = true, bool preferConcise = true}) async {
+    // The app proxies all OpenAI calls to the server-side Cloud Function.
+    // No client-side OpenAI key is required.
+
+    // System prompt: prioritize direct factual answers across technology
+    // domains. If `preferConcise` is true, answer the question in the
+    // first sentence and keep replies short (1-3 sentences). If
+    // `preferConcise` is false, allow a more detailed response (up to
+    // three short paragraphs).
+    final systemPrompt = StringBuffer();
+    systemPrompt.writeln('You are CNETV AI — a factual assistant for technology, blockchain, fintech, AI research, health-tech, and general software topics.');
+
+    // Use the server-side Cloud Function proxy if configured
+    if (_openaiFunctionUrl.isEmpty) {
+      return 'OpenAI function URL not configured. Provide --dart-define=OPENAI_FUNCTION_URL=<url>';
+    }
+
+    // Ensure we have a signed-in Firebase user. If none, attempt anonymous sign-in
+    // so the app can obtain an ID token and call the server-side proxy automatically.
+    var user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      try {
+        final cred = await FirebaseAuth.instance.signInAnonymously();
+        user = cred.user;
+      } catch (e) {
+        debugPrint('Anonymous sign-in failed: $e');
+        return 'Authentication required. Please enable anonymous sign-in in Firebase or sign in to use Extra AI.';
       }
+    }
+    final idToken = await user!.getIdToken();
 
-      final response = await http.post(
-        Uri.parse(_baseUrl),
+    try {
+      final resp = await http.post(
+        Uri.parse(_openaiFunctionUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
+          'Authorization': 'Bearer $idToken',
         },
         body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
-          'messages': [
-            {
-              'role': 'system',
-              'content': 'You are CNETV AI, a helpful cryptocurrency and blockchain assistant. You specialize in answering questions about Bitcoin, Ethereum, DeFi, NFTs, trading, and blockchain technology. Keep your responses informative but concise.'
-            },
-            {
-              'role': 'user',
-              'content': message,
-            }
-          ],
+          'prompt': message,
+          'preferConcise': preferConcise,
+          'includeSources': includeSources,
           'max_tokens': 500,
-          'temperature': 0.7,
         }),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'].trim();
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        return (data['answer'] ?? '').toString().trim();
       } else {
-        print('OpenAI API Error: ${response.statusCode} - ${response.body}');
+        debugPrint('OpenAI Function Error: ${resp.statusCode} - ${resp.body}');
         return _getErrorResponse();
       }
-    } catch (e) {
-      print('OpenAI Service Error: $e');
+    } catch (e, st) {
+      debugPrint('Failed calling OpenAI function: $e\n$st');
       return _getErrorResponse();
-    }
-  }
-
-  String _getDemoResponse(String message) {
-    // Demo responses for when API key is not configured
-    final lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.contains('bitcoin') || lowerMessage.contains('btc')) {
-      return "🪙 Bitcoin (BTC) is the first and largest cryptocurrency by market cap. It's often called 'digital gold' and serves as a store of value. Current trends show institutional adoption is growing!";
-    } else if (lowerMessage.contains('ethereum') || lowerMessage.contains('eth')) {
-      return "⚡ Ethereum (ETH) is a decentralized platform that enables smart contracts and DApps. It's the foundation for most DeFi protocols and NFT marketplaces. The transition to Proof-of-Stake has made it more energy efficient!";
-    } else if (lowerMessage.contains('defi')) {
-      return "🏦 DeFi (Decentralized Finance) allows you to lend, borrow, trade, and earn yield without traditional banks. Popular protocols include Uniswap, Compound, and Aave. Always research before investing!";
-    } else if (lowerMessage.contains('nft')) {
-      return "🖼️ NFTs (Non-Fungible Tokens) are unique digital assets on the blockchain. They're popular for digital art, gaming items, and collectibles. The market is evolving beyond just profile pictures!";
-    } else if (lowerMessage.contains('trading') || lowerMessage.contains('trade')) {
-      return "📈 Crypto trading involves buying and selling digital assets. Key tips: Do your research (DYOR), never invest more than you can afford to lose, and consider dollar-cost averaging for long-term positions.";
-    } else if (lowerMessage.contains('wallet')) {
-      return "🔐 Crypto wallets store your private keys and let you interact with blockchains. Hardware wallets (cold storage) are most secure for large amounts. Always backup your seed phrase safely!";
-    } else if (lowerMessage.contains('mining')) {
-      return "⛏️ Cryptocurrency mining secures networks and validates transactions. Bitcoin uses Proof-of-Work mining, while newer chains like Ethereum use more energy-efficient Proof-of-Stake consensus.";
-    } else {
-      return "🤖 I'm CNETV AI! I can help with questions about cryptocurrencies, blockchain technology, DeFi, NFTs, trading strategies, and more. What would you like to learn about?";
     }
   }
 

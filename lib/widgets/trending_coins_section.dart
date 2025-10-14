@@ -47,11 +47,12 @@ class TrendingCoinsSection extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildCoinCard('BTC', 'Bitcoin', '\$67,450', '+2.5%', true),
-                _buildCoinCard('ETH', 'Ethereum', '\$3,245', '+1.8%', true),
-                _buildCoinCard('BNB', 'BNB', '\$445', '-0.7%', false),
-                _buildCoinCard('SOL', 'Solana', '\$168', '+4.2%', true),
-                _buildCoinCard('ADA', 'Cardano', '\$0.52', '-1.1%', false),
+                // Fiat/ USD prefix removed — show numeric price only per product requirement
+                _buildCoinCard('BTC', 'Bitcoin', '67,450', '+2.5%', true),
+                _buildCoinCard('ETH', 'Ethereum', '3,245', '+1.8%', true),
+                _buildCoinCard('BNB', 'BNB', '445', '-0.7%', false),
+                _buildCoinCard('SOL', 'Solana', '168', '+4.2%', true),
+                _buildCoinCard('ADA', 'Cardano', '0.52', '-1.1%', false),
               ],
             ),
           ),

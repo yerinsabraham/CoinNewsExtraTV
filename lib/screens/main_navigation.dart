@@ -16,6 +16,9 @@ import '../provider/admin_provider.dart';
 import '../data/video_data.dart';
 import '../models/video_model.dart';
 import 'notifications_screen.dart';
+import '../services/first_launch_service.dart';
+import '../services/tour_service.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -26,14 +29,22 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  bool _tourRunning = false;
 
-  late final List<Widget> _pages = [
-    const BinanceHomePage(),
-    const ProgramPage(),
-    const EarningPage(),
-    const WalletPage(),
-    const ProfileScreen(),
-  ];
+  List<Widget> get _pages => [
+        BinanceHomePage(onTourRunningChanged: (running) {
+          // update parent bottom nav visibility when tour starts/stops
+          if (mounted) {
+            setState(() {
+              _tourRunning = running;
+            });
+          }
+        }),
+        const ProgramPage(),
+        const EarningPage(),
+        const WalletPage(),
+        const ProfileScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +53,7 @@ class _MainNavigationState extends State<MainNavigation> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: Container(
+      bottomNavigationBar: _tourRunning ? null : Container(
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A1A),
           boxShadow: [
@@ -136,7 +147,9 @@ class _MainNavigationState extends State<MainNavigation> {
 }
 
 class BinanceHomePage extends StatefulWidget {
-  const BinanceHomePage({super.key});
+  final void Function(bool running)? onTourRunningChanged;
+
+  const BinanceHomePage({super.key, this.onTourRunningChanged});
 
   @override
   State<BinanceHomePage> createState() => _BinanceHomePageState();
@@ -144,32 +157,168 @@ class BinanceHomePage extends StatefulWidget {
 
 class _BinanceHomePageState extends State<BinanceHomePage> {
   bool _isSearchVisible = false;
-  
-  // Use centralized video data for search - convert to Map format for SearchOverlay
-  List<Map<String, dynamic>> get _allVideos {
-    try {
-      return VideoData.getAllVideos().map((video) => {
-        'id': video.youtubeId,
-        'title': video.title,
-        'channel': video.channelName ?? 'CoinNews Extra',
-        'channelName': video.channelName ?? 'CoinNews Extra',
-      }).toList();
-    } catch (e) {
-      // Return mock data if VideoData is not available
-      return [
-        {
-          'id': 'mock1',
-          'title': 'Bitcoin News Update',
-          'channel': 'CoinNews Extra',
-          'channelName': 'CoinNews Extra',
-        },
-        {
-          'id': 'mock2', 
-          'title': 'Ethereum Analysis',
-          'channel': 'CoinNews Extra',
-          'channelName': 'CoinNews Extra',
-        },
+  // GlobalKeys for tutorial highlights
+  final GlobalKey _liveTvKey = GlobalKey();
+  final GlobalKey _chatKey = GlobalKey();
+  final GlobalKey _extraAiKey = GlobalKey();
+  final GlobalKey _spotlightKey = GlobalKey();
+
+  final GlobalKey _marketKey = GlobalKey();
+  final GlobalKey _newsKey = GlobalKey();
+  final GlobalKey _spinKey = GlobalKey();
+  final GlobalKey _summitKey = GlobalKey();
+  final GlobalKey _playExtraKey = GlobalKey();
+  final GlobalKey _quizKey = GlobalKey();
+
+  bool _tourShown = false;
+  bool _tourRunning = false;
+  // cache of all videos for search overlay (kept simple for now)
+  final List<Map<String, dynamic>> _allVideos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTour());
+  }
+  Future<void> _maybeShowTour() async {
+    if (_tourShown) return;
+    _tourShown = true;
+    final firstLaunch = FirstLaunchService();
+    final seen = await firstLaunch.hasSeenIntro();
+    final requested = await firstLaunch.consumeTourRequest();
+    if (!seen || requested) {
+      // Build ordered list of (key,title,desc)
+      final items = [
+        [_liveTvKey, 'Live TV', 'Watch live broadcasts, events, and streams directly from our network.'],
+        [_extraAiKey, 'ExtraAI', 'Ask questions, explore ideas, or get instant answers with our built-in AI assistant.'],
+        [_marketKey, 'Market Cap', 'Check the real-time cryptocurrency market stats and token data.'],
+        [_newsKey, 'News', 'Stay updated with the latest blockchain and tech headlines.'],
+        [_spinKey, 'Spin to Earn', 'Earn rewards daily by spinning the reward wheel.'],
+        [_summitKey, 'Summit', 'Discover and join live virtual events and discussions.'],
+        [_playExtraKey, 'Play Extra', 'Play interactive games and compete for token prizes.'],
+        [_quizKey, 'Quiz', 'Test your knowledge of blockchain, crypto, and AI topics.'],
       ];
+
+      final targets = <TargetFocus>[];
+
+      // Ensure first visible: if first target is off-screen, scroll it into view before showing tour
+      try {
+        final firstKey = items.first[0] as GlobalKey;
+        final fc = firstKey.currentContext;
+        if (fc != null) {
+          await Scrollable.ensureVisible(fc, duration: const Duration(milliseconds: 300), alignment: 0.2);
+        }
+      } catch (_) {}
+
+      for (int idx = 0; idx < items.length; idx++) {
+        final item = items[idx];
+        final key = item[0] as GlobalKey;
+        final title = item[1] as String;
+        final desc = item[2] as String;
+
+        // Decide whether to place content above or below the target based on its vertical position
+        ContentAlign align = ContentAlign.bottom;
+        double bottomPadding = MediaQuery.of(context).padding.bottom + 70.0; // leave room for bottom nav
+
+        final ctx = key.currentContext;
+        if (ctx != null) {
+          final box = ctx.findRenderObject() as RenderBox?;
+          if (box != null) {
+            final topLeft = box.localToGlobal(Offset.zero);
+            final y = topLeft.dy;
+            final screenHeight = MediaQuery.of(context).size.height;
+            // If target is in lower third of the screen, show content above it
+            if (y > screenHeight * 0.6) {
+              align = ContentAlign.top;
+            }
+          }
+        }
+
+        targets.add(TargetFocus(
+          identify: title,
+          keyTarget: key,
+          shape: ShapeLightFocus.RRect,
+          radius: 8,
+          contents: [
+            TargetContent(
+              align: align,
+              child: Builder(builder: (ctx) {
+                return Padding(
+                  padding: EdgeInsets.only(bottom: bottomPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text(desc, style: const TextStyle(color: Colors.white70)),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              TourService().skip();
+                            },
+                            child: const Text('Skip', style: TextStyle(color: Colors.white70)),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              // try to bring next target into view before proceeding
+                              // Find next key and ensure it's visible, then advance the coach mark
+                              try {
+                                final nextIndex = idx + 1;
+                                if (nextIndex < items.length) {
+                                  final nextKey = items[nextIndex][0] as GlobalKey;
+                                  final nextCtx = nextKey.currentContext;
+                                  if (nextCtx != null) {
+                                    Scrollable.ensureVisible(nextCtx, duration: const Duration(milliseconds: 400), alignment: 0.2).then((_) {
+                                      TourService().next();
+                                    });
+                                    return;
+                                  }
+                                }
+                              } catch (_) {}
+                              TourService().next();
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00B359)),
+                            child: const Text('Next', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ],
+        ));
+      }
+
+      // When showing the tour, hide the bottom nav by setting _tourRunning flag and refreshing.
+      setState(() {
+        _tourRunning = true;
+      });
+      // notify parent that tour is running (so it can hide bottom nav)
+      try {
+        widget.onTourRunningChanged?.call(true);
+      } catch (_) {}
+
+      await TourService().showTour(context: context, targets: targets, onFinishCallback: () {
+        setState(() {
+          _tourRunning = false;
+        });
+        try {
+          widget.onTourRunningChanged?.call(false);
+        } catch (_) {}
+      }, onSkipCallback: () {
+        setState(() {
+          _tourRunning = false;
+        });
+        try {
+          widget.onTourRunningChanged?.call(false);
+        } catch (_) {}
+      });
     }
   }
 
@@ -256,12 +405,24 @@ class _BinanceHomePageState extends State<BinanceHomePage> {
                 const SizedBox(height: 24),
                 
                 // Quick features row
-                const QuickFeatureRow(),
+                QuickFeatureRow(
+                  liveTvKey: _liveTvKey,
+                  chatKey: _chatKey,
+                  extraAiKey: _extraAiKey,
+                  spotlightKey: _spotlightKey,
+                ),
                 
                 const SizedBox(height: 24),
                 
                 // Middle feature grid
-                const MiddleFeatureGrid(),
+                MiddleFeatureGrid(
+                  marketKey: _marketKey,
+                  newsKey: _newsKey,
+                  spinKey: _spinKey,
+                  summitKey: _summitKey,
+                  playExtraKey: _playExtraKey,
+                  quizKey: _quizKey,
+                ),
                 
                 const SizedBox(height: 24),
                 
@@ -289,9 +450,10 @@ class _BinanceHomePageState extends State<BinanceHomePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildMarketTicker('BTC', '\$67,450', '+2.5%', true),
-                          _buildMarketTicker('ETH', '\$3,245', '+1.8%', true),
-                          _buildMarketTicker('BNB', '\$445', '-0.7%', false),
+                          // Fiat/ USD prefix removed — display numeric values only
+                          _buildMarketTicker('BTC', '67,450', '+2.5%', true),
+                          _buildMarketTicker('ETH', '3,245', '+1.8%', true),
+                          _buildMarketTicker('BNB', '445', '-0.7%', false),
                         ],
                       ),
                     ],

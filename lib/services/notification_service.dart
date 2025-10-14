@@ -6,6 +6,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -89,6 +93,14 @@ class NotificationService {
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
+
+    // Initialize timezone data for scheduling
+    try {
+      tzdata.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation(DateTime.now().timeZoneName));
+    } catch (e) {
+      debugPrint('❌ Error initializing timezone data: $e');
+    }
 
     // Create notification channel for Android
     if (Platform.isAndroid) {
@@ -296,6 +308,100 @@ class NotificationService {
       body: 'This is a test notification from CoinNewsExtra TV',
       payload: {'type': 'test'},
     );
+  }
+
+  /// Schedule a local notification at a specific DateTime
+  Future<int> scheduleNotificationForDate({
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    Map<String, dynamic>? payload,
+  }) async {
+    try {
+      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000; // compact int id
+
+      const androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+      final tzScheduled = tz.TZDateTime.from(scheduledDate, tz.local);
+
+      await _localNotifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tzScheduled,
+        details,
+        androidAllowWhileIdle: true,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload?.toString(),
+      );
+
+      // Persist scheduled notification metadata in SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'scheduled_notification_$id';
+      final value = jsonEncode({
+        'title': title,
+        'body': body,
+        'time': scheduledDate.millisecondsSinceEpoch,
+      });
+      await prefs.setString(key, value);
+
+      debugPrint('🔔 Scheduled notification id=$id at $scheduledDate');
+      return id;
+    } catch (e) {
+      debugPrint('❌ Error scheduling notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel a scheduled notification by id and remove persisted metadata
+  Future<void> cancelScheduledNotification(int id) async {
+    try {
+      await _localNotifications.cancel(id);
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'scheduled_notification_$id';
+      if (prefs.containsKey(key)) await prefs.remove(key);
+      debugPrint('🔔 Canceled scheduled notification id=$id');
+    } catch (e) {
+      debugPrint('❌ Error canceling scheduled notification: $e');
+    }
+  }
+
+  /// Return list of persisted scheduled notifications
+  Future<List<Map<String, dynamic>>> getPersistedScheduledNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith('scheduled_notification_'));
+    final List<Map<String, dynamic>> items = [];
+    for (final k in keys) {
+      try {
+        final idPart = k.replaceFirst('scheduled_notification_', '');
+        final id = int.tryParse(idPart) ?? 0;
+        final jsonStr = prefs.getString(k);
+        if (jsonStr == null) continue;
+        final Map<String, dynamic> data = jsonDecode(jsonStr);
+        data['id'] = id;
+        items.add(data);
+      } catch (e) {
+        debugPrint('❌ Error reading scheduled notification $k: $e');
+      }
+    }
+    return items;
   }
 
   /// Get current FCM token

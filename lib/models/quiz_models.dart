@@ -272,8 +272,8 @@ class QuizSession {
     if (question == null) return;
 
     final isCorrect = question.isCorrect(selectedIndex);
-    final tokensChange = isCorrect ? 1 : -1;
-    
+    // Reward correct answers only. Do NOT deduct tokens for wrong answers.
+    final tokensChange = isCorrect ? 1 : 0;
     currentTokens += tokensChange;
     
     results.add(QuestionResult(
@@ -287,8 +287,8 @@ class QuizSession {
     ));
     
     currentQuestionIndex++;
-    
-    if (currentTokens <= 0 || !hasMoreQuestions) {
+    // Game ends only when all questions are answered
+    if (!hasMoreQuestions) {
       isActive = false;
     }
   }
@@ -301,8 +301,9 @@ class QuizSession {
       correctAnswers: correctAnswers,
       wrongAnswers: wrongAnswers,
       tokensStaked: entryFee,
-      tokensWon: results.where((r) => r.tokensChange > 0).length,
-      tokensLost: results.where((r) => r.tokensChange < 0).length,
+      // tokensWon is sum of positive token changes, tokensLost is 0 (no deductions)
+      tokensWon: results.where((r) => r.tokensChange > 0).fold<int>(0, (s, r) => s + r.tokensChange),
+      tokensLost: 0,
       finalTokens: currentTokens,
       completedAt: DateTime.now(),
       completed: currentQuestionIndex >= questions.length,

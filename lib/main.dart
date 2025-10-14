@@ -27,9 +27,12 @@ import 'screens/summit_page.dart';
 import 'screens/explore_page.dart';
 import 'screens/program_page.dart';
 import 'screens/spotlight_screen.dart';
+import 'screens/welcome_screen.dart';
+import 'screens/tour_screen.dart';
 import 'play_extra/screens/play_extra_main.dart';
 import 'provider/admin_provider.dart'; 
 import 'services/user_balance_service.dart';
+import 'services/first_launch_service.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -54,12 +57,18 @@ void main() async {
   
   // Initialize notification service
   await NotificationService().initialize();
-  
-  runApp(const Watch2EarnApp());
+
+  // Check first-launch intro flag
+  final firstLaunchService = FirstLaunchService();
+  final seenIntro = await firstLaunchService.hasSeenIntro();
+
+  runApp(Watch2EarnApp(showIntro: !seenIntro));
 }
 
 class Watch2EarnApp extends StatelessWidget {
-  const Watch2EarnApp({super.key});
+  final bool showIntro;
+
+  const Watch2EarnApp({super.key, this.showIntro = false});
 
   @override
   Widget build(BuildContext context) {
@@ -133,15 +142,19 @@ class Watch2EarnApp extends StatelessWidget {
             ),
           ),
         ),
-        home: StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return const HomeScreen();
-            }
-            return const LoginScreen();
-          },
-        ),
+        home: Builder(builder: (context) {
+          // If user is not logged in and this is first-launch, show welcome
+          if (showIntro) return const WelcomeScreen();
+          return StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return const HomeScreen();
+              }
+              return const LoginScreen();
+            },
+          );
+        }),
         routes: {
           '/auth': (context) => const LoginScreen(),
           '/home': (context) => const HomeScreen(),
@@ -168,6 +181,8 @@ class Watch2EarnApp extends StatelessWidget {
           '/explore': (context) => const ExplorePage(),
           '/program': (context) => const ProgramPage(),
           '/spotlight': (context) => const SpotlightScreen(),
+          '/welcome': (context) => const WelcomeScreen(),
+          '/tour': (context) => const TourScreen(),
           '/play-extra': (context) => const PlayExtraMain(),
         },
       ),

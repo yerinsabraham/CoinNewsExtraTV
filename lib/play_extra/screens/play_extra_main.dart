@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 import '../services/play_extra_service.dart';
 import '../services/global_battle_manager.dart';
 import '../models/game_models.dart';
-import '../../services/user_balance_service.dart';
+// Removed flutter_svg import (no longer used)
+// Removed user_balance_service import (not used in this file)
 
 class PlayExtraMain extends StatefulWidget {
   const PlayExtraMain({super.key});
@@ -124,11 +125,12 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
           title: Row(
             children: [
               Image.asset(
-                'assets/avatars/minotaur-blue-NESW.png',
+                'assets/avatars/bullface.png',
                 width: 32,
                 height: 32,
+                fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.sports_martial_arts,
+                  Icons.pets,
                   color: Color(0xFF00B359),
                   size: 32,
                 ),
@@ -181,7 +183,7 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
             labelColor: const Color(0xFF00B359),
             unselectedLabelColor: Colors.grey,
             tabs: const [
-              Tab(icon: Icon(Icons.sports_martial_arts), text: 'Battle'),
+              Tab(icon: Icon(Icons.pets), text: 'Battle'),
               Tab(icon: Icon(Icons.analytics), text: 'Stats'),
               Tab(icon: Icon(Icons.history), text: 'History'),
             ],
@@ -412,7 +414,7 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 80,
+            height: 88,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: PlayExtraConfig.bullTypes.length,
@@ -423,44 +425,48 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
                 return GestureDetector(
                   onTap: () => service.selectBull(bullType),
                   child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    width: 80,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF00B359) : Colors.grey,
-                        width: 2,
+                      margin: const EdgeInsets.only(right: 12),
+                      width: 92,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF00B359) : Colors.grey,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        color: isSelected ? const Color(0xFF00B359).withOpacity(0.2) : Colors.transparent,
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                      color: isSelected ? const Color(0xFF00B359).withOpacity(0.2) : Colors.transparent,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: PlayExtraConfig.bullColors[bullType],
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            child: Center(
+                              child: Image.asset(
+                                'assets/avatars/bullface.png',
+                                width: 36,
+                                height: 36,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, color: Colors.white, size: 24),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            PlayExtraConfig.bullNames[bullType]!.split(' ')[0],
+                            style: TextStyle(
+                              color: isSelected ? const Color(0xFF00B359) : Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: PlayExtraConfig.bullColors[bullType],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.sports_martial_arts,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          PlayExtraConfig.bullNames[bullType]!.split(' ')[0],
-                          style: TextStyle(
-                            color: isSelected ? const Color(0xFF00B359) : Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 );
               },
             ),
@@ -1165,7 +1171,15 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
               color: PlayExtraConfig.bullColors[player.bullType] ?? Colors.blue,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.sports_martial_arts, color: Colors.white, size: 16),
+            child: Center(
+              child: Image.asset(
+                'assets/avatars/bullface.png',
+                width: 16,
+                height: 16,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, color: Colors.white, size: 16),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1229,11 +1243,15 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
                 : (PlayExtraConfig.bullColors[player.bullType] ?? Colors.blue),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(
-              isWinner ? Icons.emoji_events : Icons.sports_martial_arts,
-              color: Colors.white,
-              size: isWinner ? 20 : 18,
-            ),
+            child: isWinner
+                ? const Icon(Icons.emoji_events, color: Colors.white, size: 20)
+                : Image.asset(
+                    'assets/avatars/bullface.png',
+                    width: 18,
+                    height: 18,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, color: Colors.white, size: 18),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(

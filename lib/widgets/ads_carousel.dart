@@ -4,7 +4,9 @@ import 'dart:async';
 import '../data/video_data.dart';
 
 class AdsCarousel extends StatefulWidget {
-  const AdsCarousel({super.key});
+  final List<Map<String, String>>? extraBanners;
+
+  const AdsCarousel({super.key, this.extraBanners});
 
   @override
   State<AdsCarousel> createState() => _AdsCarouselState();
@@ -19,6 +21,8 @@ class _AdsCarouselState extends State<AdsCarousel> {
   List<Map<String, String>> get _bannerAds {
     final videos = VideoData.getAllVideos();
     return [
+      // Extra banners injected by parent (e.g., special offers)
+      if (widget.extraBanners != null) ...widget.extraBanners!,
       {
         'image': 'assets/images/ad1.png',
         'title': 'Exclusive Crypto Trading Course',

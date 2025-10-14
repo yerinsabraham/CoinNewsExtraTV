@@ -18,6 +18,7 @@ class _SpinGamePageState extends State<SpinGamePage>
   late Animation<double> _spinAnimation;
   
   bool _isSpinning = false;
+  bool _awardInProgress = false;
   int _dailySpinsUsed = 0;
   final int _maxDailySpins = 5;
   double _lastSpinRotation = 0;
@@ -43,9 +44,10 @@ class _SpinGamePageState extends State<SpinGamePage>
       duration: const Duration(seconds: 3),
       vsync: this,
     );
+    // Use radians for rotation values. Initialize to 0 radians.
     _spinAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
+      begin: 0.0,
+      end: 0.0,
     ).animate(CurvedAnimation(
       parent: _spinController,
       curve: Curves.easeOut,
@@ -103,15 +105,15 @@ class _SpinGamePageState extends State<SpinGamePage>
       // Account for wheel starting at top (-π/2) and prize position
       final prizeAngle = (prizeIndex * anglePerSection) + (anglePerSection / 2);
       
-      // Add multiple full rotations for visual effect (3-5 spins)
-      final fullSpins = 3 + random.nextDouble() * 2;
-      final totalRotations = fullSpins * 2 * pi;
-      
-      // Calculate final rotation to land on the selected prize
-      // Since wheel starts at -π/2 and rotates clockwise, we need to calculate 
-      // how much to rotate to get the selected prize at the top (pointer position)
-      final targetAngle = -prizeAngle;
-      final finalRotation = _lastSpinRotation + totalRotations + targetAngle;
+  // Add multiple full rotations for visual effect (3-5 spins)
+  final fullSpins = 3 + random.nextDouble() * 2;
+  // total rotation in radians
+  final totalRotations = fullSpins * 2 * pi;
+
+  // Calculate final rotation to land on the selected prize (radians)
+  // The wheel painter starts from -π/2 (top), so we offset accordingly.
+  final targetAngle = -prizeAngle; // radians
+  final finalRotation = _lastSpinRotation + totalRotations + targetAngle;
       
       _spinController.reset();
       _spinAnimation = Tween<double>(
@@ -124,14 +126,63 @@ class _SpinGamePageState extends State<SpinGamePage>
       
       await _spinController.forward();
       
-      // Update the last rotation for next spin
+  // Update the last rotation for next spin (keep within 0..2π)
       _lastSpinRotation = finalRotation % (2 * pi);
-      _lastPrize = selectedPrize;
-      
+
+      // Determine which prize actually landed under the pointer from final rotation.
+      // The painter uses startOffset = -π/2 for the first slice, and each slice's center is:
+      // sliceCenter = startOffset + i*anglePerSection + anglePerSection/2
+      // After rotating the wheel by _lastSpinRotation, the rotated center is (sliceCenter + rotation) mod 2π.
+      // The pointer sits at startOffset (top). We'll pick the slice whose rotated center is nearest to the pointer angle.
+      final startOffset = -pi / 2;
+
+      double normalize(double a) => (a % (2 * pi) + (2 * pi)) % (2 * pi);
+
+      final pointerAngle = normalize(startOffset);
+      final rotationNormalized = normalize(_lastSpinRotation);
+
+      int bestIndex = 0;
+      double bestDiff = double.infinity;
+
+      for (int i = 0; i < _prizes.length; i++) {
+        final sliceCenter = startOffset + i * anglePerSection + anglePerSection / 2;
+        final sliceCenterNorm = normalize(sliceCenter);
+        final rotatedCenter = normalize(sliceCenterNorm + rotationNormalized);
+
+        // shortest angular distance
+        double diff = (rotatedCenter - pointerAngle).abs();
+        if (diff > pi) diff = 2 * pi - diff;
+
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIndex = i;
+        }
+      }
+
+      final landedIndex = bestIndex;
+      final landedPrize = _prizes[landedIndex];
+
+      // Debug: print angles in degrees for easier inspection
+      double toDeg(double r) => r * 180 / pi;
+      print('TargetPrizeAngle(deg): ${toDeg(normalize(-prizeAngle)).toStringAsFixed(2)}');
+      print('FinalRotation(deg): ${toDeg(rotationNormalized).toStringAsFixed(2)}');
+      print('PointerAngle(deg): ${toDeg(pointerAngle).toStringAsFixed(2)}');
+      print('Best landed index: $landedIndex, angular diff(deg): ${toDeg(bestDiff).toStringAsFixed(2)}');
+      _lastPrize = landedPrize;
+
       // Debug info (can be removed in production)
-      print('Selected prize index: $prizeIndex, Prize: ${selectedPrize['label']}');
-      
-      await _awardPrize(selectedPrize);
+      print('Selected prize index: $prizeIndex, Target Prize: ${selectedPrize['label']}');
+      print('Landed prize index: $landedIndex, Landed Prize: ${landedPrize['label']}');
+
+      // Award the prize that's visually landed
+      if (!_awardInProgress) {
+        _awardInProgress = true;
+        try {
+          await _awardPrize(landedPrize);
+        } finally {
+          _awardInProgress = false;
+        }
+      }
       
     } catch (e) {
       _showMessage('Error spinning wheel: $e', isError: true);
@@ -151,7 +202,9 @@ class _SpinGamePageState extends State<SpinGamePage>
         
         await balanceService.addBalance(amount, 'Spin2Earn Game');
         
+        // Show precise credited amount so display and persisted value are clear
         if (mounted) {
+          _showMessage('Credited ${amount.toStringAsFixed(2)} CNE');
           _showPrizeDialog(prize, true);
         }
       } else if (prize['type'] == 'nft') {
@@ -193,28 +246,44 @@ class _SpinGamePageState extends State<SpinGamePage>
                 color: prize['color'] as Color,
                 shape: BoxShape.circle,
               ),
-              child: isNft 
+              child: isNft
                 ? const Icon(
                     Icons.palette,
                     color: Colors.white,
                     size: 32,
                   )
-                : Text(
-                    prize['label'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Lato',
-                    ),
-                    textAlign: TextAlign.center,
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        prize['label'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lato',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      // Show canonical numeric value to remove ambiguity (commas/formatting)
+                      if (prize['type'] == 'cne')
+                        Text(
+                          '${(prize['value'] as double).toStringAsFixed(2)} CNE',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                    ],
                   ),
             ),
             const SizedBox(height: 16),
             Text(
-              isNft 
+              isNft
                 ? '🎨 Amazing! You won an NFT!\n\nYour NFT will be sent to your wallet soon.'
-                : 'You won ${prize['label']}!\n\nYour balance has been updated!',
+                : 'You won ${prize['label']}!\n\nYour balance has been updated (credited ${(prize['value'] as double).toStringAsFixed(2)} CNE).',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -224,32 +293,32 @@ class _SpinGamePageState extends State<SpinGamePage>
             ),
             if (!isNft) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF006833),
-                  borderRadius: BorderRadius.circular(20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF006833),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                      const SizedBox(width: 4),
+                      Consumer<UserBalanceService>(
+                        builder: (context, balanceService, child) {
+                          return Text(
+                            'Balance: ${balanceService.balance.toStringAsFixed(2)} CNE',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.monetization_on, color: Colors.white, size: 16),
-                    const SizedBox(width: 4),
-                    Consumer<UserBalanceService>(
-                      builder: (context, balanceService, child) {
-                        return Text(
-                          'Balance: ${balanceService.balance.toStringAsFixed(1)} CNE',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
             ],
           ],
         ),
@@ -359,8 +428,9 @@ class _SpinGamePageState extends State<SpinGamePage>
                   AnimatedBuilder(
                     animation: _spinAnimation,
                     builder: (context, child) {
+                      // _spinAnimation.value is stored as radians in the spin logic.
                       return Transform.rotate(
-                        angle: _spinAnimation.value * 2 * pi,
+                        angle: _spinAnimation.value,
                         child: SizedBox(
                           width: 300,
                           height: 300,

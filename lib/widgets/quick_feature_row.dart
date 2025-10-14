@@ -2,7 +2,18 @@
 import 'package:feather_icons/feather_icons.dart';
 
 class QuickFeatureRow extends StatelessWidget {
-  const QuickFeatureRow({super.key});
+  final GlobalKey? liveTvKey;
+  final GlobalKey? chatKey;
+  final GlobalKey? extraAiKey;
+  final GlobalKey? spotlightKey;
+
+  const QuickFeatureRow({
+    super.key,
+    this.liveTvKey,
+    this.chatKey,
+    this.extraAiKey,
+    this.spotlightKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +48,7 @@ class QuickFeatureRow extends StatelessWidget {
           _buildLiveTvFeatureItem(context),
           _buildFeatureItem(
             context,
+            key: chatKey,
             icon: FeatherIcons.messageCircle,
             label: 'Chat',
             onTap: () {
@@ -45,6 +57,7 @@ class QuickFeatureRow extends StatelessWidget {
           ),
           _buildFeatureItem(
             context,
+            key: extraAiKey,
             icon: FeatherIcons.cpu, 
             label: 'Extra AI',
             onTap: () {
@@ -66,6 +79,7 @@ class QuickFeatureRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            key: liveTvKey,
             width: 32,
             height: 32,
             decoration: BoxDecoration(
@@ -102,6 +116,7 @@ class QuickFeatureRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            key: spotlightKey,
             width: 32,
             height: 32,
             decoration: BoxDecoration(
@@ -139,6 +154,7 @@ class QuickFeatureRow extends StatelessWidget {
 
   Widget _buildFeatureItem(
     BuildContext context, {
+    Key? key,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
@@ -149,6 +165,8 @@ class QuickFeatureRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            key: key,
+            // Note: chat/extra ai keys are set in parent when appropriate
             width: 32,
             height: 32,
             decoration: BoxDecoration(

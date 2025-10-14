@@ -28,7 +28,8 @@ class _SummitPageState extends State<SummitPage> {
       category: "FinTech",
       attendeeCount: 487,
       maxAttendees: 500,
-      organizer: "CoinNewsExtra",
+    organizer: "CoinNewsExtra",
+    organizerUrl: 'https://coinnewsextra.com/',
       tags: ["FinTech", "Blockchain", "Investment", "Innovation"],
       speakers: [
         {"name": "Dr. Amina Hassan", "title": "CEO, African FinTech Union"},
@@ -50,7 +51,8 @@ class _SummitPageState extends State<SummitPage> {
       category: "Fashion",
       attendeeCount: 1250,
       maxAttendees: 1500,
-      organizer: "CoinNewsExtra",
+    organizer: "CoinNewsExtra",
+    organizerUrl: 'https://coinnewsextra.com/',
       tags: ["Fashion", "Design", "Sustainability", "Culture"],
       speakers: [
         {"name": "Adunni Ade", "title": "Fashion Designer & Entrepreneur"},
@@ -72,7 +74,8 @@ class _SummitPageState extends State<SummitPage> {
       category: "Finance",
       attendeeCount: 312,
       maxAttendees: 400,
-      organizer: "CoinNewsExtra",
+    organizer: "CoinNewsExtra",
+    organizerUrl: 'https://coinnewsextra.com/',
       tags: ["Credit", "Lending", "Blockchain", "FinTech"],
       speakers: [
         {"name": "Michael Oluwasegun", "title": "CEO, Carbon (formerly Paylater)"},
@@ -376,7 +379,7 @@ class _SummitPageState extends State<SummitPage> {
                         ),
                       ),
                       child: Text(
-                        event.isPaid ? '\$${event.price.toStringAsFixed(0)}' : 'FREE',
+                        event.isPaid ? '${event.price.toStringAsFixed(0)}' : 'FREE',
                         style: TextStyle(
                           color: event.isPaid ? Colors.orange : Colors.green,
                           fontSize: 12,

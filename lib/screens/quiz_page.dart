@@ -113,24 +113,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       }
 
       final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-      final availableBalance = balanceService.balance;
-      
-      if (availableBalance < QuizDataService.defaultEntryFee) {
-        _showInsufficientTokensDialog(availableBalance);
-        return;
-      }
-
-      _showLoadingDialog('Starting quiz...');
-      
-      // Deduct entry fee
-      final spendSuccess = await balanceService.spendBalance(QuizDataService.defaultEntryFee.toDouble());
-      if (!spendSuccess) {
-        Navigator.of(context).pop();
-        _showErrorDialog('Failed to deduct entry fee');
-        return;
-      }
-      
-      Navigator.of(context).pop();
+      // No entry fee required. Start quiz directly.
       
       final session = QuizDataService.createQuizSession(categoryId);
       
@@ -144,10 +127,10 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       _startQuestionTimer();
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Entry fee deducted: ${QuizDataService.defaultEntryFee} CNE. Good luck!'),
-          backgroundColor: Colors.orange[600],
-          duration: const Duration(seconds: 2),
+        const SnackBar(
+          content: Text('Quiz started — no entry fee required. Earn rewards for correct answers!'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
         ),
       );
       
@@ -179,10 +162,10 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     if (currentSession == null) return;
     
     final timeSpent = QuizDataService.questionTimeLimit - timeRemaining;
-    final question = currentSession!.currentQuestion;
+  final question = currentSession!.currentQuestion;
     
     if (question != null) {
-      final isCorrect = selectedIndex >= 0 ? question.isCorrect(selectedIndex) : false;
+  final isCorrect = selectedIndex >= 0 ? question.isCorrect(selectedIndex) : false;
       
       setState(() {
         lastAnswerCorrect = isCorrect;
@@ -193,6 +176,12 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
         _bounceController.reset();
       });
       
+      // Apply token changes: only reward correct answers (+1), do not deduct on wrong answers
+      final wasCorrect = isCorrect;
+      if (wasCorrect) {
+        currentSession!.currentTokens += 1; // reward
+      }
+
       currentSession!.answerCurrentQuestion(selectedIndex, timeSpent);
       
       Future.delayed(const Duration(milliseconds: 1500), () {
@@ -222,18 +211,15 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     if (currentSession != null) {
       final balanceService = Provider.of<UserBalanceService>(context, listen: false);
       
-      final netTokenChange = currentSession!.currentTokens - QuizDataService.defaultEntryFee;
+  // Since there is no entry fee, net token change equals currentTokens (rewards earned)
+  final netTokenChange = currentSession!.currentTokens;
       
       try {
         if (netTokenChange > 0) {
           debugPrint('Quiz completed: Awarding ${netTokenChange} CNE tokens');
           await balanceService.addBalance(netTokenChange.toDouble(), 'Quiz reward');
-        } else if (netTokenChange < 0) {
-          final additionalLoss = -netTokenChange;
-          debugPrint('Quiz completed: Deducting additional ${additionalLoss} CNE tokens');
-          balanceService.spendBalance(additionalLoss.toDouble());
         } else {
-          debugPrint('Quiz completed: Player broke even (entry fee only)');
+          debugPrint('Quiz completed: No tokens earned');
         }
 
         // Record that this category was played today
@@ -518,7 +504,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '• Entry Fee: ${QuizDataService.defaultEntryFee} CNE\n• Only ONE category can be played per day\n• Questions: ${QuizDataService.questionsPerQuiz} per quiz\n• Time Limit: ${QuizDataService.questionTimeLimit}s per question\n• Correct Answer: +1 CNE\n• Wrong Answer: -1 CNE\n• Game ends when tokens reach 0',
+                  '• Entry Fee: Free (no tokens required)\n• Only ONE category can be played every 24 hours\n• Questions: ${QuizDataService.questionsPerQuiz} per quiz\n• Time Limit: ${QuizDataService.questionTimeLimit}s per question\n• Correct Answer: +1 CNE\n• Wrong Answer: No penalty\n• Game ends when all questions are answered',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
@@ -826,7 +812,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          lastAnswerCorrect ? 'Correct! +1 CNE' : 'Wrong! -1 CNE',
+                          lastAnswerCorrect ? 'Correct! +1 CNE' : 'Wrong! No penalty',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/event.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -198,7 +199,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 ),
               ),
               child: Text(
-                widget.event.isPaid ? '\$${widget.event.price.toStringAsFixed(0)}' : 'FREE',
+                widget.event.isPaid ? '${widget.event.price.toStringAsFixed(0)}' : 'FREE',
                 style: TextStyle(
                   color: widget.event.isPaid ? Colors.orange : Colors.green,
                   fontSize: 14,
@@ -558,11 +559,25 @@ class _EventDetailPageState extends State<EventDetailPage> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: () {
+        onPressed: () async {
+          // If an organizer URL is provided, open it in external browser
+          // Prefer the event's organizerUrl, but fall back to the company site
+          final defaultUrl = 'https://coinnewsextra.com/';
+          final urlString = (widget.event.organizerUrl != null && widget.event.organizerUrl!.isNotEmpty)
+              ? widget.event.organizerUrl!
+              : defaultUrl;
+
+          final uri = Uri.tryParse(urlString);
+          if (uri != null && await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            return;
+          }
+
+          // Fallback: toggle registration locally
           setState(() {
             isRegistered = !isRegistered;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -592,7 +607,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              isRegistered ? 'Registered' : (widget.event.isPaid ? 'Register - \$${widget.event.price.toStringAsFixed(0)}' : 'Register for Free'),
+              isRegistered ? 'Registered' : (widget.event.isPaid ? 'Register - ${widget.event.price.toStringAsFixed(0)}' : 'Register for Free'),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

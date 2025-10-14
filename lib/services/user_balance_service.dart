@@ -225,23 +225,49 @@ class UserBalanceService extends ChangeNotifier {
     try {
       // Update local balance immediately for responsive UI
       final newBalance = _balance + amount;
+      _balance = newBalance;
+
       final updatedBalance = UserBalance(
         totalBalance: newBalance,
         lockedBalance: 0.0,
         unlockedBalance: newBalance,
         pendingBalance: 0.0,
-        totalEarnings: newBalance.toInt(),
+        totalEarnings: (_userBalance.totalEarnings + amount.toInt()),
         totalUsdValue: newBalance * 0.50,
         lastUpdated: DateTime.now().toIso8601String(),
       );
 
-      // Update Firestore
-      await _firestore.collection('users').doc(user.uid).set(updatedBalance.toMap());
+      // Update in-memory userBalance and notify listeners immediately
+      _userBalance = updatedBalance;
+      notifyListeners();
+
+      // Persist the change using atomic increments to avoid race conditions
+      await _firestore.collection('users').doc(user.uid).set({
+        'totalBalance': FieldValue.increment(amount),
+        'cneBalance': FieldValue.increment(amount),
+        'totalEarnings': FieldValue.increment(amount.toInt()),
+        'lastUpdated': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
 
       // Also log the earning activity
       await _logEarningActivity(user.uid, amount, reason);
 
-      debugPrint('Added $amount CNE: $reason. New balance: $newBalance CNE');
+      // Read back the user document to verify persisted values (debug / parity check)
+      try {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          final persistedTotal = (data['totalBalance'] ?? data['cneBalance'] ?? 0).toDouble();
+          final persistedCne = (data['cneBalance'] ?? data['totalBalance'] ?? 0).toDouble();
+          debugPrint('Persisted values after addBalance -> totalBalance: $persistedTotal, cneBalance: $persistedCne');
+        } else {
+          debugPrint('User doc not found after write (unexpected)');
+        }
+      } catch (e) {
+        debugPrint('Error reading back user doc after addBalance: $e');
+      }
+
+      debugPrint('Added $amount CNE: $reason. New balance (local): $newBalance CNE');
     } catch (e) {
       _error = 'Failed to add balance: $e';
       debugPrint('Error adding balance: $e');
@@ -270,22 +296,36 @@ class UserBalanceService extends ChangeNotifier {
     }
 
     try {
-      final newBalance = _balance - amount;
-      final updatedBalance = UserBalance(
-        totalBalance: newBalance,
-        lockedBalance: 0.0,
-        unlockedBalance: newBalance,
-        pendingBalance: 0.0,
-        totalEarnings: _userBalance.totalEarnings, // Keep original total earnings
-        totalUsdValue: newBalance * 0.50,
-        lastUpdated: DateTime.now().toIso8601String(),
-      );
+      // Use a transaction to atomically deduct the balance to avoid races
+      final userDocRef = _firestore.collection('users').doc(user.uid);
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(userDocRef);
+        if (!snapshot.exists) throw Exception('User document does not exist');
 
-      // Update Firestore
-      await _firestore.collection('users').doc(user.uid).set(updatedBalance.toMap());
+        final data = snapshot.data() as Map<String, dynamic>;
+        final currentTotal = (data['totalBalance'] ?? data['cneBalance'] ?? 0).toDouble();
+
+        if (currentTotal < amount) {
+          throw Exception('Insufficient balance');
+        }
+
+        final newBalance = currentTotal - amount;
+
+        transaction.update(userDocRef, {
+          'totalBalance': newBalance,
+          'cneBalance': newBalance,
+          'totalUsdValue': newBalance * 0.50,
+          'lastUpdated': DateTime.now().toIso8601String(),
+        });
+      });
+
+      // Update local in-memory balance after successful transaction
+      _balance = _balance - amount;
 
       // Log the spending activity
       await _logSpendingActivity(user.uid, amount);
+
+      notifyListeners();
 
       return true;
     } catch (e) {
@@ -314,7 +354,10 @@ class UserBalanceService extends ChangeNotifier {
   }
 
   String getFormattedUsdValue() {
-    return '\$${(_balance * 0.50).toStringAsFixed(2)}';
+    // Present token equivalent label for UI: show the approximate fiat value
+    // as a CNE-labelled string for consistency with token-only UI.
+    // Note: this keeps numeric computation intact but changes presentation.
+    return '${(_balance * 0.50).toStringAsFixed(2)} USD';
   }
 
   double get availableBalance => _balance;

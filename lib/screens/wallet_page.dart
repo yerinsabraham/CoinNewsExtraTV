@@ -119,15 +119,7 @@ class _WalletPageState extends State<WalletPage> {
                               fontFamily: 'Lato',
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '≈ \$0.10',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
+                          // Fiat / USD display removed — only show CNE token balance
                           const SizedBox(height: 16),
                           // Balance breakdown with green theme
                           Row(
@@ -208,7 +200,7 @@ class _WalletPageState extends State<WalletPage> {
                       symbol: 'CNE',
                       name: 'CoinNewsExtra Token',
                       balance: balanceService.getFormattedBalance(),
-                      value: balanceService.getFormattedUsdValue(),
+                      value: '', // fiat value intentionally hidden
                       change: '+0.00%',
                       isPositive: true,
                     ),

@@ -79,16 +79,12 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
     }
     
     if (lastClaimTimestamp != null) {
+      // Next claim should be exactly 24 hours after the last claim time
       final lastClaim = DateTime.fromMillisecondsSinceEpoch(lastClaimTimestamp);
-      final nextClaimTime = DateTime(
-        lastClaim.year,
-        lastClaim.month, 
-        lastClaim.day + 1,
-        0, 0, 0, 0,
-      );
-      
+      final nextClaimTime = lastClaim.add(const Duration(hours: 24));
+
       final now = DateTime.now();
-      _timeUntilNextClaim = nextClaimTime.isAfter(now) 
+      _timeUntilNextClaim = nextClaimTime.isAfter(now)
           ? nextClaimTime.difference(now)
           : Duration.zero;
     } else {
@@ -247,7 +243,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                         Row(
                           children: [
                             const Icon(
-                              FeatherIcons.calendar,
+                              Icons.calendar_today,
                               color: Colors.white,
                               size: 32,
                             ),

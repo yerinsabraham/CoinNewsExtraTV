@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/user_balance_service.dart';
+import '../services/first_launch_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -469,6 +471,17 @@ class _SettingsPageState extends State<SettingsPage> {
                     );
                   },
                 ),
+                _buildMenuTile(
+                  icon: Icons.rocket_launch,
+                  title: 'View Tour',
+                  subtitle: 'See the app tour again',
+                  onTap: () async {
+                    await FirstLaunchService().requestTour();
+                    // Navigate to home which will trigger the tour
+                    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+                  },
+                ),
+                
                 _buildMenuTile(
                   icon: Icons.feedback_outlined,
                   title: 'Send Feedback',

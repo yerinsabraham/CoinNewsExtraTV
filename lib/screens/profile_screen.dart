@@ -577,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           _buildStatItem('Videos Watched', '12'),
                           Container(width: 1, height: 40, color: Colors.grey[700]),
-                          _buildStatItem('Rewards Earned', '\$${(balanceService.balance * 0.5).toStringAsFixed(2)}'),
+                          _buildStatItem('Rewards Earned', '${(balanceService.balance * 0.5).toStringAsFixed(2)} CNE'),
                           Container(width: 1, height: 40, color: Colors.grey[700]),
                           _buildStatItem('Streak Days', '5'),
                         ],
@@ -626,7 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Consumer<UserBalanceService>(
                           builder: (context, balanceService, child) {
                             return Text(
-                              '${balanceService.getFormattedUsdValue()} USD',
+                              '${balanceService.getFormattedBalance()} CNE',
                               style: TextStyle(
                                 color: Colors.grey[300],
                                 fontSize: 14,

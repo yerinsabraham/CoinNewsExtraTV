@@ -73,17 +73,7 @@ class UserBalanceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      balanceService.getFormattedUsdValue(),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ),
+                  // Fiat / USD display removed per product requirement — show token-only balance
                 ],
               ),
               const SizedBox(height: 16),

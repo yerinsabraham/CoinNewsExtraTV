@@ -2,7 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 
 class MiddleFeatureGrid extends StatelessWidget {
-  const MiddleFeatureGrid({super.key});
+  final GlobalKey? marketKey;
+  final GlobalKey? newsKey;
+  final GlobalKey? spinKey;
+  final GlobalKey? summitKey;
+  final GlobalKey? playExtraKey;
+  final GlobalKey? quizKey;
+
+  const MiddleFeatureGrid({
+    super.key,
+    this.marketKey,
+    this.newsKey,
+    this.spinKey,
+    this.summitKey,
+    this.playExtraKey,
+    this.quizKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +58,7 @@ class MiddleFeatureGrid extends StatelessWidget {
               children: [
                 _buildGridItem(
                   context,
+                  key: marketKey,
                   icon: FeatherIcons.trendingUp,
                   label: 'Market',
                   onTap: () => Navigator.pushNamed(context, '/market-cap'),
@@ -55,30 +71,42 @@ class MiddleFeatureGrid extends StatelessWidget {
                 ),
                 _buildGridItem(
                   context,
+                  key: newsKey,
                   icon: FeatherIcons.fileText,
                   label: 'News',
                   onTap: () => Navigator.pushNamed(context, '/news'),
                 ),
                 _buildGridItem(
                   context,
+                  key: spinKey,
                   icon: FeatherIcons.target,
                   label: 'Spin2Earn',
                   onTap: () => Navigator.pushNamed(context, '/spin-game'),
                 ),
                 _buildGridItem(
                   context,
+                  key: summitKey,
                   icon: FeatherIcons.calendar,
                   label: 'Summit',
                   onTap: () => Navigator.pushNamed(context, '/summit'),
                 ),
+                  _buildGridItem(
+                    context,
+                    key: playExtraKey,
+                    // Use official bullface asset for Play Extra tile
+                    iconWidget: Image.asset(
+                      'assets/avatars/bullface.png',
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.videogame_asset, color: const Color(0xFF00B359)),
+                    ),
+                    label: 'Play Extra',
+                    onTap: () => Navigator.pushNamed(context, '/play-extra'),
+                  ),
                 _buildGridItem(
                   context,
-                  icon: FeatherIcons.zap,
-                  label: 'Play Extra',
-                  onTap: () => Navigator.pushNamed(context, '/play-extra'),
-                ),
-                _buildGridItem(
-                  context,
+                  key: quizKey,
                   icon: FeatherIcons.helpCircle,
                   label: 'Quiz',
                   onTap: () => Navigator.pushNamed(context, '/quiz'),
@@ -99,11 +127,14 @@ class MiddleFeatureGrid extends StatelessWidget {
 
   Widget _buildGridItem(
     BuildContext context, {
-    required IconData icon,
+    Key? key,
+    IconData? icon,
+    Widget? iconWidget,
     required String label,
     required VoidCallback onTap,
   }) {
     return Material(
+      key: key,
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -144,8 +175,8 @@ class MiddleFeatureGrid extends StatelessWidget {
                   color: const Color(0xFF00B359).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(
-                  icon,
+                child: iconWidget ?? Icon(
+                  icon ?? FeatherIcons.activity,
                   color: const Color(0xFF00B359),
                   size: 18,
                 ),
