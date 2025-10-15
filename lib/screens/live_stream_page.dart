@@ -31,9 +31,11 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
   bool _hasStartedPlaying = false;
   late YoutubePlayerController _controller;
 
-  // Reward configuration
-  static const int _requiredWatchTimeSeconds = 60; // 1 minute
-  static const double _rewardAmount = 5.0; // 5 CNE tokens
+  // Reward configuration (use central LiveVideoConfig)
+  late final int _requiredWatchTimeSeconds = LiveVideoConfig.requiredWatchTimeSeconds;
+  late final double _rewardAmount = LiveVideoConfig.watchReward;
+  // Internal flag to avoid double-triggering claim
+  bool _claimTriggered = false;
 
   @override
   void initState() {
@@ -49,6 +51,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
         loop: false,
         isLive: LiveVideoConfig.isLiveStream,
         enableCaption: LiveVideoConfig.enableCaptions,
+        disableDragSeek: true,
       ),
     );
     
@@ -86,6 +89,20 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
           _watchTimeSeconds++;
         });
       }
+        // Auto-claim when threshold met
+        if (!_claimTriggered && _watchTimeSeconds >= _requiredWatchTimeSeconds) {
+          _claimTriggered = true;
+          if (!_isClaimingReward) {
+            _claimWatchReward().then((_) {
+              // After claiming, reset timer for next period
+              setState(() {
+                _watchTimeSeconds = 0;
+                _hasClaimedReward = false;
+                _claimTriggered = false;
+              });
+            });
+          }
+        }
     });
   }
 
@@ -136,7 +153,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
     try {
       // Award the reward using our balance service
       final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-      await balanceService.addBalance(_rewardAmount, 'Live Stream Watch Reward');
+  await balanceService.addBalance(_rewardAmount, 'Live Stream Watch Reward');
 
       setState(() {
         _hasClaimedReward = true;
@@ -334,6 +351,39 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
                             color: Colors.grey[400],
                             fontSize: 14,
                             fontFamily: 'Lato',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Thin in-house ad banner
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[850],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Special Offer: Join our Summit highlights on CNE — tap to view',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.pushNamed(context, '/summit'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF006833),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('View', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

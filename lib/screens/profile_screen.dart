@@ -2,9 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/auth_service.dart';
 import '../services/user_balance_service.dart';
+import '../provider/admin_provider.dart';
+import '../data/video_data.dart';
+import '../models/video_model.dart';
+import '../help_support/screens/help_support_screen.dart';
+import '../admin/screens/admin_dashboard_screen.dart';
 import 'login_screen.dart';
+import 'settings_page.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,6 +24,126 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
+  String? _displayName;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+      adminProvider.initializeAdminStatus();
+    });
+    _loadPersistedProfile();
+    _ensureReferralCode();
+  }
+
+  Future<void> _ensureReferralCode() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await docRef.get();
+      if (snap.exists) {
+        final data = snap.data();
+        final existing = data?['referralCode'] as String?;
+        if (existing != null && existing.isNotEmpty) return;
+      }
+
+      // Generate deterministic short code based on uid
+      final code = _generateReferralCode(user.uid);
+
+      await docRef.set({'referralCode': code}, SetOptions(merge: true));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  String _generateReferralCode(String uid) {
+    // Simple base62-encode of a numeric hash of the UID to get a short code
+    final hash = uid.codeUnits.fold<int>(0, (p, c) => (p * 31 + c) & 0x7fffffff);
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    var val = hash == 0 ? 1 : hash;
+    final buffer = StringBuffer();
+    while (buffer.length < 6) {
+      buffer.write(alphabet[val % alphabet.length]);
+      val = val ~/ alphabet.length;
+    }
+    return 'CNE${buffer.toString().toUpperCase()}';
+  }
+
+  Future<void> _shareReferral() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      String code = '';
+      if (doc.exists) {
+        code = (doc.data()?['referralCode'] as String?) ?? '';
+      }
+      if (code.isEmpty) {
+        code = _generateReferralCode(user.uid);
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'referralCode': code}, SetOptions(merge: true));
+      }
+
+      final link = 'https://coinnewsextra.app/ref?code=${Uri.encodeComponent(code)}';
+      await Share.share('Join CoinNewsExtra and earn rewards! Use my referral code $code or tap: $link');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to share referral: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _loadPersistedProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Try Firestore first when authenticated
+      String? nameFromServer;
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          if (snap.exists) {
+            final data = snap.data();
+            if (data != null && data['displayName'] is String) {
+              nameFromServer = (data['displayName'] as String).trim();
+            }
+            // Persist server values to prefs for offline use
+            if (data != null && data['displayName'] is String) {
+              await prefs.setString('profile_name', data['displayName'] as String);
+            }
+            if (data != null && data['username'] is String) {
+              await prefs.setString('profile_username', data['username'] as String);
+            }
+          }
+        }
+      } catch (_) {
+        // ignore Firestore errors and fall back to prefs
+      }
+
+      final saved = prefs.getString('profile_name');
+      if (nameFromServer != null && nameFromServer.isNotEmpty) {
+        setState(() {
+          _displayName = nameFromServer;
+        });
+      } else if (saved != null && saved.isNotEmpty) {
+        setState(() {
+          _displayName = saved;
+        });
+      } else {
+        setState(() {
+          _displayName = currentUser?.displayName;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _displayName = currentUser?.displayName;
+      });
+    }
+  }
 
   void _signOut() async {
     showDialog(
@@ -93,7 +222,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return ListView.builder(
                 itemCount: watchHistory.length,
                 itemBuilder: (context, index) {
-                  final video = watchHistory[index];
+                  final item = watchHistory[index];
+                  final VideoModel video = item['video'];
+                  
                   return ListTile(
                     leading: Container(
                       width: 60,
@@ -102,20 +233,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.grey[800],
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(Icons.play_arrow, color: Colors.white),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.network(
+                          'https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.play_arrow, color: Colors.white);
+                          },
+                        ),
+                      ),
                     ),
                     title: Text(
-                      video['title'] ?? 'Video ${index + 1}',
+                      video.title,
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      _formatWatchDate(video['watchedAt']),
+                      _formatWatchDate(item['watchedAt']),
                       style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
                     ),
                     trailing: Text(
-                      '${video['duration'] ?? '0:00'}',
+                      _formatDuration(video.durationSeconds ?? 0),
                       style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
                     ),
                   );
@@ -173,7 +313,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return ListView.builder(
                 itemCount: likedVideos.length,
                 itemBuilder: (context, index) {
-                  final video = likedVideos[index];
+                  final item = likedVideos[index];
+                  final VideoModel video = item['video'];
+                  
                   return ListTile(
                     leading: Container(
                       width: 60,
@@ -182,20 +324,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.grey[800],
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(Icons.favorite, color: Colors.red),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.network(
+                              'https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg',
+                              fit: BoxFit.cover,
+                              width: 60,
+                              height: 40,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[800],
+                                  child: const Icon(Icons.play_arrow, color: Colors.white),
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: const Icon(
+                                Icons.favorite,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     title: Text(
-                      video['title'] ?? 'Video ${index + 1}',
+                      video.title,
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      _formatWatchDate(video['likedAt']),
+                      _formatWatchDate(item['likedAt']),
                       style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
                     ),
                     trailing: const Icon(
-                      Icons.favorite_border,
+                      Icons.favorite,
                       color: Colors.red,
                       size: 16,
                     ),
@@ -310,43 +486,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<List<Map<String, dynamic>>> _getWatchHistory() async {
     await Future.delayed(const Duration(milliseconds: 500));
     
-    return [
-      {
-        'videoId': 'video1',
-        'title': 'Bitcoin Price Analysis Today',
-        'duration': '5:32',
+    // Get real videos from video data and simulate watch history
+    final allVideos = VideoData.getAllVideos();
+    final watchHistory = <Map<String, dynamic>>[];
+    
+    // Add some recent videos as watched with random timing
+    if (allVideos.isNotEmpty) {
+      watchHistory.add({
+        'video': allVideos[0],
         'watchedAt': DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
-      },
-      {
-        'videoId': 'video2', 
-        'title': 'Ethereum vs Cardano: Which is Better?',
-        'duration': '8:15',
+      });
+    }
+    if (allVideos.length > 1) {
+      watchHistory.add({
+        'video': allVideos[1],
         'watchedAt': DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch,
-      },
-      {
-        'videoId': 'video3',
-        'title': 'DeFi Explained for Beginners',
-        'duration': '12:05',
+      });
+    }
+    if (allVideos.length > 2) {
+      watchHistory.add({
+        'video': allVideos[2],
         'watchedAt': DateTime.now().subtract(const Duration(days: 3)).millisecondsSinceEpoch,
-      },
-    ];
+      });
+    }
+    
+    return watchHistory;
   }
 
   Future<List<Map<String, dynamic>>> _getLikedVideos() async {
     await Future.delayed(const Duration(milliseconds: 500));
     
-    return [
-      {
-        'videoId': 'video1',
-        'title': 'Top 10 Cryptocurrencies to Watch',
+    // Get real videos from video data and simulate liked videos
+    final allVideos = VideoData.getAllVideos();
+    final likedVideos = <Map<String, dynamic>>[];
+    
+    // Add some videos as liked with random timing
+    if (allVideos.length > 3) {
+      likedVideos.add({
+        'video': allVideos[3],
         'likedAt': DateTime.now().subtract(const Duration(hours: 5)).millisecondsSinceEpoch,
-      },
-      {
-        'videoId': 'video4',
-        'title': 'NFT Market Analysis 2024',
+      });
+    }
+    if (allVideos.length > 4) {
+      likedVideos.add({
+        'video': allVideos[4],
         'likedAt': DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch,
-      },
-    ];
+      });
+    }
+    
+    return likedVideos;
   }
 
   Future<List<Map<String, dynamic>>> _getEarningsHistory() async {
@@ -407,8 +595,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    // compute avatar initial and displayed name
+    final String avatarInitial = (_displayName != null && _displayName!.isNotEmpty)
+        ? _displayName![0].toUpperCase()
+        : (currentUser?.displayName != null && currentUser!.displayName!.isNotEmpty)
+            ? currentUser!.displayName![0].toUpperCase()
+            : (currentUser?.email != null && currentUser!.email!.isNotEmpty)
+                ? currentUser!.email![0].toUpperCase()
+                : 'U';
+
+    final String displayedNameLocal = _displayName ?? currentUser?.displayName ?? 'Anonymous User';
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -427,8 +632,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsPage(),
+                ),
               );
             },
           ),
@@ -446,20 +654,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: const Color(0xFF006833),
-                    backgroundImage: currentUser?.photoURL != null 
-                        ? NetworkImage(currentUser!.photoURL!) 
+                    backgroundImage: currentUser?.photoURL != null
+                        ? NetworkImage(currentUser!.photoURL!)
                         : null,
                     child: currentUser?.photoURL == null
                         ? Text(
-                            currentUser?.displayName?.isNotEmpty == true 
-                                ? currentUser!.displayName![0].toUpperCase()
-                                : currentUser?.email?.isNotEmpty == true
-                                    ? currentUser!.email![0].toUpperCase()
-                                    : 'U',
+                            avatarInitial,
                             style: const TextStyle(
-                              fontSize: 32,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              fontSize: 32,
                             ),
                           )
                         : null,
@@ -467,12 +671,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
                   // Name
                   Text(
-                    currentUser?.displayName ?? 'Anonymous User',
+                    displayedNameLocal,
                     style: const TextStyle(
-                      color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Lato',
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -485,6 +689,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontFamily: 'Lato',
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _shareReferral,
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share Referral'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF006833),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   // Stats Row
                   Consumer<UserBalanceService>(
@@ -494,7 +709,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           _buildStatItem('Videos Watched', '12'),
                           Container(width: 1, height: 40, color: Colors.grey[700]),
-                          _buildStatItem('Rewards Earned', '\$${(balanceService.balance * 0.5).toStringAsFixed(2)}'),
+                          _buildStatItem('Rewards Earned', '${(balanceService.balance * 0.5).toStringAsFixed(2)} CNE'),
                           Container(width: 1, height: 40, color: Colors.grey[700]),
                           _buildStatItem('Streak Days', '5'),
                         ],
@@ -543,7 +758,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Consumer<UserBalanceService>(
                           builder: (context, balanceService, child) {
                             return Text(
-                              '\$${(balanceService.balance * 0.5).toStringAsFixed(2)} USD',
+                              '${balanceService.getFormattedBalance()} CNE',
                               style: TextStyle(
                                 color: Colors.grey[300],
                                 fontSize: 14,
@@ -593,13 +808,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Track your rewards and earnings',
               onTap: () => _showEarningsHistory(),
             ),
+            // Admin Dashboard - Only visible to admins
+            Consumer<AdminProvider>(
+              builder: (context, adminProvider, child) {
+                if (!adminProvider.isAdmin) return const SizedBox.shrink();
+                
+                return _buildMenuOption(
+                  icon: FeatherIcons.shield,
+                  title: 'Admin Dashboard',
+                  subtitle: 'Manage app content and settings',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminDashboardScreen(),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
             _buildMenuOption(
               icon: Icons.help_outline,
               title: 'Help & Support',
               subtitle: 'Get help and contact support',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Help & support coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HelpSupportScreen(),
+                  ),
                 );
               },
             ),

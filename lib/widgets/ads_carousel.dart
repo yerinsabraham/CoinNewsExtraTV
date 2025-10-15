@@ -1,10 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/external_link_helper.dart';
 import 'dart:async';
 import '../data/video_data.dart';
 
 class AdsCarousel extends StatefulWidget {
-  const AdsCarousel({super.key});
+  final List<Map<String, String>>? extraBanners;
+
+  const AdsCarousel({super.key, this.extraBanners});
 
   @override
   State<AdsCarousel> createState() => _AdsCarouselState();
@@ -19,6 +22,8 @@ class _AdsCarouselState extends State<AdsCarousel> {
   List<Map<String, String>> get _bannerAds {
     final videos = VideoData.getAllVideos();
     return [
+      // Extra banners injected by parent (e.g., special offers)
+      if (widget.extraBanners != null) ...widget.extraBanners!,
       {
         'image': 'assets/images/ad1.png',
         'title': 'Exclusive Crypto Trading Course',
@@ -55,16 +60,7 @@ class _AdsCarouselState extends State<AdsCarousel> {
       return;
     }
 
-    final Uri url = Uri.parse(urlString);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch URL')),
-        );
-      }
-    }
+    await launchUrlWithDisclaimer(context, urlString);
   }
 
   @override

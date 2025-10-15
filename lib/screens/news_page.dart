@@ -19,6 +19,38 @@ class _NewsPageState extends State<NewsPage> {
     
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // Allow vertical drag gestures to be handled by the WebView for smoother
+      // scrolling on mobile platforms.
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading state
+            if (progress == 100) {
+              setState(() {
+                isLoading = false;
+                errorMessage = null;
+              });
+            }
+          },
+          onPageStarted: (String url) {
+            setState(() {
+              isLoading = true;
+              errorMessage = null;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              isLoading = false;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            setState(() {
+              isLoading = false;
+              errorMessage = 'Failed to load news. Please check your connection.';
+            });
+          },
+        ),
+      )
       ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -50,7 +82,7 @@ class _NewsPageState extends State<NewsPage> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://coinnewsextra.com/news/'));
+  ..loadRequest(Uri.parse('https://coinnewsextra.com/'));
   }
 
   @override
@@ -111,7 +143,20 @@ class _NewsPageState extends State<NewsPage> {
         child: Stack(
           children: [
             if (errorMessage == null)
-              WebViewWidget(controller: controller)
+              // GestureDetector forwards vertical drag deltas to the web page
+              // by executing a small `window.scrollBy` JavaScript call. This
+              // helps with nested scrolling issues on some Android devices.
+              GestureDetector(
+                onVerticalDragUpdate: (details) {
+                  // Positive delta means user drags down; scroll up by that amount
+                  final dy = details.delta.dy;
+                  // Run a small JS scroll to move the page. Clamp value to avoid
+                  // extreme jumps.
+                  final scrollAmount = dy.clamp(-200.0, 200.0);
+                  controller.runJavaScript('window.scrollBy(0, ${-scrollAmount});');
+                },
+                child: WebViewWidget(controller: controller),
+              )
             else
               _buildErrorState(),
             if (isLoading && errorMessage == null)
@@ -131,7 +176,7 @@ class _NewsPageState extends State<NewsPage> {
                         'Loading latest news...',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 14,
                           fontFamily: 'Lato',
                         ),
                       ),
@@ -140,7 +185,7 @@ class _NewsPageState extends State<NewsPage> {
                         'Connecting to CoinNewsExtra',
                         style: TextStyle(
                           color: Colors.grey,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontFamily: 'Lato',
                         ),
                       ),

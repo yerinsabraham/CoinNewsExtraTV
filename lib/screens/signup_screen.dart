@@ -78,7 +78,36 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   String _generateReferralCode(String uid) {
-    return 'REF';
+    // Generate a short, URL-safe referral code from the user's uid.
+    // We'll use a simple Base62 encoding of a hash of the uid and take first 8 chars.
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+    // Compute a simple numeric hash from uid characters
+    int hash = 0;
+    for (var i = 0; i < uid.length; i++) {
+      hash = (hash * 31 + uid.codeUnitAt(i)) & 0x7fffffff;
+    }
+
+    // Convert hash to base62
+    String encodeBase62(int value) {
+      if (value == 0) return '0';
+      final buffer = StringBuffer();
+      while (value > 0) {
+        buffer.write(alphabet[value % 62]);
+        value = value ~/ 62;
+      }
+      return buffer.toString().split('').reversed.join();
+    }
+
+    String code = encodeBase62(hash);
+    // Ensure minimum length by padding from uid characters if needed
+    if (code.length < 6) {
+      code = (code + uid).substring(0, 6).toUpperCase();
+    }
+
+    // Final code length 6-8, prefix with 'CNE' for clarity
+    final finalCode = ('CNE' + code).toUpperCase().substring(0, 8);
+    return finalCode;
   }
 
   Future<void> _processReferralCode(String referralCode, String newUserId) async {

@@ -70,13 +70,19 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                 width: MediaQuery.of(context).size.width,
                 margin: const EdgeInsets.symmetric(horizontal: 12.0),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      spreadRadius: 2,
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withOpacity(0.4),
+                      spreadRadius: 0,
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF00B359).withOpacity(0.1),
+                      spreadRadius: 0,
+                      blurRadius: 30,
+                      offset: const Offset(0, 0),
                     ),
                   ],
                 ),

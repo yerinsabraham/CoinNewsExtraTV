@@ -2,7 +2,8 @@ import 'dart:math';
 import '../models/quiz_models.dart';
 
 class QuizDataService {
-  static const int defaultEntryFee = 5;
+  // Entry fee removed — quizzes are free to enter
+  static const int defaultEntryFee = 0;
   static const int questionsPerQuiz = 10;
   static const int questionTimeLimit = 15; // seconds
 

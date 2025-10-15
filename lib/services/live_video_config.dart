@@ -1,22 +1,28 @@
 import 'package:flutter/foundation.dart';
 
 class LiveVideoConfig {
-  static const String primaryLiveStreamId = 'HwHP5WojgBg';
-  static const String primaryLiveStreamUrl = 'https://www.youtube.com/live/HwHP5WojgBg?si=Eaoja0H3P0veWfOt';
+  // Updated to the requested live video
+  static const String primaryLiveStreamId = '5vQPzJqumPk';
+  static const String primaryLiveStreamUrl = 'https://www.youtube.com/live/5vQPzJqumPk?si=iWXiifI5XTITy7bG';
   static const String liveStreamTitle = 'CoinNewsExtra Live Stream';
   static const String liveStreamDescription = 'Latest crypto news and market analysis';
   
-  // Updated requirements - reduced from 5 minutes to 1 minute
-  static const int requiredWatchTimeSeconds = 60; // 1 minute instead of 300 (5 minutes)
+  // Reward requirement: 10 minutes continuous watching (600 seconds)
+  static const int requiredWatchTimeSeconds = 600; // 10 minutes
   static const double watchReward = 8.0; // CNE tokens for watching
   
-  // Auto-play behavior
-  static const bool autoPlayOnLaunch = false; // Only start when user clicks play
+  // Auto-play behavior: start immediately when entering Live TV page
+  static const bool autoPlayOnLaunch = true;
   
   // Stream configuration
   static const bool isLiveStream = true;
   static const bool enableCaptions = true;
   static const bool allowFullscreen = true;
+
+  // In-house promotion banner (thin) — configurable text and route
+  static const String promoBannerText = 'Promo: Summit highlights — tap to learn more';
+  // This can be a named route within the app or a URL handled by your navigator logic
+  static const String promoBannerRoute = '/summit';
   
   /// Get the YouTube video ID from URL
   static String getVideoId() {

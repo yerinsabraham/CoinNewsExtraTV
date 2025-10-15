@@ -1,0 +1,972 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../services/play_extra_service.dart';
+import '../models/game_models.dart';
+import '../../services/user_balance_service.dart';
+
+class PlayExtraMain extends StatefulWidget {
+  const PlayExtraMain({super.key});
+
+  @over            ElevatedButton(
+              onPressed: () => _showStakeDialog(arena, service),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: arena.themeColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Enter Battle (${arena.minStake}-${arena.maxStake} CNE)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ),layExtraMain> createState() => _PlayExtraMainState();
+}
+
+class _PlayExtraMainState extends State<PlayExtraMain> with SingleTickerProviderStateMixin {
+  late PlayExtraService _playExtraService;
+  late TabController _tabController;
+  Timer? _battleTimer;
+  
+  @override
+  void initState() {
+    super.initState();
+    _playExtraService = PlayExtraService();
+    _tabController = TabController(length: 3, vsync: this);
+    _initializeService();
+    _startBattleTimer();
+  }
+
+  Future<void> _initializeService() async {
+    await _playExtraService.initialize();
+    if (mounted) setState(() {});
+  }
+
+  void _startBattleTimer() {
+    _battleTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted && _playExtraService.isInBattle) {
+        final battle = _playExtraService.currentBattle!;
+        
+        // Auto-start battle when conditions are met
+        if (battle.status == BattleSessionStatus.waiting && 
+            battle.players.length >= 2 && 
+            battle.timeRemaining.inSeconds <= 5) {
+          _autoStartBattle();
+        }
+        
+        // Update UI
+        setState(() {});
+      }
+    });
+  }
+
+  void _autoStartBattle() async {
+    try {
+      await Future.delayed(const Duration(seconds: 1)); // Brief delay
+      if (mounted && _playExtraService.isInBattle) {
+        await _startBattle(_playExtraService);
+      }
+    } catch (e) {
+      print('Auto-start battle error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _battleTimer?.cancel();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: _playExtraService,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A1A1A),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Row(
+            children: [
+              Image.asset(
+                'assets/avatars/minotaur-blue-NESW.png',
+                width: 32,
+                height: 32,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.sports_martial_arts,
+                  color: Color(0xFF00B359),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Play Extra',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Consumer<PlayExtraService>(
+              builder: (context, service, child) {
+                return Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00B359), Color(0xFF007A3D)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${service.playerCoins}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: const Color(0xFF00B359),
+            labelColor: const Color(0xFF00B359),
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
+              Tab(icon: Icon(Icons.sports_martial_arts), text: 'Battle'),
+              Tab(icon: Icon(Icons.analytics), text: 'Stats'),
+              Tab(icon: Icon(Icons.history), text: 'History'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildBattleTab(),
+            _buildStatsTab(),
+            _buildHistoryTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBattleTab() {
+    return Consumer<PlayExtraService>(
+      builder: (context, service, child) {
+        if (service.isInBattle) {
+          return _buildActiveBattle(service);
+        } else {
+          return _buildArenaSelection(service);
+        }
+      },
+    );
+  }
+
+  Widget _buildArenaSelection(PlayExtraService service) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bull Selection
+          _buildBullSelection(service),
+          const SizedBox(height: 24),
+          
+          // Battle Arenas
+          const Text(
+            'Choose Your Arena',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          ...service.availableArenas.map((arena) => _buildArenaCard(arena, service)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBullSelection(PlayExtraService service) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Select Your Bull Fighter',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 80,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: PlayExtraConfig.bullTypes.length,
+              itemBuilder: (context, index) {
+                final bullType = PlayExtraConfig.bullTypes[index];
+                final isSelected = service.selectedBullType == bullType;
+                
+                return GestureDetector(
+                  onTap: () => service.selectBull(bullType),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    width: 80,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF00B359) : Colors.grey,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      color: isSelected ? const Color(0xFF00B359).withOpacity(0.2) : Colors.transparent,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: PlayExtraConfig.bullColors[bullType],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.sports_martial_arts,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          PlayExtraConfig.bullNames[bullType]!.split(' ')[0],
+                          style: TextStyle(
+                            color: isSelected ? const Color(0xFF00B359) : Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArenaCard(BattleArena arena, PlayExtraService service) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            arena.themeColor.withOpacity(0.3),
+            arena.themeColor.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: arena.themeColor, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: arena.themeColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(arena.icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      arena.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      arena.description,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: arena.themeColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  arena.difficultyLevel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Stake Range',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  Text(
+                    '${arena.minStake} - ${arena.maxStake} CNE',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Win Multiplier',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  Text(
+                    '${arena.winMultiplier}x',
+                    style: TextStyle(
+                      color: arena.themeColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _showStakeDialog(arena, service),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: arena.themeColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Enter Battle (${arena.minStake}-${arena.maxStake} CNE)',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStakeDialog(BattleArena arena, PlayExtraService service) {
+    final stakeController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: Text(
+          'Enter ${arena.name}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: stakeController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Stake Amount (${arena.minStake}-${arena.maxStake} CNE)',
+                labelStyle: const TextStyle(color: Colors.grey),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: arena.themeColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: arena.themeColor),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Your Balance: ${service.playerCoins} CNE',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final stake = int.tryParse(stakeController.text);
+              if (stake != null && arena.isValidStake(stake)) {
+                Navigator.pop(context);
+                await _joinBattle(arena, stake, service);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Invalid stake amount for ${arena.name}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: arena.themeColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Join Battle',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _joinBattle(BattleArena arena, int stake, PlayExtraService service) async {
+    final success = await service.joinBattle(
+      arena.id,
+      stake,
+      'current_user', // TODO: Get from auth service
+      'Player', // TODO: Get from user profile
+    );
+    
+    if (success) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Joined ${arena.name}! Waiting for more players...'),
+          backgroundColor: arena.themeColor,
+        ),
+      );
+      
+      // Switch to battle tab to show waiting room
+      _tabController.animateTo(0);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to join battle. Check your CNE balance.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildActiveBattle(PlayExtraService service) {
+    final battle = service.currentBattle!;
+    final timeRemaining = battle.timeRemaining;
+    final canStartBattle = battle.players.length >= 2 && timeRemaining.inSeconds > 0;
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Battle Status Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00B359), Color(0xFF007A3D)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  battle.status == BattleSessionStatus.waiting ? 'Waiting for Battle' : 'Battle in Progress!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Time Remaining: ${battle.formattedTimeRemaining}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Player List
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A2A2A),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Players in Battle (${battle.players.length}/${PlayExtraConfig.maxPlayersPerBattle})',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...battle.players.map((player) => _buildPlayerCard(player)),
+                const SizedBox(height: 8),
+                Text(
+                  'Total Stake Pool: ${battle.totalStakePool} CNE',
+                  style: const TextStyle(
+                    color: Color(0xFF00B359),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Battle Wheel (only show if battle can start)
+          if (canStartBattle) ...[
+            Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                gradient: const RadialGradient(
+                  colors: [Color(0xFF00B359), Color(0xFF007A3D)],
+                ),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: const Icon(
+                Icons.casino,
+                color: Colors.white,
+                size: 80,
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            ElevatedButton(
+              onPressed: timeRemaining.inSeconds > 10 ? () => _startBattle(service) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00B359),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                disabledBackgroundColor: Colors.grey,
+              ),
+              child: Text(
+                timeRemaining.inSeconds > 10 ? 'Spin the Wheel!' : 'Battle Starting Soon...',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ] else ...[
+            // Waiting for more players
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.orange, width: 2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.hourglass_empty, color: Colors.orange, size: 48),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Waiting for More Players...',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Minimum 2 players required\nBattle auto-starts when ready',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 20),
+          
+          // Leave Battle Button
+          TextButton.icon(
+            onPressed: () => service.leaveBattle(),
+            icon: const Icon(Icons.exit_to_app, color: Colors.red),
+            label: const Text(
+              'Leave Battle',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerCard(BattlePlayer player) {
+    final isCurrentPlayer = player.id == 'current_user'; // TODO: Use actual user ID
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isCurrentPlayer ? const Color(0xFF00B359).withOpacity(0.2) : const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isCurrentPlayer ? const Color(0xFF00B359) : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: PlayExtraConfig.bullColors[player.bullType] ?? Colors.blue,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.sports_martial_arts,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isCurrentPlayer ? '${player.username} (You)' : player.username,
+                  style: TextStyle(
+                    color: isCurrentPlayer ? const Color(0xFF00B359) : Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  PlayExtraConfig.bullNames[player.bullType] ?? 'Unknown Bull',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${player.stakeAmount} CNE',
+            style: const TextStyle(
+              color: Color(0xFF00B359),
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startBattle(PlayExtraService service) async {
+    try {
+      final result = await service.startBattle();
+      
+      if (mounted) {
+        _showBattleResult(result);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Battle error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showBattleResult(BattleResult result) {
+    final isWinner = result.winnerId == 'current_user'; // TODO: Use actual user ID
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: Row(
+          children: [
+            Icon(
+              isWinner ? Icons.emoji_events : Icons.sentiment_dissatisfied,
+              color: isWinner ? Colors.amber : Colors.grey,
+              size: 32,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isWinner ? 'Victory!' : 'Defeat!',
+              style: TextStyle(
+                color: isWinner ? Colors.amber : Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isWinner 
+                ? 'Congratulations! You won ${result.winnerReward} CNE!'
+                : 'Better luck next time!',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Total Battle Pool: ${result.totalStakePool} CNE',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {}); // Refresh the UI
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00B359),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Continue',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsTab() {
+    return Consumer<PlayExtraService>(
+      builder: (context, service, child) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _buildStatsCard('Player Level', '${service.playerStats.playerLevel}', Icons.star),
+              _buildStatsCard('Rank', service.playerStats.playerRank, Icons.military_tech),
+              _buildStatsCard('Win Rate', '${(service.playerStats.winRate * 100).toStringAsFixed(1)}%', Icons.trending_up),
+              _buildStatsCard('Total Battles', '${service.playerStats.totalBattles}', Icons.sports_martial_arts),
+              _buildStatsCard('Total Wins', '${service.playerStats.totalWins}', Icons.emoji_events),
+              _buildStatsCard('Current Streak', '${service.playerStats.currentStreak}', Icons.whatshot),
+              _buildStatsCard('Highest Win', '${service.playerStats.highestWin} CNE', Icons.monetization_on),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatsCard(String title, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00B359),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF00B359),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab() {
+    return Consumer<PlayExtraService>(
+      builder: (context, service, child) {
+        final history = service.getFormattedBattleHistory();
+        
+        if (history.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history, color: Colors.grey, size: 64),
+                SizedBox(height: 16),
+                Text(
+                  'No battle history yet',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                Text(
+                  'Start your first battle to see results here!',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: history.length,
+          itemBuilder: (context, index) {
+            final battle = history[index];
+            final isWin = battle.startsWith('WON');
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isWin ? Colors.green : Colors.red,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isWin ? Icons.emoji_events : Icons.close,
+                    color: isWin ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      battle,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}

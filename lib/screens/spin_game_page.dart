@@ -2,6 +2,7 @@
 import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/user_balance_service.dart';
 import '../widgets/ads_carousel.dart';
 
@@ -18,20 +19,23 @@ class _SpinGamePageState extends State<SpinGamePage>
   late Animation<double> _spinAnimation;
   
   bool _isSpinning = false;
+  bool _awardInProgress = false;
   int _dailySpinsUsed = 0;
   final int _maxDailySpins = 5;
   double _lastSpinRotation = 0;
   Map<String, dynamic>? _lastPrize;
 
+  // Original prize structure from the old code with proper weightings
   final List<Map<String, dynamic>> _prizes = [
-    {'label': '1 CNE', 'value': 1.0, 'color': const Color(0xFF006833)},
-    {'label': '5 CNE', 'value': 5.0, 'color': const Color(0xFFFF9800)},
-    {'label': '10 CNE', 'value': 10.0, 'color': const Color(0xFF2196F3)},
-    {'label': '2 CNE', 'value': 2.0, 'color': const Color(0xFF9C27B0)},
-    {'label': '15 CNE', 'value': 15.0, 'color': const Color(0xFFE91E63)},
-    {'label': '3 CNE', 'value': 3.0, 'color': const Color(0xFF4CAF50)},
-    {'label': '20 CNE', 'value': 20.0, 'color': const Color(0xFFFF5722)},
-    {'label': '7 CNE', 'value': 7.0, 'color': const Color(0xFF607D8B)},
+    {'label': '1,000 CNE', 'value': 1000.0, 'color': const Color(0xFFFFD700), 'type': 'cne', 'weight': 1},  // 1% chance
+    {'label': '500 CNE', 'value': 500.0, 'color': const Color(0xFFFF6B35), 'type': 'cne', 'weight': 4},   // 4% chance
+    {'label': '200 CNE', 'value': 200.0, 'color': const Color(0xFF9B59B6), 'type': 'cne', 'weight': 10},  // 10% chance
+    {'label': '100 CNE', 'value': 100.0, 'color': const Color(0xFF3498DB), 'type': 'cne', 'weight': 20},  // 20% chance
+    {'label': '50 CNE', 'value': 50.0, 'color': const Color(0xFF2ECC71), 'type': 'cne', 'weight': 30},    // 30% chance
+    {'label': '10 CNE', 'value': 10.0, 'color': const Color(0xFFE67E22), 'type': 'cne', 'weight': 5},     // 5% chance
+    {'label': 'NFT', 'value': 0.0, 'color': const Color(0xFFE91E63), 'type': 'nft', 'weight': 10},       // 10% chance
+    {'label': 'NFT', 'value': 0.0, 'color': const Color(0xFFE91E63), 'type': 'nft', 'weight': 10},       // 10% chance
+    {'label': 'NFT', 'value': 0.0, 'color': const Color(0xFFE91E63), 'type': 'nft', 'weight': 10},       // 10% chance
   ];
 
   @override
@@ -41,9 +45,10 @@ class _SpinGamePageState extends State<SpinGamePage>
       duration: const Duration(seconds: 3),
       vsync: this,
     );
+    // Use radians for rotation values. Initialize to 0 radians.
     _spinAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
+      begin: 0.0,
+      end: 0.0,
     ).animate(CurvedAnimation(
       parent: _spinController,
       curve: Curves.easeOut,
@@ -53,9 +58,44 @@ class _SpinGamePageState extends State<SpinGamePage>
   }
 
   void _loadSpinData() {
-    setState(() {
-      _dailySpinsUsed = 0;
+    // Load persisted spin usage and reset time
+    SharedPreferences.getInstance().then((prefs) {
+      final used = prefs.getInt('spin_daily_used') ?? 0;
+      final resetMs = prefs.getInt('spin_daily_reset_ms') ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      if (resetMs > 0 && nowMs >= resetMs) {
+        // Reset window has passed; clear usage
+        prefs.remove('spin_daily_used');
+        prefs.remove('spin_daily_reset_ms');
+        setState(() {
+          _dailySpinsUsed = 0;
+        });
+      } else {
+        setState(() {
+          _dailySpinsUsed = used;
+        });
+      }
+    }).catchError((e) {
+      debugPrint('❌ Error loading spin data: $e');
+      setState(() => _dailySpinsUsed = 0);
     });
+  }
+
+  int _getWeightedRandomIndex() {
+    // Calculate total weight
+    final totalWeight = _prizes.fold<int>(0, (sum, prize) => sum + (prize['weight'] as int));
+    final random = Random().nextInt(totalWeight);
+    
+    int cumulativeWeight = 0;
+    for (int i = 0; i < _prizes.length; i++) {
+      cumulativeWeight += _prizes[i]['weight'] as int;
+      if (random < cumulativeWeight) {
+        return i;
+      }
+    }
+    
+    return 4; // Fallback to 50 CNE (most common prize)
   }
 
   @override
@@ -72,11 +112,23 @@ class _SpinGamePageState extends State<SpinGamePage>
       _dailySpinsUsed++;
     });
 
+    // Persist updated usage and if limit reached, set reset timestamp
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('spin_daily_used', _dailySpinsUsed);
+      if (_dailySpinsUsed >= _maxDailySpins) {
+        final resetMs = DateTime.now().add(const Duration(hours: 24)).millisecondsSinceEpoch;
+        await prefs.setInt('spin_daily_reset_ms', resetMs);
+      }
+    } catch (e) {
+      debugPrint('❌ Error persisting spin usage: $e');
+    }
+
     try {
       final random = Random();
       
-      // First, determine which prize will be awarded
-      final prizeIndex = random.nextInt(_prizes.length);
+      // First, determine which prize will be awarded using weighted selection
+      final prizeIndex = _getWeightedRandomIndex();
       final selectedPrize = _prizes[prizeIndex];
       
       // Calculate the angle for this prize (center of the slice)
@@ -85,15 +137,15 @@ class _SpinGamePageState extends State<SpinGamePage>
       // Account for wheel starting at top (-π/2) and prize position
       final prizeAngle = (prizeIndex * anglePerSection) + (anglePerSection / 2);
       
-      // Add multiple full rotations for visual effect (3-5 spins)
-      final fullSpins = 3 + random.nextDouble() * 2;
-      final totalRotations = fullSpins * 2 * pi;
-      
-      // Calculate final rotation to land on the selected prize
-      // Since wheel starts at -π/2 and rotates clockwise, we need to calculate 
-      // how much to rotate to get the selected prize at the top (pointer position)
-      final targetAngle = -prizeAngle;
-      final finalRotation = _lastSpinRotation + totalRotations + targetAngle;
+  // Add multiple full rotations for visual effect (3-5 spins)
+  final fullSpins = 3 + random.nextDouble() * 2;
+  // total rotation in radians
+  final totalRotations = fullSpins * 2 * pi;
+
+  // Calculate final rotation to land on the selected prize (radians)
+  // The wheel painter starts from -π/2 (top), so we offset accordingly.
+  final targetAngle = -prizeAngle; // radians
+  final finalRotation = _lastSpinRotation + totalRotations + targetAngle;
       
       _spinController.reset();
       _spinAnimation = Tween<double>(
@@ -106,14 +158,63 @@ class _SpinGamePageState extends State<SpinGamePage>
       
       await _spinController.forward();
       
-      // Update the last rotation for next spin
+  // Update the last rotation for next spin (keep within 0..2π)
       _lastSpinRotation = finalRotation % (2 * pi);
-      _lastPrize = selectedPrize;
-      
+
+      // Determine which prize actually landed under the pointer from final rotation.
+      // The painter uses startOffset = -π/2 for the first slice, and each slice's center is:
+      // sliceCenter = startOffset + i*anglePerSection + anglePerSection/2
+      // After rotating the wheel by _lastSpinRotation, the rotated center is (sliceCenter + rotation) mod 2π.
+      // The pointer sits at startOffset (top). We'll pick the slice whose rotated center is nearest to the pointer angle.
+      final startOffset = -pi / 2;
+
+      double normalize(double a) => (a % (2 * pi) + (2 * pi)) % (2 * pi);
+
+      final pointerAngle = normalize(startOffset);
+      final rotationNormalized = normalize(_lastSpinRotation);
+
+      int bestIndex = 0;
+      double bestDiff = double.infinity;
+
+      for (int i = 0; i < _prizes.length; i++) {
+        final sliceCenter = startOffset + i * anglePerSection + anglePerSection / 2;
+        final sliceCenterNorm = normalize(sliceCenter);
+        final rotatedCenter = normalize(sliceCenterNorm + rotationNormalized);
+
+        // shortest angular distance
+        double diff = (rotatedCenter - pointerAngle).abs();
+        if (diff > pi) diff = 2 * pi - diff;
+
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIndex = i;
+        }
+      }
+
+      final landedIndex = bestIndex;
+      final landedPrize = _prizes[landedIndex];
+
+      // Debug: print angles in degrees for easier inspection
+      double toDeg(double r) => r * 180 / pi;
+      print('TargetPrizeAngle(deg): ${toDeg(normalize(-prizeAngle)).toStringAsFixed(2)}');
+      print('FinalRotation(deg): ${toDeg(rotationNormalized).toStringAsFixed(2)}');
+      print('PointerAngle(deg): ${toDeg(pointerAngle).toStringAsFixed(2)}');
+      print('Best landed index: $landedIndex, angular diff(deg): ${toDeg(bestDiff).toStringAsFixed(2)}');
+      _lastPrize = landedPrize;
+
       // Debug info (can be removed in production)
-      print('Selected prize index: $prizeIndex, Prize: ${selectedPrize['label']}');
-      
-      await _awardPrize(selectedPrize);
+      print('Selected prize index: $prizeIndex, Target Prize: ${selectedPrize['label']}');
+      print('Landed prize index: $landedIndex, Landed Prize: ${landedPrize['label']}');
+
+      // Award the prize that's visually landed
+      if (!_awardInProgress) {
+        _awardInProgress = true;
+        try {
+          await _awardPrize(landedPrize);
+        } finally {
+          _awardInProgress = false;
+        }
+      }
       
     } catch (e) {
       _showMessage('Error spinning wheel: $e', isError: true);
@@ -126,29 +227,41 @@ class _SpinGamePageState extends State<SpinGamePage>
 
   Future<void> _awardPrize(Map<String, dynamic> prize) async {
     try {
-      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-      final amount = prize['value'] as double;
-      
-      await balanceService.addBalance(amount, 'Spin2Earn Game');
-      
-      if (mounted) {
-        _showPrizeDialog(prize);
+      if (prize['type'] == 'cne') {
+        // Award CNE tokens
+        final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+        final amount = prize['value'] as double;
+        
+        await balanceService.addBalance(amount, 'Spin2Earn Game');
+        
+        // Show precise credited amount so display and persisted value are clear
+        if (mounted) {
+          _showMessage('Credited ${amount.toStringAsFixed(2)} CNE');
+          _showPrizeDialog(prize, true);
+        }
+      } else if (prize['type'] == 'nft') {
+        // Handle NFT prize
+        if (mounted) {
+          _showPrizeDialog(prize, true);
+        }
       }
     } catch (e) {
       _showMessage('Error awarding prize: $e', isError: true);
     }
   }
 
-  void _showPrizeDialog(Map<String, dynamic> prize) {
+  void _showPrizeDialog(Map<String, dynamic> prize, bool isWin) {
+    final isNft = prize['type'] == 'nft';
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Congratulations!',
-          style: TextStyle(
+        title: Text(
+          isWin ? '🎉 Congratulations!' : '💫 Try Again',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -165,19 +278,44 @@ class _SpinGamePageState extends State<SpinGamePage>
                 color: prize['color'] as Color,
                 shape: BoxShape.circle,
               ),
-              child: Text(
-                prize['label'],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Lato',
-                ),
-              ),
+              child: isNft
+                ? const Icon(
+                    Icons.palette,
+                    color: Colors.white,
+                    size: 32,
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        prize['label'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lato',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      // Show canonical numeric value to remove ambiguity (commas/formatting)
+                      if (prize['type'] == 'cne')
+                        Text(
+                          '${(prize['value'] as double).toStringAsFixed(2)} CNE',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                    ],
+                  ),
             ),
             const SizedBox(height: 16),
             Text(
-              'You won ${prize['label']} tokens!',
+              isNft
+                ? '🎨 Amazing! You won an NFT!\n\nYour NFT will be sent to your wallet soon.'
+                : 'You won ${prize['label']}!\n\nYour balance has been updated (credited ${(prize['value'] as double).toStringAsFixed(2)} CNE).',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -185,6 +323,35 @@ class _SpinGamePageState extends State<SpinGamePage>
               ),
               textAlign: TextAlign.center,
             ),
+            if (!isNft) ...[
+              const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF006833),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                      const SizedBox(width: 4),
+                      Consumer<UserBalanceService>(
+                        builder: (context, balanceService, child) {
+                          return Text(
+                            'Balance: ${balanceService.balance.toStringAsFixed(2)} CNE',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
         actions: [
@@ -293,8 +460,9 @@ class _SpinGamePageState extends State<SpinGamePage>
                   AnimatedBuilder(
                     animation: _spinAnimation,
                     builder: (context, child) {
+                      // _spinAnimation.value is stored as radians in the spin logic.
                       return Transform.rotate(
-                        angle: _spinAnimation.value * 2 * pi,
+                        angle: _spinAnimation.value,
                         child: SizedBox(
                           width: 300,
                           height: 300,
@@ -417,8 +585,6 @@ class _SpinGamePageState extends State<SpinGamePage>
               ),
             const SizedBox(height: 32),
             if (_lastPrize != null) _buildLastWinDisplay(),
-            const SizedBox(height: 16),
-            _buildPrizeList(),
             const SizedBox(height: 24),
             const AdsCarousel(),
           ],

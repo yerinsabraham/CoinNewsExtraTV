@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'video_detail_page.dart';
 import '../models/video_model.dart';
+import '../data/video_data.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -12,20 +13,17 @@ class ExplorePage extends StatefulWidget {
 
 class _ExplorePageState extends State<ExplorePage> {
   final TextEditingController _searchController = TextEditingController();
-  List<ExploreVideo> _searchResults = [];
-  List<ExploreVideo> _allVideos = [];
+  List<VideoModel> _searchResults = [];
+  List<VideoModel> _allVideos = [];
   bool _isSearching = false;
   bool _isLoading = false;
   String _selectedCategory = 'All';
   
   final List<String> _categories = [
     'All',
-    'Crypto News',
-    'Market Analysis',
-    'Interviews',
-    'Education',
-    'Technology',
-    'Trading',
+    'Recent',
+    'Popular',
+    'Trending',
   ];
 
   @override
@@ -37,100 +35,15 @@ class _ExplorePageState extends State<ExplorePage> {
   void _loadVideos() {
     setState(() => _isLoading = true);
     
-    // Simulate loading and populate with demo videos
-    Future.delayed(const Duration(milliseconds: 800), () {
-      final videos = _generateDemoVideos();
+    // Load real video data from video_data.dart
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final videos = VideoData.getAllVideos();
       setState(() {
         _allVideos = videos;
         _searchResults = videos;
         _isLoading = false;
       });
     });
-  }
-
-  List<ExploreVideo> _generateDemoVideos() {
-    return [
-      ExploreVideo(
-        id: '1',
-        title: 'Bitcoin Market Analysis: What\'s Next?',
-        channelName: 'CoinNews Extra',
-        thumbnailUrl: 'assets/images/video-thumbnail-1.jpg',
-        duration: '12:45',
-        views: '125K views',
-        timeAgo: '2 hours ago',
-        category: 'Market Analysis',
-      ),
-      ExploreVideo(
-        id: '2',
-        title: 'Ethereum 2.0 Complete Guide',
-        channelName: 'Crypto Education Hub',
-        thumbnailUrl: 'assets/images/video-thumbnail-2.jpg',
-        duration: '18:30',
-        views: '89K views',
-        timeAgo: '5 hours ago',
-        category: 'Education',
-      ),
-      ExploreVideo(
-        id: '3',
-        title: 'Exclusive Interview with Vitalik Buterin',
-        channelName: 'Blockchain Interviews',
-        thumbnailUrl: 'assets/images/video-thumbnail-3.jpg',
-        duration: '45:20',
-        views: '234K views',
-        timeAgo: '1 day ago',
-        category: 'Interviews',
-      ),
-      ExploreVideo(
-        id: '4',
-        title: 'Top 10 DeFi Protocols to Watch',
-        channelName: 'DeFi Insights',
-        thumbnailUrl: 'assets/images/video-thumbnail-4.jpg',
-        duration: '15:15',
-        views: '67K views',
-        timeAgo: '2 days ago',
-        category: 'Technology',
-      ),
-      ExploreVideo(
-        id: '5',
-        title: 'Breaking: New Crypto Regulations',
-        channelName: 'Crypto News Today',
-        thumbnailUrl: 'assets/images/video-thumbnail-5.jpg',
-        duration: '8:45',
-        views: '156K views',
-        timeAgo: '3 hours ago',
-        category: 'Crypto News',
-      ),
-      ExploreVideo(
-        id: '6',
-        title: 'Day Trading Strategies for Beginners',
-        channelName: 'Trading Academy',
-        thumbnailUrl: 'assets/images/video-thumbnail-6.jpg',
-        duration: '22:10',
-        views: '92K views',
-        timeAgo: '6 hours ago',
-        category: 'Trading',
-      ),
-      ExploreVideo(
-        id: '7',
-        title: 'NFT Market Crash or Opportunity?',
-        channelName: 'NFT Analysis',
-        thumbnailUrl: 'assets/images/video-thumbnail-7.jpg',
-        duration: '14:30',
-        views: '78K views',
-        timeAgo: '12 hours ago',
-        category: 'Market Analysis',
-      ),
-      ExploreVideo(
-        id: '8',
-        title: 'Blockchain Technology Explained',
-        channelName: 'Tech Simplified',
-        thumbnailUrl: 'assets/images/video-thumbnail-8.jpg',
-        duration: '16:55',
-        views: '145K views',
-        timeAgo: '1 day ago',
-        category: 'Education',
-      ),
-    ];
   }
 
   @override
@@ -154,11 +67,15 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   void _filterResults() {
-    List<ExploreVideo> filtered = _allVideos;
+    List<VideoModel> filtered = _allVideos;
     
     // Apply category filter
-    if (_selectedCategory != 'All') {
-      filtered = filtered.where((video) => video.category == _selectedCategory).toList();
+    if (_selectedCategory == 'Recent') {
+      filtered = VideoData.getRecentVideos();
+    } else if (_selectedCategory == 'Popular') {
+      filtered = VideoData.getPopularVideos();
+    } else if (_selectedCategory == 'Trending') {
+      filtered = VideoData.getFeaturedVideos();
     }
     
     // Apply search filter
@@ -166,30 +83,19 @@ class _ExplorePageState extends State<ExplorePage> {
       final query = _searchController.text.toLowerCase();
       filtered = filtered.where((video) {
         return video.title.toLowerCase().contains(query) ||
-               video.channelName.toLowerCase().contains(query) ||
-               video.category.toLowerCase().contains(query);
+               (video.channelName ?? '').toLowerCase().contains(query) ||
+               (video.description ?? '').toLowerCase().contains(query);
       }).toList();
     }
     
     _searchResults = filtered;
   }
 
-  void _onVideoTap(ExploreVideo video) {
+  void _onVideoTap(VideoModel video) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => VideoDetailPage(
-          video: VideoModel(
-            id: video.id,
-            youtubeId: video.id,
-            title: video.title,
-            description: 'Explore crypto content and earn rewards!',
-            thumbnailUrl: video.thumbnailUrl,
-            channelName: video.channelName,
-            views: video.views,
-            reward: 5.0, // Default reward
-          ),
-        ),
+        builder: (context) => VideoDetailPage(video: video),
       ),
     );
   }
@@ -411,125 +317,224 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Widget _buildVideoGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.7,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 12,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.builder(
+        padding: const EdgeInsets.only(bottom: 30),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.85, // Increased to fix 8.7px overflow
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 12,
+        ),
+        itemCount: _searchResults.length,
+        itemBuilder: (context, index) {
+          final video = _searchResults[index];
+          return _buildVideoCard(video);
+        },
       ),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        final video = _searchResults[index];
-        return _buildVideoCard(video);
-      },
     );
   }
 
-  Widget _buildVideoCard(ExploreVideo video) {
-    return GestureDetector(
-      onTap: () => _onVideoTap(video),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.grey[800]!,
-            width: 1,
+  Widget _buildVideoCard(VideoModel video) {
+    final duration = video.durationSeconds != null 
+        ? '${(video.durationSeconds! ~/ 60)}:${(video.durationSeconds! % 60).toString().padLeft(2, '0')}'
+        : '0:00';
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onVideoTap(video),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF006833).withOpacity(0.2),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Icon(
-                        FeatherIcons.play,
-                        color: Colors.white.withOpacity(0.8),
-                        size: 32,
-                      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Thumbnail with YouTube preview
+              Expanded(
+                flex: 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF006833).withOpacity(0.3),
+                        const Color(0xFF00A651).withOpacity(0.2),
+                      ],
                     ),
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Stack(
+                    children: [
+                      // YouTube thumbnail (we'll show the YouTube ID as placeholder since we have real YouTube IDs)
+                      if (video.youtubeId.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          child: Image.network(
+                            'https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg',
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to medium quality thumbnail
+                              return Image.network(
+                                'https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg',
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  // Final fallback to gradient with play icon
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          const Color(0xFF006833).withOpacity(0.5),
+                                          const Color(0xFF00A651).withOpacity(0.3),
+                                        ],
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.play_circle_outline,
+                                        color: Colors.white,
+                                        size: 40,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
-                        child: Text(
-                          video.duration,
-                          style: const TextStyle(
+                      
+                      // Play icon overlay
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow,
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Lato',
+                            size: 24,
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      
+                      // Duration badge
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            duration,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Reward badge
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF006833), Color(0xFF00A651)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.stars,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${video.reward ?? 5.0}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            
-            // Video info
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
+              
+              // Video info section
+              Container(
+                height: 68, // Reduced height to fix overflow
+                padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Title
-                    Text(
-                      video.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Lato',
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        video.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Lato',
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     
                     const SizedBox(height: 4),
                     
-                    // Channel name
-                    Text(
-                      video.channelName,
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 11,
-                        fontFamily: 'Lato',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    const SizedBox(height: 4),
-                    
-                    // Views and time
+                    // Channel name and views in a single row
                     Row(
                       children: [
                         Expanded(
                           child: Text(
-                            '${video.views} • ${video.timeAgo}',
+                            video.channelName ?? 'CoinNews Extra',
                             style: TextStyle(
-                              color: Colors.grey[500],
+                              color: Colors.grey[400],
                               fontSize: 10,
                               fontFamily: 'Lato',
                             ),
@@ -537,13 +542,30 @@ class _ExplorePageState extends State<ExplorePage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.visibility,
+                          color: Colors.grey[500],
+                          size: 10,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          video.views ?? '0',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 9,
+                            fontFamily: 'Lato',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -694,26 +716,4 @@ class _ExplorePageState extends State<ExplorePage> {
       },
     );
   }
-}
-
-class ExploreVideo {
-  final String id;
-  final String title;
-  final String channelName;
-  final String thumbnailUrl;
-  final String duration;
-  final String views;
-  final String timeAgo;
-  final String category;
-
-  ExploreVideo({
-    required this.id,
-    required this.title,
-    required this.channelName,
-    required this.thumbnailUrl,
-    required this.duration,
-    required this.views,
-    required this.timeAgo,
-    required this.category,
-  });
 }

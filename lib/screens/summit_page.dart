@@ -12,7 +12,7 @@ class SummitPage extends StatefulWidget {
 }
 
 class _SummitPageState extends State<SummitPage> {
-  // Mock events data - will be replaced with Firebase data later
+  // Events data with proper image mapping from assets folder
   final List<Event> events = [
     Event(
       id: '1',
@@ -24,11 +24,12 @@ class _SummitPageState extends State<SummitPage> {
       isPaid: true,
       price: 150.00,
       currency: "USD",
-      imageUrl: "assets/images/fintech_summit.png",
+      imageUrl: "assets/images/summit1.png",
       category: "FinTech",
       attendeeCount: 487,
       maxAttendees: 500,
-      organizer: "CoinNewsExtra",
+    organizer: "CoinNewsExtra",
+    organizerUrl: 'https://coinnewsextra.com/',
       tags: ["FinTech", "Blockchain", "Investment", "Innovation"],
       speakers: [
         {"name": "Dr. Amina Hassan", "title": "CEO, African FinTech Union"},
@@ -46,11 +47,12 @@ class _SummitPageState extends State<SummitPage> {
       isPaid: false,
       price: 0,
       currency: "USD",
-      imageUrl: "assets/images/fashion_week.png",
+      imageUrl: "assets/images/summit2.png",
       category: "Fashion",
       attendeeCount: 1250,
       maxAttendees: 1500,
-      organizer: "CoinNewsExtra",
+    organizer: "CoinNewsExtra",
+    organizerUrl: 'https://coinnewsextra.com/',
       tags: ["Fashion", "Design", "Sustainability", "Culture"],
       speakers: [
         {"name": "Adunni Ade", "title": "Fashion Designer & Entrepreneur"},
@@ -68,11 +70,12 @@ class _SummitPageState extends State<SummitPage> {
       isPaid: true,
       price: 200.00,
       currency: "USD",
-      imageUrl: "assets/images/credit_expo.png",
+      imageUrl: "assets/images/summit3.png",
       category: "Finance",
       attendeeCount: 312,
       maxAttendees: 400,
-      organizer: "CoinNewsExtra",
+    organizer: "CoinNewsExtra",
+    organizerUrl: 'https://coinnewsextra.com/',
       tags: ["Credit", "Lending", "Blockchain", "FinTech"],
       speakers: [
         {"name": "Michael Oluwasegun", "title": "CEO, Carbon (formerly Paylater)"},
@@ -84,6 +87,20 @@ class _SummitPageState extends State<SummitPage> {
 
   String selectedCategory = 'All';
   final List<String> categories = ['All', 'FinTech', 'Fashion', 'Finance', 'Technology'];
+
+  // Helper method to get event image path based on ID - same as original implementation
+  String _getEventImagePath(String eventId) {
+    switch (eventId) {
+      case '1':
+        return 'assets/images/summit1.png';
+      case '2':
+        return 'assets/images/summit2.png';
+      case '3':
+        return 'assets/images/summit3.png';
+      default:
+        return 'assets/images/summit1.png';
+    }
+  }
 
   int _getListItemCount(List<Event> events) {
     if (events.isEmpty) return 0;
@@ -256,7 +273,7 @@ class _SummitPageState extends State<SummitPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Event image placeholder
+                    // Event image with proper mapping
                     Container(
                       width: 80,
                       height: 80,
@@ -271,7 +288,7 @@ class _SummitPageState extends State<SummitPage> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.asset(
-                          event.imageUrl,
+                          _getEventImagePath(event.id),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return const Icon(
@@ -362,7 +379,7 @@ class _SummitPageState extends State<SummitPage> {
                         ),
                       ),
                       child: Text(
-                        event.isPaid ? '\$${event.price.toStringAsFixed(0)}' : 'FREE',
+                        event.isPaid ? '${event.price.toStringAsFixed(0)}' : 'FREE',
                         style: TextStyle(
                           color: event.isPaid ? Colors.orange : Colors.green,
                           fontSize: 12,

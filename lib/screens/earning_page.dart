@@ -155,19 +155,7 @@ class _EarningPageState extends State<EarningPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 4),
-                  Consumer<UserBalanceService>(
-                    builder: (context, balanceService, child) {
-                      return Text(
-                        'Worth \$${(balanceService.balance * 0.5).toStringAsFixed(2)} USD',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontFamily: 'Lato',
-                        ),
-                      );
-                    },
-                  ),
+                  // Fiat / USD display removed — showing token-only balance
                 ],
               ),
             ),
@@ -733,11 +721,13 @@ class _EarningPageState extends State<EarningPage> {
                 await _claimSocialReward(social);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF006833),
+                backgroundColor: const Color(0xFF00B359),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                elevation: 8,
+                shadowColor: const Color(0xFF00B359).withOpacity(0.3),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: const Text(

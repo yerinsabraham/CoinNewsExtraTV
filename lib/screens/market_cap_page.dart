@@ -13,6 +13,8 @@ class MarketCapPage extends StatefulWidget {
 
 class _MarketCapPageState extends State<MarketCapPage> {
   List<Cryptocurrency> cryptos = [];
+  List<Cryptocurrency> _filteredCryptos = [];
+  final TextEditingController _searchController = TextEditingController();
   bool isLoading = true;
   String? errorMessage;
 
@@ -20,6 +22,14 @@ class _MarketCapPageState extends State<MarketCapPage> {
   void initState() {
     super.initState();
     _fetchCryptocurrencies();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchCryptocurrencies() async {
@@ -39,6 +49,7 @@ class _MarketCapPageState extends State<MarketCapPage> {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           cryptos = data.map((crypto) => Cryptocurrency.fromJson(crypto)).toList();
+          _filteredCryptos = List.from(cryptos);
           isLoading = false;
         });
       } else {
@@ -86,9 +97,43 @@ class _MarketCapPageState extends State<MarketCapPage> {
         onRefresh: _fetchCryptocurrencies,
         color: const Color(0xFF006833),
         backgroundColor: Colors.grey[900],
-        child: _buildBody(),
+        child: Column(
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search coins (name or symbol)...',
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  filled: true,
+                  fillColor: Colors.grey[900],
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
     );
+  }
+
+  void _onSearchChanged() {
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) {
+      setState(() => _filteredCryptos = List.from(cryptos));
+    } else {
+      setState(() {
+        _filteredCryptos = cryptos.where((c) => c.name.toLowerCase().contains(q) || c.symbol.toLowerCase().contains(q)).toList();
+      });
+    }
   }
 
   Widget _buildBody() {
@@ -180,9 +225,59 @@ class _MarketCapPageState extends State<MarketCapPage> {
       );
     }
 
+    final list = _filteredCryptos;
+    if (list.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                FeatherIcons.alertCircle,
+                color: Colors.grey[500],
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No coins match your search',
+                style: TextStyle(
+                  color: Colors.grey[300],
+                  fontSize: 16,
+                  fontFamily: 'Lato',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Try a different name or clear the search to view the full list.',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 13,
+                  fontFamily: 'Lato',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton(
+                onPressed: () {
+                  _searchController.clear();
+                  _onSearchChanged();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF006833),
+                ),
+                child: const Text('Clear search'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      itemCount: cryptos.length + 1, // +1 for the ad carousel
+      itemCount: list.length + 1, // +1 for the ad carousel
       itemBuilder: (context, index) {
         // Show ad carousel after the first 3 cryptocurrency entries
         if (index == 3) {
@@ -191,14 +286,17 @@ class _MarketCapPageState extends State<MarketCapPage> {
             child: AdsCarousel(),
           );
         }
-        
+
         // Adjust index for crypto data after ad insertion
         final cryptoIndex = index > 3 ? index - 1 : index;
-        
+
+        // Guard in case filtered list is smaller
+        if (cryptoIndex < 0 || cryptoIndex >= list.length) return const SizedBox.shrink();
+
         // Return crypto tile with proper padding
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildCryptoTile(cryptos[cryptoIndex], cryptoIndex + 1),
+          child: _buildCryptoTile(list[cryptoIndex], cryptoIndex + 1),
         );
       },
     );
@@ -279,7 +377,7 @@ class _MarketCapPageState extends State<MarketCapPage> {
                   crypto.name,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Lato',
                   ),
@@ -290,7 +388,7 @@ class _MarketCapPageState extends State<MarketCapPage> {
                   crypto.symbol.toUpperCase(),
                   style: TextStyle(
                     color: Colors.grey[400],
-                    fontSize: 12,
+                    fontSize: 11,
                     fontFamily: 'Lato',
                   ),
                 ),
@@ -304,26 +402,38 @@ class _MarketCapPageState extends State<MarketCapPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '\$${_formatNumber(crypto.currentPrice)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Lato',
+                // Price: ensure full display and reasonable font size. Use FittedBox
+                // to scale down the text if the available width is small so the
+                // full numeric price remains visible.
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${_formatNumber(crypto.currentPrice)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  '\$${_formatMarketCap(crypto.marketCap)}',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 11,
-                    fontFamily: 'Lato',
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${_formatMarketCap(crypto.marketCap)}',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 11,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -367,10 +477,11 @@ class _MarketCapPageState extends State<MarketCapPage> {
   }
 
   String _formatNumber(double number) {
+    // Use simple thousands separator formatting for readability
     if (number >= 1000) {
-      return number.toStringAsFixed(2);
+      return number.toStringAsFixed(2).replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ',');
     } else if (number >= 1) {
-      return number.toStringAsFixed(3);
+      return number.toStringAsFixed(3).replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ',');
     } else {
       return number.toStringAsFixed(6);
     }

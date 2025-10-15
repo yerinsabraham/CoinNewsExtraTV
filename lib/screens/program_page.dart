@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_settings_page.dart';
+import '../services/notification_service.dart';
 import '../widgets/ads_carousel.dart';
 
 class ProgramPage extends StatefulWidget {
@@ -11,6 +17,9 @@ class ProgramPage extends StatefulWidget {
 
 class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin {
   late TabController _tabController;
+  // schedule capture/export removed to avoid PDF/download and storage permission issues
+  final Set<String> _reminderKeys = <String>{};
+  final Map<String, bool> _isSettingReminder = {};
 
   // TV schedule data for crypto programs
   final Map<String, List<TVProgram>> scheduleData = {
@@ -35,16 +44,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         host: 'Michael Rodriguez',
         viewers: '18.2K',
       ),
-      TVProgram(
-        time: '10:30 AM',
-        title: 'DeFi Weekly Roundup',
-        description: 'Explore the latest developments in decentralized finance protocols, yield farming, and liquidity mining.',
-        duration: '60 min',
-        category: 'DeFi',
-        isLive: true,
-        host: 'Alex Thompson',
-        viewers: '25.7K',
-      ),
+     
       TVProgram(
         time: '12:00 PM',
         title: 'Crypto Lunch & Learn',
@@ -184,6 +184,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadPersistedReminders();
   }
 
   @override
@@ -201,7 +202,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false),
         ),
         title: const Text(
           'TV Programs',
@@ -215,8 +216,17 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         actions: [
           IconButton(
             icon: const Icon(FeatherIcons.calendar, color: Colors.white),
+            onPressed: () async {
+              await _downloadSchedule();
+            },
+          ),
+          IconButton(
+            icon: const Icon(FeatherIcons.settings, color: Colors.white),
             onPressed: () {
-              _showScheduleDialog();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (c) => const NotificationSettingsPage()),
+              );
             },
           ),
         ],
@@ -327,6 +337,23 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                 
                 const SizedBox(width: 12),
                 
+                // Program thumbnail
+                Container(
+                  width: 56,
+                  height: 56,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: program.thumbnail != null
+                        ? Image.network(program.thumbnail!, fit: BoxFit.cover, errorBuilder: (c,e,s)=>const Icon(Icons.tv, color: Colors.white))
+                        : const Icon(Icons.tv, color: Colors.white),
+                  ),
+                ),
+
                 // Category badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -405,12 +432,16 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                             color: Colors.grey[500],
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            program.viewers,
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 11,
-                              fontFamily: 'Lato',
+                          Flexible(
+                            child: Text(
+                              program.viewers,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 11,
+                                fontFamily: 'Lato',
+                              ),
                             ),
                           ),
                         ],
@@ -479,18 +510,61 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                 // Action buttons
                 Row(
                   children: [
-                    if (program.isLive)
-                      Expanded(
+                    Builder(builder: (context) {
+                      final key = _reminderKeyFor(program);
+                      final isSetting = _isSettingReminder[key] ?? false;
+                      final isReminderSet = _reminderKeys.contains(key);
+
+                      if (program.isLive) {
+                        return Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _watchLive(program),
+                            icon: const Icon(FeatherIcons.play, size: 18),
+                            label: Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: const Text(
+                                  'Watch Live',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _watchLive(program),
-                          icon: const Icon(FeatherIcons.play, size: 18),
-                          label: const Text(
-                            'Watch Live',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          onPressed: isSetting || isReminderSet ? null : () => _setReminder(program),
+                          icon: isSetting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(FeatherIcons.bell, size: 18),
+                          label: Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(isReminderSet ? 'Reminder Set' : 'Set Reminder', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
+                            backgroundColor: isReminderSet ? Colors.amber : const Color(0xFF006833),
+                            foregroundColor: isReminderSet ? Colors.black : Colors.white,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -498,30 +572,11 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                             ),
                           ),
                         ),
-                      )
-                    else
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _setReminder(program),
-                          icon: const Icon(FeatherIcons.bell, size: 18),
-                          label: const Text(
-                            'Set Reminder',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF006833),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    
+                      );
+                    }),
+
                     const SizedBox(width: 12),
-                    
+
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey[700]!),
@@ -578,6 +633,24 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
     }
   }
 
+    Future<void> _downloadSchedule() async {
+      // Fallback 'download' that copies a plain-text schedule to clipboard.
+      final buffer = StringBuffer();
+      buffer.writeln('CoinNewsExtra TV - Schedule');
+      buffer.writeln('');
+      for (final day in scheduleData.keys) {
+        buffer.writeln('--- $day ---');
+        for (final p in scheduleData[day]!) {
+          buffer.writeln('${p.time} - ${p.title} (${p.duration})');
+        }
+        buffer.writeln('');
+      }
+
+      final text = buffer.toString();
+      await Clipboard.setData(ClipboardData(text: text));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Schedule copied to clipboard')));
+    }
+
   void _watchLive(TVProgram program) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -595,53 +668,88 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
     );
   }
 
-  void _setReminder(TVProgram program) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        title: const Row(
-          children: [
-            Icon(FeatherIcons.bell, color: Color(0xFF006833), size: 24),
-            SizedBox(width: 12),
-            Text(
-              'Reminder Set!',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: 'Lato',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'You will be notified 15 minutes before "${program.title}" starts at ${program.time}.',
-          style: TextStyle(
-            color: Colors.grey[300],
-            fontFamily: 'Lato',
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Got it!',
-              style: TextStyle(
-                color: Color(0xFF006833),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  String _reminderKeyFor(TVProgram p) => 'program_reminder_${p.time}_${p.title}';
+
+  Future<void> _loadPersistedReminders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    setState(() {
+      _reminderKeys.clear();
+      for (final k in keys) {
+        if (k.startsWith('program_reminder_')) _reminderKeys.add(k);
+      }
+    });
+  }
+
+  Future<void> _setReminder(TVProgram program) async {
+    // Parse program.time (assumed in format 'HH:MM AM/PM') and compute scheduled datetime for today/tomorrow
+    DateTime now = DateTime.now();
+    try {
+      final parts = program.time.split(' ');
+      final timePart = parts[0]; // '08:00'
+      final ampm = parts.length > 1 ? parts[1] : 'AM';
+      final hm = timePart.split(':');
+      int hour = int.parse(hm[0]);
+      final minute = int.parse(hm[1]);
+      if (ampm.toUpperCase() == 'PM' && hour < 12) hour += 12;
+      if (ampm.toUpperCase() == 'AM' && hour == 12) hour = 0;
+
+      DateTime scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+      if (scheduled.isBefore(now)) {
+        // schedule for tomorrow
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+
+      // notify 15 minutes before
+      final scheduledNotif = scheduled.subtract(const Duration(minutes: 15));
+
+      // Check user preference
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('program_reminders_enabled') ?? true;
+      if (!enabled) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Program reminders are disabled in settings')));
+        return;
+      }
+
+      final key = _reminderKeyFor(program);
+
+      setState(() {
+        _isSettingReminder[key] = true;
+      });
+
+      final id = await NotificationService().scheduleNotificationForDate(
+        title: 'Upcoming: ${program.title}',
+        body: '${program.title} starts at ${program.time}',
+        scheduledDate: scheduledNotif,
+      );
+
+      // Persist a simple flag so UI can reflect reminder set and store id for cancellation
+      await prefs.setBool(key, true);
+      await prefs.setInt('${key}_id', id);
+
+      setState(() {
+        _isSettingReminder.remove(key);
+        _reminderKeys.add(key);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder set for ${program.title}')));
+    } catch (e) {
+      debugPrint('❌ Error scheduling reminder: $e');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to set reminder')));
+    }
   }
 
   void _shareProgram(TVProgram program) {
+    // Copy a program-specific link to clipboard (no descriptive text)
+    final encodedTitle = Uri.encodeComponent(program.title);
+    final encodedTime = Uri.encodeComponent(program.time);
+    final link = 'https://coinnewsextra.com/programs?title=$encodedTitle&time=$encodedTime';
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Program link copied to clipboard.')),
+    );
+    return;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[900],
@@ -755,19 +863,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(FeatherIcons.download, color: Color(0xFF006833)),
-              title: const Text(
-                'Download Schedule',
-                style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Download feature coming soon!')),
-                );
-              },
-            ),
+            // 'Download Schedule' feature intentionally removed to avoid file export and storage permission changes.
             ListTile(
               leading: const Icon(FeatherIcons.settings, color: Color(0xFF006833)),
               title: const Text(
@@ -776,8 +872,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
               ),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settings feature coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (c) => const NotificationSettingsPage()),
                 );
               },
             ),
@@ -817,7 +914,10 @@ class TVProgram {
     required this.duration,
     required this.category,
     this.isLive = false,
+    this.thumbnail,
     required this.host,
     required this.viewers,
   });
+
+  final String? thumbnail;
 }

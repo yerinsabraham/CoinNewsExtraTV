@@ -1,6 +1,7 @@
 class Event {
   final String id;
   final String title;
+  final String? organizerUrl;
   final DateTime date;
   final String location;
   final String description;
@@ -31,6 +32,7 @@ class Event {
     required this.attendeeCount,
     required this.maxAttendees,
     required this.organizer,
+  this.organizerUrl,
     required this.tags,
     required this.speakers,
   });
@@ -51,6 +53,7 @@ class Event {
       'attendeeCount': attendeeCount,
       'maxAttendees': maxAttendees,
       'organizer': organizer,
+      'organizerUrl': organizerUrl,
       'tags': tags,
       'speakers': speakers,
     };
@@ -72,6 +75,7 @@ class Event {
       attendeeCount: json['attendeeCount'] ?? 0,
       maxAttendees: json['maxAttendees'] ?? 0,
       organizer: json['organizer'] ?? '',
+      organizerUrl: json['organizerUrl'] as String?,
       tags: List<String>.from(json['tags'] ?? []),
       speakers: List<Map<String, String>>.from(
         (json['speakers'] ?? []).map((speaker) => Map<String, String>.from(speaker)),

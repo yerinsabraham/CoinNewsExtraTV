@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:feather_icons/feather_icons.dart';
 import '../services/user_balance_service.dart';
 import '../data/video_data.dart';
@@ -18,6 +20,27 @@ class WatchVideosPage extends StatefulWidget {
 class _WatchVideosPageState extends State<WatchVideosPage> {
   final List<VideoModel> videos = VideoData.getAllVideos();
   final Set<String> watchedVideos = <String>{};
+  bool _loadingWatchedFlags = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWatchedFlags();
+  }
+
+  Future<void> _loadWatchedFlags() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final v in videos) {
+        final claimed = prefs.getBool('video_reward_claimed_${v.id}') ?? false;
+        if (claimed) watchedVideos.add(v.id);
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading watched flags: $e');
+    } finally {
+      if (mounted) setState(() => _loadingWatchedFlags = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +127,7 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                             ),
                           ),
                           Text(
-                            'Watch at least 70% or 30 seconds to claim rewards',
+                            'Watch at least 25% of a video to unlock the claim button',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.8),
                               fontSize: 14,
@@ -283,6 +306,33 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                                       ],
                                     ),
                                   ),
+                                  const SizedBox(height: 8),
+                                  // List-level actions (Share)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          final url = video.url ?? 'https://www.youtube.com/watch?v=${video.youtubeId}';
+                                          Share.share('Watch "${video.title}" on CoinNewsExtra: $url');
+                                        },
+                                        child: Row(
+                                          children: const [
+                                            Icon(Icons.share_outlined, color: Colors.white, size: 18),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Share',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontFamily: 'Lato',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -421,19 +471,45 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   
   // Reward tracking
   Timer? _watchTimer;
-  int _watchedSeconds = 0;
   bool _rewardClaimed = false;
   bool _isClaimingReward = false;
   
   // Watch progress tracking
   Duration _videoDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
+  int _lastPersistedSecond = -1;
 
   @override
   void initState() {
     super.initState();
     _initializeVideoPlayer();
     _startWatchTracking();
+    _loadSavedState();
+  }
+
+  Future<void> _loadSavedState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = widget.video.id;
+      final posMs = prefs.getInt('video_last_position_$id') ?? 0;
+      final claimed = prefs.getBool('video_reward_claimed_$id') ?? false;
+      setState(() {
+        _rewardClaimed = claimed;
+      });
+
+      if (posMs > 0) {
+        final pos = Duration(milliseconds: posMs);
+        Future.delayed(const Duration(milliseconds: 300), () {
+          try {
+            _controller.seekTo(pos);
+          } catch (e) {
+            debugPrint('❌ Error seeking to last position: $e');
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading saved video state: $e');
+    }
   }
 
   void _initializeVideoPlayer() {
@@ -474,8 +550,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     _watchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_controller.value.isPlaying) {
         setState(() {
-          _watchedSeconds++;
+          _currentPosition = _controller.value.position;
         });
+        // Persist position every 5 seconds (avoid repeated writes)
+        final sec = _currentPosition.inSeconds;
+        if (sec % 5 == 0 && sec != _lastPersistedSecond) {
+          _lastPersistedSecond = sec;
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setInt('video_last_position_${widget.video.id}', _controller.value.position.inMilliseconds);
+          });
+        }
       }
     });
   }
@@ -483,6 +567,17 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void dispose() {
     _controller.removeListener(_onPlayerStateChanged);
+    // Save current position on dispose
+    try {
+      final id = widget.video.id;
+      SharedPreferences.getInstance().then((prefs) {
+        // If reward has been claimed, save full duration as last position to mark completed
+        final saveMs = _rewardClaimed ? _videoDuration.inMilliseconds : _controller.value.position.inMilliseconds;
+        prefs.setInt('video_last_position_$id', saveMs);
+      });
+    } catch (e) {
+      debugPrint('❌ Error saving position on dispose: $e');
+    }
     _controller.dispose();
     _watchTimer?.cancel();
     super.dispose();
@@ -491,18 +586,15 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<void> _claimReward() async {
     if (_rewardClaimed || _isClaimingReward) return;
 
-    // Check if watched enough (at least 30 seconds OR 70% of video)
-    final minWatchTime = 30;
-    final requiredWatchPercentage = 0.7;
-    final actualWatchPercentage = _videoDuration.inSeconds > 0 
-        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+    // Check if watched enough (25% of video)
+    final requiredWatchPercentage = 0.25;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
-
-    // Must meet 30 second minimum OR 70% watch requirement
-    if (_watchedSeconds < minWatchTime && actualWatchPercentage < requiredWatchPercentage) {
+    if (actualWatchPercentage < requiredWatchPercentage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Watch at least 30 seconds or 70% of the video to claim your reward!'),
+          content: Text('Watch at least 25% of the video to claim your reward!'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -522,6 +614,15 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         _rewardClaimed = true;
       });
 
+        // Persist reward claimed flag
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('video_reward_claimed_${widget.video.id}', true);
+            // Also persist final watched position as full duration so it's not claimable again
+            await prefs.setInt('video_last_position_${widget.video.id}', _videoDuration.inMilliseconds);
+        } catch (e) {
+          debugPrint('❌ Error saving reward claimed flag: $e');
+        }
       // Notify parent widget
       widget.onRewardClaimed?.call();
 
@@ -659,9 +760,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                               icon: Icons.share_outlined,
                               label: 'Share',
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Share feature coming soon!')),
-                                );
+                                final url = widget.video.url ?? 'https://www.youtube.com/watch?v=${widget.video.youtubeId}';
+                                Share.share('Watch "${widget.video.title}" on CoinNewsExtra: $url');
                               },
                             ),
                           ],
@@ -887,28 +987,21 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   // Check if reward can be claimed
   bool _canClaimReward() {
     if (_rewardClaimed) return false;
-    
-    final minWatchTime = 30; // seconds
-    final requiredWatchPercentage = 0.7;
-    final actualWatchPercentage = _videoDuration.inSeconds > 0 
-        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+    final requiredWatchPercentage = 0.25;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
-
-    return _watchedSeconds >= minWatchTime || actualWatchPercentage >= requiredWatchPercentage;
+    return actualWatchPercentage >= requiredWatchPercentage;
   }
 
   // Build watch progress indicator
   Widget _buildWatchProgress() {
-    final minWatchTime = 30;
-    final requiredWatchPercentage = 0.7;
-    final actualWatchPercentage = _videoDuration.inSeconds > 0 
-        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+    final requiredWatchPercentage = 0.25;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
-
-    // Use the higher of time-based or percentage-based progress
-    final timeProgress = (_watchedSeconds / minWatchTime).clamp(0.0, 1.0);
     final percentageProgress = actualWatchPercentage / requiredWatchPercentage;
-    final progress = timeProgress > percentageProgress ? timeProgress : percentageProgress;
+    final progress = percentageProgress.clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -948,7 +1041,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         Text(
           progress >= 1.0 
               ? 'Ready to claim your reward!' 
-              : 'Watch ${(minWatchTime - _watchedSeconds).clamp(0, minWatchTime)}s more or ${((requiredWatchPercentage - actualWatchPercentage) * 100).toInt()}% more',
+              : 'Watch ${((requiredWatchPercentage - actualWatchPercentage) * 100).toInt()}% more',
           style: TextStyle(
             color: progress >= 1.0 ? const Color(0xFF006833) : Colors.grey[400],
             fontSize: 12,
