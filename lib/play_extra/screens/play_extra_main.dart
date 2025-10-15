@@ -108,6 +108,17 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
     super.dispose();
   }
 
+  // Format earnings according to Play Extra spec:
+  // - If amount >= 1000 -> show as '2K CNE' (no decimals)
+  // - Otherwise show integer value like '850 CNE'
+  String formatEarnings(double amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).floor()}K CNE';
+    } else {
+      return '${amount.toInt()} CNE';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -148,16 +159,17 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
             ],
           ),
           actions: [
-            // Show the user's actual CNE token balance in the Play Extra app bar
+            // Show the user's actual CNE token earnings/balance in the Play Extra app bar
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
               child: Consumer<UserBalanceService>(
                 builder: (context, balanceService, child) {
-                  // Ensure the balance label never overflows the app bar.
-                  // Use FittedBox inside a ConstrainedBox so very large numbers scale down,
-                  // and TextOverflow.ellipsis as a safe fallback.
+                  final balance = balanceService.availableBalance;
+                  final label = formatEarnings(balance);
+
+                  // Keep the container compact and auto-fit to content. No money icon.
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF00B359), Color(0xFF007A3D)],
@@ -165,31 +177,21 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 160),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.monetization_on, color: Colors.white, size: 16),
-                          const SizedBox(width: 6),
-                          // Use Flexible + FittedBox to avoid overflow on small devices
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                // Force CNE suffix and formatted number only (no currency symbol)
-                                '${balanceService.getFormattedBalance()} CNE',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
+                      // Allow it to size to content but limit extreme width
+                      constraints: const BoxConstraints(minWidth: 40, maxWidth: 120),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   );
