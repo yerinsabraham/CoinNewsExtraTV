@@ -5,6 +5,8 @@ import '../services/user_balance_service.dart';
 import '../services/openai_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class AIMessage {
   final String id;
@@ -65,8 +67,9 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
       curve: Curves.easeInOut,
     ));
     
-    // Load persisted messages from Firestore. If none exist, show the welcome
-    // message. Attempt anonymous sign-in if the user is not authenticated.
+    // Load persisted messages from Firestore. If none exist, fall back to
+    // locally cached messages (SharedPreferences). Attempt anonymous
+    // sign-in if the user is not authenticated.
     _loadMessages();
   }
 
@@ -123,7 +126,8 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
     });
 
   // Persist the user message to Firestore (best-effort)
-  _saveMessageToFirestore(userAIMessage);
+  await _saveMessageToFirestore(userAIMessage);
+  await _saveMessagesLocally();
 
     _messageController.clear();
     
@@ -149,7 +153,15 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
         // Use OpenAIService defaults: trusted sources are included and replies
         // are concise-but-helpful. No user-facing toggles/options are shown.
         aiResponse = await _openAIService.sendMessage(userMessage);
-      } catch (_) {
+        // If we get the built-in error text, treat as disconnected
+        if (aiResponse.contains("I'm having trouble connecting") || aiResponse.toLowerCase().contains('authentication required')) {
+          _isConnected = false;
+        } else {
+          _isConnected = true;
+        }
+      } catch (e) {
+        debugPrint('OpenAI service call failed: $e');
+        _isConnected = false;
         aiResponse = await _generateAIResponse(userMessage);
       }
       
@@ -165,8 +177,9 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
         _messages.add(assistantMessage);
       });
 
-  // Persist assistant reply
-  _saveMessageToFirestore(assistantMessage);
+  // Persist assistant reply (best-effort) and update local cache
+  await _saveMessageToFirestore(assistantMessage);
+  await _saveMessagesLocally();
 
       // Award tokens for AI interaction
       if (mounted) {
@@ -190,6 +203,7 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
           isFromUser: false,
           timestamp: DateTime.now(),
         ));
+        _isConnected = false;
       });
     } finally {
       setState(() {
@@ -252,6 +266,9 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
         }).length;
       });
 
+      // Also cache these messages locally for offline fallback
+      await _saveMessagesLocally();
+
       if (_messages.isEmpty) {
         setState(() {
           _addWelcomeMessage();
@@ -259,6 +276,8 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
       }
     } catch (e) {
       debugPrint('Failed to load AI messages: $e');
+      // Try to load local cache before falling back to welcome message
+      await _loadMessagesLocally();
       // Show welcome message if loading fails
       if (_messages.isEmpty) _addWelcomeMessage();
     }
@@ -285,8 +304,72 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
         'isFromUser': message.isFromUser,
         'timestamp': FieldValue.serverTimestamp(),
       });
+      // after successful write, ensure local cache is in sync
+      await _saveMessagesLocally();
     } catch (e) {
       debugPrint('Error saving AI message: $e');
+      // Best-effort: still save locally so message is not lost
+      await _saveMessagesLocally();
+    }
+  }
+
+  // Local persistence helpers using SharedPreferences as a fallback
+  String _localKeyForCurrentUser(String uid) => 'extra_ai_messages_$uid';
+
+  Future<void> _saveMessagesLocally() async {
+    try {
+      var user = _auth.currentUser;
+      if (user == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      final list = _messages.map((m) => {
+            'id': m.id,
+            'content': m.content,
+            'isFromUser': m.isFromUser,
+            'timestamp': m.timestamp.toIso8601String(),
+          }).toList();
+      await prefs.setString(_localKeyForCurrentUser(user.uid), jsonEncode(list));
+    } catch (e) {
+      debugPrint('Failed to save messages locally: $e');
+    }
+  }
+
+  Future<void> _loadMessagesLocally() async {
+    try {
+      var user = _auth.currentUser;
+      if (user == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_localKeyForCurrentUser(user.uid));
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      final loaded = <AIMessage>[];
+      for (final item in decoded) {
+        try {
+          final map = item as Map<String, dynamic>;
+          loaded.add(AIMessage(
+            id: map['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            content: (map['content'] ?? '').toString(),
+            isFromUser: (map['isFromUser'] ?? false) as bool,
+            timestamp: DateTime.parse(map['timestamp'] ?? DateTime.now().toIso8601String()),
+          ));
+        } catch (e) {
+          debugPrint('Skipping malformed local message: $e');
+        }
+      }
+      if (loaded.isNotEmpty) {
+        setState(() {
+          _messages.clear();
+          _messages.addAll(loaded);
+          final today = DateTime.now();
+          _questionsAsked = _messages.where((m) {
+            return m.isFromUser &&
+                m.timestamp.year == today.year &&
+                m.timestamp.month == today.month &&
+                m.timestamp.day == today.day;
+          }).length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load messages locally: $e');
     }
   }
 
