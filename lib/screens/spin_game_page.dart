@@ -2,6 +2,7 @@
 import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/user_balance_service.dart';
 import '../widgets/ads_carousel.dart';
 
@@ -57,8 +58,27 @@ class _SpinGamePageState extends State<SpinGamePage>
   }
 
   void _loadSpinData() {
-    setState(() {
-      _dailySpinsUsed = 0;
+    // Load persisted spin usage and reset time
+    SharedPreferences.getInstance().then((prefs) {
+      final used = prefs.getInt('spin_daily_used') ?? 0;
+      final resetMs = prefs.getInt('spin_daily_reset_ms') ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      if (resetMs > 0 && nowMs >= resetMs) {
+        // Reset window has passed; clear usage
+        prefs.remove('spin_daily_used');
+        prefs.remove('spin_daily_reset_ms');
+        setState(() {
+          _dailySpinsUsed = 0;
+        });
+      } else {
+        setState(() {
+          _dailySpinsUsed = used;
+        });
+      }
+    }).catchError((e) {
+      debugPrint('❌ Error loading spin data: $e');
+      setState(() => _dailySpinsUsed = 0);
     });
   }
 
@@ -91,6 +111,18 @@ class _SpinGamePageState extends State<SpinGamePage>
       _isSpinning = true;
       _dailySpinsUsed++;
     });
+
+    // Persist updated usage and if limit reached, set reset timestamp
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('spin_daily_used', _dailySpinsUsed);
+      if (_dailySpinsUsed >= _maxDailySpins) {
+        final resetMs = DateTime.now().add(const Duration(hours: 24)).millisecondsSinceEpoch;
+        await prefs.setInt('spin_daily_reset_ms', resetMs);
+      }
+    } catch (e) {
+      debugPrint('❌ Error persisting spin usage: $e');
+    }
 
     try {
       final random = Random();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/external_link_helper.dart';
 import '../models/event.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -567,11 +568,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
               ? widget.event.organizerUrl!
               : defaultUrl;
 
-          final uri = Uri.tryParse(urlString);
-          if (uri != null && await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-            return;
-          }
+          final launched = await launchUrlWithDisclaimer(context, urlString);
+          if (launched) return;
 
           // Fallback: toggle registration locally
           setState(() {

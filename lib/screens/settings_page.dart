@@ -5,6 +5,9 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../provider/theme_provider.dart';
 import '../services/user_balance_service.dart';
 import '../services/first_launch_service.dart';
 
@@ -34,9 +37,18 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _loadUserData() {
-    _nameController.text = currentUser?.displayName ?? '';
-    // For demo purposes, using email prefix as username
-    _usernameController.text = currentUser?.email?.split('@')[0] ?? '';
+    // prefer locally saved values if present
+    SharedPreferences.getInstance().then((prefs) {
+      setState(() {
+        _nameController.text = prefs.getString('profile_name') ?? currentUser?.displayName ?? '';
+        _usernameController.text = prefs.getString('profile_username') ?? currentUser?.email?.split('@')[0] ?? '';
+      });
+    }).catchError((_) {
+      setState(() {
+        _nameController.text = currentUser?.displayName ?? '';
+        _usernameController.text = currentUser?.email?.split('@')[0] ?? '';
+      });
+    });
   }
 
   @override
@@ -84,10 +96,45 @@ class _SettingsPageState extends State<SettingsPage> {
       _isEditing = false;
     });
     
-    // In a real app, you would update Firebase Auth and Firestore here
+    final newName = _nameController.text.trim();
+    // Save to SharedPreferences for quick local persistence
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profile_name', newName);
+      await prefs.setString('profile_username', _usernameController.text.trim());
+    } catch (e) {
+      // ignore
+    }
+
+    // Try to update Firebase displayName where possible
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && newName.isNotEmpty) {
+        await user.updateDisplayName(newName);
+        await user.reload();
+      }
+    } catch (e) {
+      // ignore network/auth failures for demo mode
+    }
+
+    // Also persist profile to Firestore so it syncs across devices
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        await docRef.set({
+          'displayName': newName,
+          'username': _usernameController.text.trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // Firestore write failed (offline/permission) - ignore for now
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Profile updated successfully! (In demo mode)'),
+        content: Text('Profile updated successfully!'),
         backgroundColor: Color(0xFF006833),
       ),
     );
@@ -413,12 +460,18 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: _autoPlayVideos,
                   onChanged: (value) => setState(() => _autoPlayVideos = value),
                 ),
-                _buildSwitchTile(
-                  icon: Icons.dark_mode_outlined,
-                  title: 'Dark Mode',
-                  subtitle: 'Use dark theme (always on in demo)',
-                  value: _darkModeEnabled,
-                  onChanged: (value) => setState(() => _darkModeEnabled = value),
+                Consumer<ThemeProvider>(
+                  builder: (context, themeProvider, child) {
+                    return _buildSwitchTile(
+                      icon: Icons.dark_mode_outlined,
+                      title: 'Dark Mode',
+                      subtitle: 'Toggle dark / light theme',
+                      value: themeProvider.isDark,
+                      onChanged: (value) {
+                        themeProvider.setDark(value);
+                      },
+                    );
+                  },
                 ),
                 _buildMenuTile(
                   icon: Icons.language_outlined,

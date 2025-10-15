@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/support_service.dart';
 
 class EnhancedCallScreen extends StatefulWidget {
@@ -33,6 +38,9 @@ class _EnhancedCallScreenState extends State<EnhancedCallScreen>
   Duration _callDuration = Duration.zero;
   Timer? _callTimer;
   Timer? _timeoutTimer;
+  // Agora engine (optional) - initialized when channel/token provided
+  late RtcEngine _engine;
+  bool _agoraInitialized = false;
   late AnimationController _pulseController;
   late AnimationController _connectingController;
   late Animation<double> _pulseAnimation;
@@ -46,6 +54,140 @@ class _EnhancedCallScreenState extends State<EnhancedCallScreen>
     super.initState();
     _setupAnimations();
     _initializeCall();
+    // If channel and token are provided up-front, initialize Agora
+    if (widget.channelName != null) {
+      if (widget.token != null) {
+        _initAgora();
+      } else {
+        // Try to fetch token from serverless endpoint (if available)
+        _fetchAgoraTokenAndInit();
+      }
+    }
+  }
+
+  static const String _agoraAppId = "YOUR_AGORA_APP_ID"; // replace with real app id
+
+  Future<void> _initAgora() async {
+    try {
+      await [Permission.microphone].request();
+
+      _engine = createAgoraRtcEngine();
+      await _engine.initialize(RtcEngineContext(
+        appId: _agoraAppId,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ));
+
+      _engine.registerEventHandler(RtcEngineEventHandler(
+        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+          setState(() {
+            _isConnected = true;
+            _agoraInitialized = true;
+          });
+          _startCallTimer();
+        },
+        onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+          // remote joined
+        },
+        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
+          // remote left
+        },
+      ));
+
+      await _engine.enableAudio();
+      await _engine.setDefaultAudioRouteToSpeakerphone(true);
+
+      if (widget.token != null && widget.channelName != null) {
+        await _engine.joinChannel(
+          token: widget.token!,
+          channelId: widget.channelName!,
+          uid: 0,
+          options: const ChannelMediaOptions(),
+        );
+      }
+    } catch (e) {
+      // silently ignore agora init failures (UI still works in simulated mode)
+      print('Agora init error: $e');
+    }
+  }
+
+  // Replace with your deployed functions URL if different
+  static const String _generateTokenUrl = 'https://us-central1-coinnewsextratv-9c75a.cloudfunctions.net/generateAgoraToken';
+
+  Future<void> _fetchAgoraTokenAndInit() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return; // can't fetch token if not authenticated
+
+      final idToken = await user.getIdToken();
+
+      final resp = await http.post(
+        Uri.parse(_generateTokenUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'channel': widget.channelName,
+          'uid': 0,
+          'role': 'publisher',
+          'ttl': 3600,
+        }),
+      ).timeout(const Duration(seconds: 8));
+
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        final token = data['token'] as String?;
+        final returnedAppId = data['appId'] as String?;
+        if (token != null && mounted) {
+          final fetchedToken = token;
+          // initialize agora with the fetched token and server-provided appId if present
+          await _initAgoraWithToken(fetchedToken, returnedAppId);
+        }
+      } else {
+        print('Failed to fetch Agora token: ${resp.statusCode} ${resp.body}');
+      }
+    } catch (e) {
+      print('Error fetching Agora token: $e');
+    }
+  }
+
+  Future<void> _initAgoraWithToken(String token, [String? appIdOverride]) async {
+    try {
+      await [Permission.microphone].request();
+
+      _engine = createAgoraRtcEngine();
+      final appIdToUse = (appIdOverride != null && appIdOverride.isNotEmpty) ? appIdOverride : _agoraAppId;
+      await _engine.initialize(RtcEngineContext(
+        appId: appIdToUse,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ));
+
+      _engine.registerEventHandler(RtcEngineEventHandler(
+        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+          setState(() {
+            _isConnected = true;
+            _agoraInitialized = true;
+          });
+          _startCallTimer();
+        },
+        onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {},
+        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {},
+      ));
+
+      await _engine.enableAudio();
+      await _engine.setDefaultAudioRouteToSpeakerphone(true);
+
+      if (widget.channelName != null) {
+        await _engine.joinChannel(
+          token: token,
+          channelId: widget.channelName!,
+          uid: 0,
+          options: const ChannelMediaOptions(),
+        );
+      }
+    } catch (e) {
+      print('Agora init error with fetched token: $e');
+    }
   }
 
   void _setupAnimations() {
@@ -143,14 +285,30 @@ class _EnhancedCallScreenState extends State<EnhancedCallScreen>
     setState(() {
       _muted = !_muted;
     });
-    // TODO: Implement actual muting with Agora
+    try {
+      if (_agoraInitialized) {
+        await _engine.muteLocalAudioStream(_muted);
+      } else {
+        // no-op: simulated mute state only
+      }
+    } catch (e) {
+      print('Error toggling mute: $e');
+    }
   }
 
   Future<void> _toggleSpeaker() async {
     setState(() {
       _speakerEnabled = !_speakerEnabled;
     });
-    // TODO: Implement speaker toggle with Agora
+    try {
+      if (_agoraInitialized) {
+        await _engine.setEnableSpeakerphone(_speakerEnabled);
+      } else {
+        // no-op: simulated speaker toggle only
+      }
+    } catch (e) {
+      print('Error toggling speaker: $e');
+    }
   }
 
   Future<void> _endCall() async {
@@ -178,6 +336,12 @@ class _EnhancedCallScreenState extends State<EnhancedCallScreen>
     _callTimer?.cancel();
     _pulseController.dispose();
     _connectingController.dispose();
+    if (_agoraInitialized) {
+      try {
+        _engine.leaveChannel();
+        _engine.release();
+      } catch (_) {}
+    }
     super.dispose();
   }
 

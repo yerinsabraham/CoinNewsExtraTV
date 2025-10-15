@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/external_link_helper.dart';
 import '../services/user_balance_service.dart';
 import '../data/video_data.dart';
 import '../models/video_model.dart';
@@ -182,11 +183,8 @@ class _YoutubePageState extends State<YoutubePage> {
       final String videoUrl = video.url ?? video.youtubeWatchUrl;
       final Uri youtubeUrl = Uri.parse(videoUrl);
       
-      if (await canLaunchUrl(youtubeUrl)) {
-        await launchUrl(
-          youtubeUrl,
-          mode: LaunchMode.externalApplication,
-        );
+      final launched = await launchUrlWithDisclaimer(context, videoUrl);
+      if (launched) {
         
         // Mark as watched and give reward
         setState(() {

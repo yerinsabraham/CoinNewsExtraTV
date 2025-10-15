@@ -471,13 +471,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   
   // Reward tracking
   Timer? _watchTimer;
-  int _watchedSeconds = 0;
   bool _rewardClaimed = false;
   bool _isClaimingReward = false;
   
   // Watch progress tracking
   Duration _videoDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
+  int _lastPersistedSecond = -1;
 
   @override
   void initState() {
@@ -550,11 +550,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     _watchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_controller.value.isPlaying) {
         setState(() {
-          _watchedSeconds++;
           _currentPosition = _controller.value.position;
         });
-        // Persist position every 5 seconds
-        if (_watchedSeconds % 5 == 0) {
+        // Persist position every 5 seconds (avoid repeated writes)
+        final sec = _currentPosition.inSeconds;
+        if (sec % 5 == 0 && sec != _lastPersistedSecond) {
+          _lastPersistedSecond = sec;
           SharedPreferences.getInstance().then((prefs) {
             prefs.setInt('video_last_position_${widget.video.id}', _controller.value.position.inMilliseconds);
           });
@@ -585,17 +586,15 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<void> _claimReward() async {
     if (_rewardClaimed || _isClaimingReward) return;
 
-    // Check if watched enough (25% of video OR at least 30 seconds)
-    final minWatchTime = 30;
+    // Check if watched enough (25% of video)
     final requiredWatchPercentage = 0.25;
-    final actualWatchPercentage = _videoDuration.inSeconds > 0 
-        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+    final actualWatchPercentage = _videoDuration.inSeconds > 0
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
-    // Must meet 25% or min watch time
-    if (actualWatchPercentage < requiredWatchPercentage && _watchedSeconds < minWatchTime) {
+    if (actualWatchPercentage < requiredWatchPercentage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Watch at least 25% of the video or 30 seconds to claim your reward!'),
+          content: Text('Watch at least 25% of the video to claim your reward!'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -988,28 +987,21 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   // Check if reward can be claimed
   bool _canClaimReward() {
     if (_rewardClaimed) return false;
-    
-    final minWatchTime = 30; // seconds
     final requiredWatchPercentage = 0.25;
-    final actualWatchPercentage = _videoDuration.inSeconds > 0 
-        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+    final actualWatchPercentage = _videoDuration.inSeconds > 0
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
-
-    return _watchedSeconds >= minWatchTime || actualWatchPercentage >= requiredWatchPercentage;
+    return actualWatchPercentage >= requiredWatchPercentage;
   }
 
   // Build watch progress indicator
   Widget _buildWatchProgress() {
-  final minWatchTime = 30;
-  final requiredWatchPercentage = 0.25;
-    final actualWatchPercentage = _videoDuration.inSeconds > 0 
-        ? _currentPosition.inSeconds / _videoDuration.inSeconds 
+    final requiredWatchPercentage = 0.25;
+    final actualWatchPercentage = _videoDuration.inSeconds > 0
+        ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
-
-    // Use the higher of time-based or percentage-based progress
-    final timeProgress = (_watchedSeconds / minWatchTime).clamp(0.0, 1.0);
     final percentageProgress = actualWatchPercentage / requiredWatchPercentage;
-    final progress = timeProgress > percentageProgress ? timeProgress : percentageProgress;
+    final progress = percentageProgress.clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,7 +1041,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         Text(
           progress >= 1.0 
               ? 'Ready to claim your reward!' 
-              : 'Watch ${(minWatchTime - _watchedSeconds).clamp(0, minWatchTime)}s more or ${((requiredWatchPercentage - actualWatchPercentage) * 100).toInt()}% more',
+              : 'Watch ${((requiredWatchPercentage - actualWatchPercentage) * 100).toInt()}% more',
           style: TextStyle(
             color: progress >= 1.0 ? const Color(0xFF006833) : Colors.grey[400],
             fontSize: 12,

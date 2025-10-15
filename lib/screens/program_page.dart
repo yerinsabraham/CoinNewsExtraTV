@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
-import 'dart:ui' as ui;
-import 'dart:typed_data';
-import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_settings_page.dart';
@@ -20,7 +17,7 @@ class ProgramPage extends StatefulWidget {
 
 class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin {
   late TabController _tabController;
-  final GlobalKey _scheduleKey = GlobalKey();
+  // schedule capture/export removed to avoid PDF/download and storage permission issues
   final Set<String> _reminderKeys = <String>{};
   final Map<String, bool> _isSettingReminder = {};
 
@@ -47,16 +44,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         host: 'Michael Rodriguez',
         viewers: '18.2K',
       ),
-      TVProgram(
-        time: '10:30 AM',
-        title: 'DeFi Weekly Roundup',
-        description: 'Explore the latest developments in decentralized finance protocols, yield farming, and liquidity mining.',
-        duration: '60 min',
-        category: 'DeFi',
-        isLive: true,
-        host: 'Alex Thompson',
-        viewers: '25.7K',
-      ),
+     
       TVProgram(
         time: '12:00 PM',
         title: 'Crypto Lunch & Learn',
@@ -214,7 +202,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false),
         ),
         title: const Text(
           'TV Programs',
@@ -228,8 +216,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         actions: [
           IconButton(
             icon: const Icon(FeatherIcons.calendar, color: Colors.white),
-            onPressed: () {
-              _showScheduleDialog();
+            onPressed: () async {
+              await _downloadSchedule();
             },
           ),
           IconButton(
@@ -281,16 +269,13 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
   Widget _buildScheduleList(String day) {
     final programs = scheduleData[day] ?? [];
     
-    return RepaintBoundary(
-      key: _scheduleKey,
-      child: ListView.builder(
+    return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: programs.length,
       itemBuilder: (context, index) {
         final program = programs[index];
         return _buildProgramCard(program);
       },
-    ),
     );
   }
 
@@ -648,6 +633,24 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
     }
   }
 
+    Future<void> _downloadSchedule() async {
+      // Fallback 'download' that copies a plain-text schedule to clipboard.
+      final buffer = StringBuffer();
+      buffer.writeln('CoinNewsExtra TV - Schedule');
+      buffer.writeln('');
+      for (final day in scheduleData.keys) {
+        buffer.writeln('--- $day ---');
+        for (final p in scheduleData[day]!) {
+          buffer.writeln('${p.time} - ${p.title} (${p.duration})');
+        }
+        buffer.writeln('');
+      }
+
+      final text = buffer.toString();
+      await Clipboard.setData(ClipboardData(text: text));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Schedule copied to clipboard')));
+    }
+
   void _watchLive(TVProgram program) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -737,11 +740,13 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
   }
 
   void _shareProgram(TVProgram program) {
-    // Copy a simple share text to clipboard and show a confirmation
-    final shareText = 'Check out "${program.title}" on CoinNewsExtra TV at ${program.time}';
-    Clipboard.setData(ClipboardData(text: shareText));
+    // Copy a program-specific link to clipboard (no descriptive text)
+    final encodedTitle = Uri.encodeComponent(program.title);
+    final encodedTime = Uri.encodeComponent(program.time);
+    final link = 'https://coinnewsextra.com/programs?title=$encodedTitle&time=$encodedTime';
+    Clipboard.setData(ClipboardData(text: link));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Program details copied to clipboard. Share it anywhere!')),
+      const SnackBar(content: Text('Program link copied to clipboard.')),
     );
     return;
 
@@ -858,32 +863,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(FeatherIcons.download, color: Color(0xFF006833)),
-              title: const Text(
-                'Download Schedule',
-                style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
-              ),
-              onTap: () async {
-                Navigator.pop(context);
-                try {
-                  final boundary = _scheduleKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-                  if (boundary == null) throw Exception('Unable to capture schedule');
-                  final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-                  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-                  final pngBytes = byteData!.buffer.asUint8List();
-
-                  final tempDir = Directory.systemTemp;
-                  final file = File('${tempDir.path}/schedule_${DateTime.now().millisecondsSinceEpoch}.png');
-                  await file.writeAsBytes(pngBytes);
-
-                  await Share.shareXFiles([XFile(file.path)], text: 'CoinNewsExtra TV Schedule');
-                } catch (e) {
-                  debugPrint('❌ Error exporting schedule: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to export schedule')));
-                }
-              },
-            ),
+            // 'Download Schedule' feature intentionally removed to avoid file export and storage permission changes.
             ListTile(
               leading: const Icon(FeatherIcons.settings, color: Color(0xFF006833)),
               title: const Text(
@@ -892,8 +872,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
               ),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settings feature coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (c) => const NotificationSettingsPage()),
                 );
               },
             ),

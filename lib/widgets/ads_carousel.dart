@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/external_link_helper.dart';
 import 'dart:async';
 import '../data/video_data.dart';
 
@@ -59,16 +60,7 @@ class _AdsCarouselState extends State<AdsCarousel> {
       return;
     }
 
-    final Uri url = Uri.parse(urlString);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch URL')),
-        );
-      }
-    }
+    await launchUrlWithDisclaimer(context, urlString);
   }
 
   @override

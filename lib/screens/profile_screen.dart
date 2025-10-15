@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/auth_service.dart';
 import '../services/user_balance_service.dart';
 import '../provider/admin_provider.dart';
@@ -21,6 +24,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
+  String? _displayName;
 
   @override
   void initState() {
@@ -29,6 +33,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final adminProvider = Provider.of<AdminProvider>(context, listen: false);
       adminProvider.initializeAdminStatus();
     });
+    _loadPersistedProfile();
+    _ensureReferralCode();
+  }
+
+  Future<void> _ensureReferralCode() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await docRef.get();
+      if (snap.exists) {
+        final data = snap.data();
+        final existing = data?['referralCode'] as String?;
+        if (existing != null && existing.isNotEmpty) return;
+      }
+
+      // Generate deterministic short code based on uid
+      final code = _generateReferralCode(user.uid);
+
+      await docRef.set({'referralCode': code}, SetOptions(merge: true));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  String _generateReferralCode(String uid) {
+    // Simple base62-encode of a numeric hash of the UID to get a short code
+    final hash = uid.codeUnits.fold<int>(0, (p, c) => (p * 31 + c) & 0x7fffffff);
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    var val = hash == 0 ? 1 : hash;
+    final buffer = StringBuffer();
+    while (buffer.length < 6) {
+      buffer.write(alphabet[val % alphabet.length]);
+      val = val ~/ alphabet.length;
+    }
+    return 'CNE${buffer.toString().toUpperCase()}';
+  }
+
+  Future<void> _shareReferral() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      String code = '';
+      if (doc.exists) {
+        code = (doc.data()?['referralCode'] as String?) ?? '';
+      }
+      if (code.isEmpty) {
+        code = _generateReferralCode(user.uid);
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'referralCode': code}, SetOptions(merge: true));
+      }
+
+      final link = 'https://coinnewsextra.app/ref?code=${Uri.encodeComponent(code)}';
+      await Share.share('Join CoinNewsExtra and earn rewards! Use my referral code $code or tap: $link');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to share referral: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _loadPersistedProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Try Firestore first when authenticated
+      String? nameFromServer;
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          if (snap.exists) {
+            final data = snap.data();
+            if (data != null && data['displayName'] is String) {
+              nameFromServer = (data['displayName'] as String).trim();
+            }
+            // Persist server values to prefs for offline use
+            if (data != null && data['displayName'] is String) {
+              await prefs.setString('profile_name', data['displayName'] as String);
+            }
+            if (data != null && data['username'] is String) {
+              await prefs.setString('profile_username', data['username'] as String);
+            }
+          }
+        }
+      } catch (_) {
+        // ignore Firestore errors and fall back to prefs
+      }
+
+      final saved = prefs.getString('profile_name');
+      if (nameFromServer != null && nameFromServer.isNotEmpty) {
+        setState(() {
+          _displayName = nameFromServer;
+        });
+      } else if (saved != null && saved.isNotEmpty) {
+        setState(() {
+          _displayName = saved;
+        });
+      } else {
+        setState(() {
+          _displayName = currentUser?.displayName;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _displayName = currentUser?.displayName;
+      });
+    }
   }
 
   void _signOut() async {
@@ -489,6 +603,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // compute avatar initial and displayed name
+    final String avatarInitial = (_displayName != null && _displayName!.isNotEmpty)
+        ? _displayName![0].toUpperCase()
+        : (currentUser?.displayName != null && currentUser!.displayName!.isNotEmpty)
+            ? currentUser!.displayName![0].toUpperCase()
+            : (currentUser?.email != null && currentUser!.email!.isNotEmpty)
+                ? currentUser!.email![0].toUpperCase()
+                : 'U';
+
+    final String displayedNameLocal = _displayName ?? currentUser?.displayName ?? 'Anonymous User';
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -529,20 +654,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: const Color(0xFF006833),
-                    backgroundImage: currentUser?.photoURL != null 
-                        ? NetworkImage(currentUser!.photoURL!) 
+                    backgroundImage: currentUser?.photoURL != null
+                        ? NetworkImage(currentUser!.photoURL!)
                         : null,
                     child: currentUser?.photoURL == null
                         ? Text(
-                            currentUser?.displayName?.isNotEmpty == true 
-                                ? currentUser!.displayName![0].toUpperCase()
-                                : currentUser?.email?.isNotEmpty == true
-                                    ? currentUser!.email![0].toUpperCase()
-                                    : 'U',
+                            avatarInitial,
                             style: const TextStyle(
-                              fontSize: 32,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              fontSize: 32,
                             ),
                           )
                         : null,
@@ -550,12 +671,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
                   // Name
                   Text(
-                    currentUser?.displayName ?? 'Anonymous User',
+                    displayedNameLocal,
                     style: const TextStyle(
-                      color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Lato',
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -566,6 +687,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.grey[400],
                       fontSize: 16,
                       fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _shareReferral,
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share Referral'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF006833),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                   const SizedBox(height: 24),

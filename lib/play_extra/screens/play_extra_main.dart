@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/play_extra_service.dart';
+import '../../services/user_balance_service.dart';
 import '../services/global_battle_manager.dart';
 import '../models/game_models.dart';
 // Removed flutter_svg import (no longer used)
@@ -147,34 +148,53 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
             ],
           ),
           actions: [
-            Consumer<PlayExtraService>(
-              builder: (context, service, child) {
-                return Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00B359), Color(0xFF007A3D)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.monetization_on, color: Colors.white, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${service.playerCoins}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+            // Show the user's actual CNE token balance in the Play Extra app bar
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: Consumer<UserBalanceService>(
+                builder: (context, balanceService, child) {
+                  // Ensure the balance label never overflows the app bar.
+                  // Use FittedBox inside a ConstrainedBox so very large numbers scale down,
+                  // and TextOverflow.ellipsis as a safe fallback.
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00B359), Color(0xFF007A3D)],
                       ),
-                    ],
-                  ),
-                );
-              },
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 160),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.monetization_on, color: Colors.white, size: 16),
+                          const SizedBox(width: 6),
+                          // Use Flexible + FittedBox to avoid overflow on small devices
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                // Force CNE suffix and formatted number only (no currency symbol)
+                                '${balanceService.getFormattedBalance()} CNE',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
           bottom: TabBar(
@@ -867,12 +887,17 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
                       children: [
                         const Icon(Icons.monetization_on, color: Color(0xFF00B359), size: 16),
                         const SizedBox(width: 4),
-                        Text(
-                          'Total Prize Pool: ${battle.totalStakePool} CNE',
-                          style: const TextStyle(
-                            color: Color(0xFF00B359),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                        // Constrain the prize pool label so it can't overflow the card.
+                        Expanded(
+                          child: Text(
+                            'Total Prize Pool: ${battle.totalStakePool} CNE',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF00B359),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -1201,8 +1226,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
               ],
             ),
           ),
+          // Ensure stake amount doesn't overflow the card row
           Text(
             '${player.stakeAmount} CNE',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF00B359),
               fontWeight: FontWeight.bold,
@@ -1284,8 +1312,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
               ],
             ),
           ),
+          // Ensure stake amount doesn't overflow in global player card
           Text(
             '${player.stakeAmount} CNE',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: isWinner ? Colors.amber : const Color(0xFF00B359),
               fontWeight: FontWeight.bold,

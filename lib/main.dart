@@ -34,6 +34,7 @@ import 'provider/admin_provider.dart';
 import 'services/user_balance_service.dart';
 import 'services/first_launch_service.dart';
 import 'services/notification_service.dart';
+import 'provider/theme_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Background message handler (must be top-level function)
@@ -76,116 +77,91 @@ class Watch2EarnApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => AdminProvider()),
         ChangeNotifierProvider(create: (context) => UserBalanceService()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'CoinNewsExtra TV',
-        theme: ThemeData.dark().copyWith(
-          useMaterial3: true,
-          scaffoldBackgroundColor: const Color(0xFF0A0A0A),
-          primaryColor: const Color(0xFF006833),
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF00B359),
-            primaryContainer: Color(0xFF006833),
-            secondary: Color(0xFF4CAF50),
-            secondaryContainer: Color(0xFF1B5E20),
-            surface: Color(0xFF1A1A1A),
-            surfaceVariant: Color(0xFF2A2A2A),
-            onPrimary: Colors.white,
-            onSurface: Colors.white,
-            onSurfaceVariant: Color(0xFFE0E0E0),
-            outline: Color(0xFF404040),
-          ),
-          cardTheme: const CardThemeData(
-            elevation: 8,
-            shadowColor: Colors.black26,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
+      child: Consumer<ThemeProvider>(builder: (context, themeProvider, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'CoinNewsExtra TV',
+          themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+          theme: ThemeData.light().copyWith(
+            useMaterial3: true,
+            primaryColor: const Color(0xFF006833),
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00B359),
+              primaryContainer: Color(0xFF006833),
+              secondary: Color(0xFF4CAF50),
+              secondaryContainer: Color(0xFF1B5E20),
+              surface: Colors.white,
+              surfaceVariant: Color(0xFFF6F6F6),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+              onSurfaceVariant: Color(0xFF333333),
+              outline: Color(0xFFCCCCCC),
             ),
           ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              elevation: 4,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+          darkTheme: ThemeData.dark().copyWith(
+            useMaterial3: true,
+            scaffoldBackgroundColor: const Color(0xFF0A0A0A),
+            primaryColor: const Color(0xFF006833),
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF00B359),
+              primaryContainer: Color(0xFF006833),
+              secondary: Color(0xFF4CAF50),
+              secondaryContainer: Color(0xFF1B5E20),
+              surface: Color(0xFF1A1A1A),
+              surfaceVariant: Color(0xFF2A2A2A),
+              onPrimary: Colors.white,
+              onSurface: Colors.white,
+              onSurfaceVariant: Color(0xFFE0E0E0),
+              outline: Color(0xFF404040),
             ),
           ),
-          textTheme: const TextTheme(
-            headlineLarge: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-              height: 1.2,
+          home: Builder(builder: (context) {
+            // If user is not logged in and this is first-launch, show welcome
+            if (showIntro) return const WelcomeScreen();
+            return StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return const HomeScreen();
+                }
+                return const LoginScreen();
+              },
+            );
+          }),
+          routes: {
+            '/auth': (context) => const LoginScreen(),
+            '/home': (context) => const HomeScreen(),
+            '/signup': (context) => const SignupScreen(),
+            '/earning': (context) => const EarningPage(),
+            '/youtube': (context) => const YoutubePage(),
+            '/spin-game': (context) => const SpinGamePage(),
+            '/daily-checkin': (context) => const DailyCheckinPage(),
+            '/quiz': (context) => const QuizPage(),
+            '/wallet': (context) => const WalletPage(),
+            '/watch-videos': (context) => const WatchVideosPage(),
+            '/live-tv': (context) => const LiveTvPage(),
+            '/chat': (context) => const ChatPage(),
+            '/extra-ai': (context) => const ExtraAIPage(),
+            '/live-stream': (context) => const LiveStreamPage(
+              streamId: 'live_stream_001',
+              title: 'CoinNewsExtra Live',
+              description: 'Watch our live crypto news and analysis stream to earn rewards!',
             ),
-            headlineMedium: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.25,
-              height: 1.3,
-            ),
-            titleLarge: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0,
-            ),
-            bodyLarge: TextStyle(
-              fontSize: 16,
-              height: 1.5,
-              letterSpacing: 0.15,
-            ),
-            bodyMedium: TextStyle(
-              fontSize: 14,
-              height: 1.4,
-              letterSpacing: 0.25,
-            ),
-          ),
-        ),
-        home: Builder(builder: (context) {
-          // If user is not logged in and this is first-launch, show welcome
-          if (showIntro) return const WelcomeScreen();
-          return StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return const HomeScreen();
-              }
-              return const LoginScreen();
-            },
-          );
-        }),
-        routes: {
-          '/auth': (context) => const LoginScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/signup': (context) => const SignupScreen(),
-          '/earning': (context) => const EarningPage(),
-          '/youtube': (context) => const YoutubePage(),
-          '/spin-game': (context) => const SpinGamePage(),
-          '/daily-checkin': (context) => const DailyCheckinPage(),
-          '/quiz': (context) => const QuizPage(),
-          '/wallet': (context) => const WalletPage(),
-          '/watch-videos': (context) => const WatchVideosPage(),
-          '/live-tv': (context) => const LiveTvPage(),
-          '/chat': (context) => const ChatPage(),
-          '/extra-ai': (context) => const ExtraAIPage(),
-          '/live-stream': (context) => const LiveStreamPage(
-            streamId: 'live_stream_001',
-            title: 'CoinNewsExtra Live',
-            description: 'Watch our live crypto news and analysis stream to earn rewards!',
-          ),
-          '/news': (context) => const NewsPage(),
-          '/market-cap': (context) => const MarketCapPage(),
-          '/more': (context) => const MorePage(),
-          '/summit': (context) => const SummitPage(),
-          '/explore': (context) => const ExplorePage(),
-          '/program': (context) => const ProgramPage(),
-          '/spotlight': (context) => const SpotlightScreen(),
-          '/welcome': (context) => const WelcomeScreen(),
-          '/tour': (context) => const TourScreen(),
-          '/play-extra': (context) => const PlayExtraMain(),
-        },
-      ),
+            '/news': (context) => const NewsPage(),
+            '/market-cap': (context) => const MarketCapPage(),
+            '/more': (context) => const MorePage(),
+            '/summit': (context) => const SummitPage(),
+            '/explore': (context) => const ExplorePage(),
+            '/program': (context) => const ProgramPage(),
+            '/spotlight': (context) => const SpotlightScreen(),
+            '/welcome': (context) => const WelcomeScreen(),
+            '/tour': (context) => const TourScreen(),
+            '/play-extra': (context) => const PlayExtraMain(),
+          },
+        );
+      }),
     );
   }
 }

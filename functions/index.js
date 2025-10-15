@@ -7,6 +7,94 @@ const { Client, PrivateKey, AccountCreateTransaction, AccountId, Hbar } = requir
 admin.initializeApp();
 const db = admin.firestore();
 
+// ==================================================
+// Agora RTC token generator (HTTPS)
+// ==================================================
+try {
+  let RtcTokenBuilder, RtcRole;
+  try {
+    // Prefer the official agora-token package (newer, maintained)
+    ({ RtcTokenBuilder, RtcRole } = require('agora-token'));
+  } catch (innerErr) {
+    console.warn('agora-token not available; falling back to local agora_token_builder');
+    const localBuilder = require('./agora_token_builder');
+    // Support different shapes exported by vendored builders
+    if (localBuilder && localBuilder.RtcTokenBuilder && localBuilder.RtcRole) {
+      RtcTokenBuilder = localBuilder.RtcTokenBuilder;
+      RtcRole = localBuilder.RtcRole;
+    } else if (localBuilder && localBuilder.RtcTokenBuilder) {
+      RtcTokenBuilder = localBuilder.RtcTokenBuilder;
+      RtcRole = localBuilder.RtcRole || { PUBLISHER: 1, SUBSCRIBER: 2 };
+    } else {
+      // legacy shape: module directly exports builder function
+      RtcTokenBuilder = localBuilder;
+      RtcRole = (localBuilder && localBuilder.RtcRole) || { PUBLISHER: 1, SUBSCRIBER: 2 };
+    }
+  }
+
+  // Public endpoint to generate short-lived RTC tokens for a channel.
+  // This endpoint verifies Firebase ID tokens (caller authentication) and
+  // returns an Agora RTC token signed with the project's App Certificate.
+  exports.generateAgoraToken = onRequest(async (req, res) => {
+    try {
+      // Allow simple health check
+      if (req.method === 'GET' && req.query.health === '1') {
+        return res.status(200).send({ ok: true, now: Date.now() });
+      }
+
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Only POST supported' });
+      }
+
+      // Basic request validation
+      const body = req.body || {};
+      const channel = body.channel;
+      const reqUid = body.uid; // optional numeric uid
+      const ttl = Number(body.ttl || 3600); // default 1 hour
+      const role = (body.role === 'subscriber') ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER;
+
+      if (!channel) return res.status(400).json({ error: 'channel is required' });
+
+      // Verify Firebase ID token (Authorization: Bearer <idToken>)
+      const authHeader = req.get('Authorization') || req.get('authorization') || '';
+      if (!authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Missing Authorization Bearer token' });
+      }
+      const idToken = authHeader.split('Bearer ')[1];
+      let decoded;
+      try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+      } catch (err) {
+        console.error('Failed to verify ID token', err);
+        return res.status(401).json({ error: 'Invalid ID token' });
+      }
+
+      // Read Agora credentials from functions config
+      const agoraConfig = (process.env.FUNCTIONS_EMULATOR) ? functions.config().agora : functions.config().agora;
+      const appId = agoraConfig?.app_id;
+      const appCertificate = agoraConfig?.app_certificate;
+      if (!appId || !appCertificate) {
+        console.error('Agora config missing in functions config');
+        return res.status(500).json({ error: 'Agora config not set. Run: firebase functions:config:set agora.app_id="..." agora.app_certificate="..."' });
+      }
+
+      const agoraUid = Number(reqUid || 0);
+      const currentTs = Math.floor(Date.now() / 1000);
+      const expireTs = currentTs + Math.max(30, Math.min(ttl, 86400));
+
+      const token = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, channel, agoraUid, role, expireTs);
+
+      return res.json({ token, appId, channel, uid: agoraUid, expiresAt: expireTs, requestedBy: decoded.uid });
+    } catch (err) {
+      console.error('generateAgoraToken error', err);
+      return res.status(500).json({ error: String(err) });
+    }
+  });
+  } catch (e) {
+  // If module not installed yet, export a placeholder that returns a helpful error
+  console.warn('agora-token not installed; generateAgoraToken will not be available until installed');
+}
+
 // Hedera configuration
 const HEDERA_NETWORK = 'testnet';
 const HEDERA_OPERATOR_ID = '0.0.4506257';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/external_link_helper.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
@@ -344,12 +345,7 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
 
   Future<void> _launchUrl() async {
     try {
-      final uri = Uri.parse(widget.item.ctaLink);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        _showErrorSnackBar('Could not launch URL');
-      }
+      await launchUrlWithDisclaimer(context, widget.item.ctaLink);
     } catch (e) {
       _showErrorSnackBar('Invalid URL format');
     }
