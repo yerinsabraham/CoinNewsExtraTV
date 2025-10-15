@@ -107,3 +107,4 @@ check-rounds.js
 
 # Sensitive debug output (contains API keys) - do NOT commit
 firebase-debug.logsecret.txt
+secret.txt
