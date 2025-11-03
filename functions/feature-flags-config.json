@@ -1,0 +1,158 @@
+{
+  "version": "1.0.0",
+  "environment": "mainnet-pilot",
+  "lastUpdated": "2025-09-30T17:45:36.407Z",
+  "flags": {
+    "mainnet_rewards": {
+      "enabled": true,
+      "rollout": 100,
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ],
+      "description": "Enable mainnet CNE token rewards",
+      "startDate": null,
+      "endDate": null
+    },
+    "token_transfers": {
+      "enabled": true,
+      "rollout": 100,
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ],
+      "description": "Enable peer-to-peer token transfers",
+      "maxAmount": 500
+    },
+    "battle_system": {
+      "enabled": true,
+      "rollout": 80,
+      "userGroups": [
+        "groupA"
+      ],
+      "description": "Battle participation with real CNE stakes",
+      "maxStake": 100
+    },
+    "daily_airdrops": {
+      "enabled": true,
+      "rollout": 100,
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ],
+      "description": "Daily CNE token airdrops",
+      "amount": 10
+    },
+    "video_rewards": {
+      "enabled": true,
+      "rollout": 100,
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ],
+      "description": "Rewards for watching videos",
+      "maxPerDay": 50
+    },
+    "quiz_rewards": {
+      "enabled": true,
+      "rollout": 90,
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ],
+      "description": "Quiz completion rewards",
+      "maxPerQuiz": 25
+    },
+    "advanced_analytics": {
+      "enabled": true,
+      "rollout": 100,
+      "userGroups": [
+        "groupA",
+        "groupB",
+        "groupC"
+      ],
+      "description": "Enhanced user analytics and tracking"
+    },
+    "referral_bonuses": {
+      "enabled": false,
+      "rollout": 0,
+      "userGroups": [],
+      "description": "Referral bonus system (disabled for pilot)",
+      "reason": "Focus on core features first"
+    },
+    "premium_features": {
+      "enabled": false,
+      "rollout": 0,
+      "userGroups": [],
+      "description": "Premium subscription features (future release)"
+    }
+  },
+  "userGroups": {
+    "groupA": {
+      "name": "Full Features Beta",
+      "description": "Complete access to all pilot features",
+      "userCount": 30,
+      "features": [
+        "all"
+      ]
+    },
+    "groupB": {
+      "name": "Core Features Beta",
+      "description": "Essential features testing",
+      "userCount": 15,
+      "features": [
+        "rewards",
+        "transfers",
+        "videos",
+        "quizzes"
+      ]
+    },
+    "groupC": {
+      "name": "Control Group",
+      "description": "Testnet comparison group",
+      "userCount": 5,
+      "features": [
+        "analytics_only"
+      ]
+    }
+  },
+  "rolloutSchedule": {
+    "day1": {
+      "flags": [
+        "mainnet_rewards",
+        "daily_airdrops",
+        "video_rewards"
+      ],
+      "userGroups": [
+        "groupA"
+      ]
+    },
+    "day2": {
+      "flags": [
+        "token_transfers",
+        "quiz_rewards"
+      ],
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ]
+    },
+    "day3": {
+      "flags": [
+        "battle_system"
+      ],
+      "userGroups": [
+        "groupA"
+      ]
+    },
+    "day4": {
+      "flags": [
+        "all_enabled"
+      ],
+      "userGroups": [
+        "groupA",
+        "groupB"
+      ]
+    }
+  }
+}

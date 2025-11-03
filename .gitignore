@@ -1,0 +1,118 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Node.js dependencies
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (keep templates)
+.env
+!.env.template
+
+# Package locks (exclude them to avoid conflicts)
+package-lock.json
+**/package-lock.json
+
+# Temporary files
+temp-*/
+
+# IDE files
+*.iml
+.idea/
+
+# Flutter generated files
+.flutter-plugins-dependencies
+.dart_tool/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+package.json
+
+# Old code and backup folders
+original-app/
+backup_broken_files/
+temp-browserquest/
+
+# Damaged/test files
+**/test-*.js
+treasury_private_key.SECURE
+*.backup-*
+**/pre_mainnet_*
+**/test_admin_*
+**/test_referral_*
+**/test_username_*
+**/reward_test_*
+SPOTLIGHT_SAMPLE_DATA.txt
+
+# Development/testing scripts
+create-sample-*.js
+create-test-*.js
+test-*.js
+reset-user-account.js
+check-rounds.js
+
+# Sensitive debug output (contains API keys) - do NOT commit
+firebase-debug.log
+secret.txt
+
+# Local environment and generated build/cache folders
+/.venv/
+/android/.gradle/
+/functions/node_modules/
+/**/flutter/ephemeral/
+*.apk
+/releases/

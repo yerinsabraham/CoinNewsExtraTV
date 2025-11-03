@@ -1,0 +1,10 @@
+{
+  "keyId": "49426f00-4eb7-41a9-a353-d18657e5fe01",
+  "encrypted": "9f7284a51447f2f619819b4540630019b2243e2f6b7d7e6e8c91dc64dfc27e35b955e5d8094e07d2f3359f67cfd0f6edc449167a79caa27bc7d5ec5c51d6a8eadce26698e94bb464f9a45a3c641ac22fc5120a2a29913745cd4f5582656410170a65d8a6cc97b12201e144b444cb0e8f0147ccb45fecca30012fba1528986e54",
+  "iv": "bd18c0d7ef51a70800759b9db17935b4",
+  "encryptionKey": "a5eec8c9813e4b33192415b945c91fda600fd29a03afcbcb0d710b7b41251750",
+  "algorithm": "aes-256-cbc",
+  "created": "2025-09-30T17:04:37.263Z",
+  "reference": "hedera-mainnet-treasury-0-0-10007646",
+  "note": "Encrypted for secure backup storage - use KMS for production"
+}

@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "migrationDate": "2025-09-30T17:21:14.145Z",
+    "completedDate": "2025-09-30T17:22:07.514Z",
+    "tokenId": "0.0.10007647",
+    "treasuryAccount": "0.0.10007646",
+    "auditTopic": "0.0.10007691",
+    "merkleRoot": "e00d4b7e4154e5bff28856363185c7afb08aba9ad9782abeb9b96131e6764d56"
+  },
+  "summary": {
+    "totalUsers": 4,
+    "processedUsers": 4,
+    "successfulMigrations": 0,
+    "failedMigrations": 4,
+    "totalTokensMinted": 0,
+    "successRate": "0.00"
+  },
+  "transactions": [
+    {
+      "userId": "user_001_active_player",
+      "hederaAccountId": "0.0.1234567",
+      "cneTokens": 15000,
+      "status": "FAILED",
+      "error": "receipt for transaction 0.0.9764298@1759252875.889396494 contained error status TOKEN_NOT_ASSOCIATED_TO_ACCOUNT",
+      "timestamp": "2025-09-30T17:21:27.783Z"
+    },
+    {
+      "userId": "user_002_moderate_user",
+      "hederaAccountId": "0.0.2345678",
+      "cneTokens": 8500,
+      "status": "FAILED",
+      "error": "receipt for transaction 0.0.9764298@1759252886.830561607 contained error status TOKEN_NOT_ASSOCIATED_TO_ACCOUNT",
+      "timestamp": "2025-09-30T17:21:40.388Z"
+    },
+    {
+      "userId": "user_003_new_player",
+      "hederaAccountId": "0.0.3456789",
+      "cneTokens": 2000,
+      "status": "FAILED",
+      "error": "receipt for transaction 0.0.9764298@1759252900.054086692 contained error status TOKEN_NOT_ASSOCIATED_TO_ACCOUNT",
+      "timestamp": "2025-09-30T17:21:56.336Z"
+    },
+    {
+      "userId": "user_005_power_user",
+      "hederaAccountId": "0.0.4567890",
+      "cneTokens": 45000,
+      "status": "FAILED",
+      "error": "receipt for transaction 0.0.9764298@1759252915.306302113 contained error status TOKEN_NOT_ASSOCIATED_TO_ACCOUNT",
+      "timestamp": "2025-09-30T17:22:07.513Z"
+    }
+  ]
+}

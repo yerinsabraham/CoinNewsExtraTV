@@ -1,0 +1,70 @@
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=3600"
+          }
+        ]
+      },
+      {
+        "source": "/static/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      }
+    ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run build"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "coinnewsextratv-9c75a",
+          "appId": "1:771639011569:android:6cc9238bea25a4aa792150",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "coinnewsextratv-9c75a",
+          "configurations": {
+            "android": "1:771639011569:android:6cc9238bea25a4aa792150",
+            "ios": "1:771639011569:ios:8ec053edd85b5a5e792150",
+            "macos": "1:771639011569:ios:8ec053edd85b5a5e792150",
+            "web": "1:771639011569:web:fbefc62c8c335ecf792150",
+            "windows": "1:771639011569:web:9bd7aea2437f14c9792150"
+          }
+        }
+      }
+    }
+  }
+}

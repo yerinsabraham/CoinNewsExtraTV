@@ -1,0 +1,54 @@
+{
+  "home": [
+    {
+      "id": "1",
+      "title": "Mock Home Ad 1",
+      "imageUrl": "assets/images/ad1.png",
+      "link": "https://example.com/ad1",
+      "type": "banner"
+    },
+    {
+      "id": "2",
+      "title": "Mock Home Ad 2",
+      "imageUrl": "assets/images/ad2.png",
+      "link": "https://example.com/ad2",
+      "type": "reward"
+    }
+  ],
+  "earn": [
+    {
+      "id": "3",
+      "title": "Earn Page Ad",
+      "imageUrl": "assets/images/ad3.png",
+      "link": "https://example.com/earn",
+      "type": "banner"
+    }
+  ],
+  "wallet": [
+    {
+      "id": "4",
+      "title": "Wallet Ad",
+      "imageUrl": "assets/images/ad4.png",
+      "link": "https://example.com/wallet",
+      "type": "popup"
+    }
+  ],
+  "live_tv": [
+    {
+      "id": "5",
+      "title": "Live TV Ad",
+      "imageUrl": "assets/images/ad5.png",
+      "link": "https://example.com/live",
+      "type": "banner"
+    }
+  ],
+  "chat": [
+    {
+      "id": "6",
+      "title": "Chat Ad",
+      "imageUrl": "assets/images/ad6.png",
+      "link": "https://example.com/chat",
+      "type": "reward"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "u1",
+  "name": "Yerins Abraham",
+  "email": "yerins@example.com",
+  "profilePic": "https://example.com/profile.jpg",
+  "walletBalance": 1500.5,
+  "token": "abc123token"
+}

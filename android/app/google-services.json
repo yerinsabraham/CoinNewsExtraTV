@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "889552494681",
+    "project_id": "coinnewsextratv-9c75a",
+    "storage_bucket": "coinnewsextratv-9c75a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889552494681:android:e93d4e94dc607b29681148",
+        "android_client_info": {
+          "package_name": "com.coinnewsextra.tv"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "889552494681-llkjr2ovcj02hjaud245q28i0eq9q5fb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.coinnewsextra.tv",
+            "certificate_hash": "d7a3844518d57e37397b4ac4f83d8f98b16489eb"
+          }
+        },
+        {
+          "client_id": "889552494681-52shssr5ar3pvde98g6u485j3o0e2ula.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByEm21sFAKx7pQp2RQ0hiZeNWgAM8k4EE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889552494681-52shssr5ar3pvde98g6u485j3o0e2ula.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,53 @@
+{
+  "timestamp": "2025-09-30T17:04:37.308Z",
+  "treasury_account": "0.0.10007646",
+  "token_id": "0.0.10007647",
+  "security_requirements": {
+    "key_management": [
+      "✅ Treasury private key generated securely",
+      "⏳ Move private key to KMS/HSM storage",
+      "⏳ Configure key rotation policy (90 days)",
+      "⏳ Set up backup recovery procedures",
+      "⏳ Implement multi-signature controls"
+    ],
+    "access_controls": [
+      "⏳ Configure role-based access (RBAC)",
+      "⏳ Set up audit logging for key usage",
+      "⏳ Implement IP whitelist for KMS access",
+      "⏳ Configure emergency recovery procedures",
+      "⏳ Set up monitoring and alerting"
+    ],
+    "operational_security": [
+      "⏳ Create incident response procedures",
+      "⏳ Set up automated backup verification",
+      "⏳ Configure transaction signing controls",
+      "⏳ Implement fraud detection monitoring",
+      "⏳ Create security audit schedule"
+    ],
+    "compliance": [
+      "⏳ Document security architecture",
+      "⏳ Create compliance audit trail",
+      "⏳ Implement regulatory reporting",
+      "⏳ Set up data retention policies",
+      "⏳ Create incident documentation"
+    ]
+  },
+  "kms_configuration": {
+    "key_reference": "hedera-mainnet-treasury-0-0-10007646",
+    "rotation_policy": "90_days",
+    "backup_locations": [
+      "primary_hsm_slot_1",
+      "backup_hsm_slot_2",
+      "offline_secure_storage"
+    ],
+    "public_key": "cc9cad78ef35aff4560dd51da3f7f8a2c1bdb6ba5ce009b1825eec271d22c44f"
+  },
+  "next_steps": [
+    "1. Move treasury private key to KMS/HSM",
+    "2. Configure production KMS credentials",
+    "3. Test key retrieval and signing",
+    "4. Set up monitoring and alerting",
+    "5. Create emergency recovery procedures",
+    "6. Schedule security audit"
+  ]
+}

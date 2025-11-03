@@ -1,0 +1,81 @@
+{
+  "metadata": {
+    "generatedAt": "2025-09-30T17:14:41.743Z",
+    "version": "1.0.0",
+    "algorithm": "sha256",
+    "userCount": 4,
+    "treeDepth": 2,
+    "rootHash": "e00d4b7e4154e5bff28856363185c7afb08aba9ad9782abeb9b96131e6764d56",
+    "exportHash": "b0b86bcebfa6a4d7a97d533dd41fb291475bc7979ab9c0fcb54ae258c2911295"
+  },
+  "proofs": [
+    {
+      "userId": "user_001_active_player",
+      "hederaAccountId": "0.0.1234567",
+      "cneTokens": 15000,
+      "leafHash": "3827c6ef8c109afb48c3f9324817b8b7460f0d95ff4188d62ad57f54e68f7edb",
+      "proof": [
+        {
+          "hash": "a84d0813cc351ceac5e8487d81fa53ba1cc310a26c8f163b48903b86da431924",
+          "position": "right"
+        },
+        {
+          "hash": "b96027fc1b307d015e2fc8e02607da39e53e89629cb2c553ee508e1a25ff721a",
+          "position": "right"
+        }
+      ],
+      "leafIndex": 0
+    },
+    {
+      "userId": "user_002_moderate_user",
+      "hederaAccountId": "0.0.2345678",
+      "cneTokens": 8500,
+      "leafHash": "a84d0813cc351ceac5e8487d81fa53ba1cc310a26c8f163b48903b86da431924",
+      "proof": [
+        {
+          "hash": "3827c6ef8c109afb48c3f9324817b8b7460f0d95ff4188d62ad57f54e68f7edb",
+          "position": "left"
+        },
+        {
+          "hash": "b96027fc1b307d015e2fc8e02607da39e53e89629cb2c553ee508e1a25ff721a",
+          "position": "right"
+        }
+      ],
+      "leafIndex": 1
+    },
+    {
+      "userId": "user_003_new_player",
+      "hederaAccountId": "0.0.3456789",
+      "cneTokens": 2000,
+      "leafHash": "89bbca03ddd39a51a4e5b06b0a256b7ceee2510744f521b6e56f9e22c37c65ba",
+      "proof": [
+        {
+          "hash": "965ebd0a4015391ae22bf3427c1d3d1b97c00bfd23a55afe7e26c58999ab9dfa",
+          "position": "right"
+        },
+        {
+          "hash": "b09fbf3b7051448243fe8b63c6eeb207684c958425804e6cd79467c2ad40df6f",
+          "position": "left"
+        }
+      ],
+      "leafIndex": 2
+    },
+    {
+      "userId": "user_005_power_user",
+      "hederaAccountId": "0.0.4567890",
+      "cneTokens": 45000,
+      "leafHash": "965ebd0a4015391ae22bf3427c1d3d1b97c00bfd23a55afe7e26c58999ab9dfa",
+      "proof": [
+        {
+          "hash": "89bbca03ddd39a51a4e5b06b0a256b7ceee2510744f521b6e56f9e22c37c65ba",
+          "position": "left"
+        },
+        {
+          "hash": "b09fbf3b7051448243fe8b63c6eeb207684c958425804e6cd79467c2ad40df6f",
+          "position": "left"
+        }
+      ],
+      "leafIndex": 3
+    }
+  ]
+}
