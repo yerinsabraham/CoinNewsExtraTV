@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="240" viewBox="0 0 420 240">
+  <rect width="100%" height="100%" rx="8" fill="#ffffff" stroke="#e6e6e6"/>
+  <rect x="16" y="16" width="120" height="120" rx="6" fill="#f0f0f0"/>
+  <rect x="150" y="20" width="250" height="40" rx="6" fill="#006833"/>
+  <text x="166" y="46" font-family="Lato, Arial" font-size="18" fill="#fff">Sponsored Ad</text>
+  <text x="150" y="90" font-family="Lato, Arial" font-size="14" fill="#444">Sample ad creative shown here. Images and rich creatives supported.</text>
+</svg>

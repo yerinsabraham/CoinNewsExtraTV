@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CoinNewsExtra TV — Landing</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="icon" type="image/png" href="/assets/icons/app_icon.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Unregister any existing service workers and clear runtime caches on load so browsers pick up new builds reliably -->
+    <script>
+      (function(){
+        if ('serviceWorker' in navigator) {
+          try {
+            navigator.serviceWorker.getRegistrations().then(function(regs){
+              regs.forEach(function(r){
+                r.unregister().then(function(){
+                  console.log('Service worker unregistered:', r.scope);
+                }).catch(function(){/* ignore */});
+              });
+            }).catch(function(){/* ignore */});
+          } catch(e){}
+        }
+        if (window.caches && typeof caches.keys === 'function') {
+          try {
+            caches.keys().then(function(keys){
+              return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+            }).then(function(){
+              console.log('Runtime caches cleared');
+            }).catch(function(){/* ignore */});
+          } catch(e){}
+        }
+      })();
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
