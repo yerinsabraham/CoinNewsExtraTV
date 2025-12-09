@@ -84,24 +84,74 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   }
 
   void _initializeVideoPlayer() {
-    String videoId = widget.video.youtubeId;
-    if (videoId.isEmpty && widget.video.url != null) {
-      videoId = YoutubePlayer.convertUrlToId(widget.video.url!) ?? 'M7lc1UVf-VE';
+    String videoId = widget.video.youtubeId.trim();
+    
+    // Validate and extract video ID
+    if (videoId.isEmpty && widget.video.url != null && widget.video.url!.isNotEmpty) {
+      final extractedId = YoutubePlayer.convertUrlToId(widget.video.url!);
+      if (extractedId != null && extractedId.isNotEmpty) {
+        videoId = extractedId;
+      }
     }
+    
+    // Use fallback if still empty
     if (videoId.isEmpty) {
-      videoId = 'M7lc1UVf-VE'; // Fallback video
+      videoId = 'dQw4w9WgXcQ'; // Fallback: popular video
+      debugPrint('⚠️ No video ID found, using fallback: $videoId');
     }
+    
+    debugPrint('📺 Initializing player with video ID: $videoId');
 
     _controller = YoutubePlayerController(
       initialVideoId: videoId,
       flags: const YoutubePlayerFlags(
         autoPlay: true,
         mute: false,
+        useHybridComposition: false,  // Disabled - causes play() to fail
+        enableCaption: true,
+        controlsVisibleAtStart: true,
+        hideControls: false,
+        isLive: false,
       ),
     );
 
     // Listen to player events
     _controller.addListener(_onPlayerStateChanged);
+    
+    // Add error handling and diagnostic logging
+    _controller.addListener(() {
+      debugPrint('🎯 Player state: Ready=${_controller.value.isReady}, Playing=${_controller.value.isPlaying}, Error=${_controller.value.hasError}');
+      
+      if (_controller.value.hasError) {
+        debugPrint('❌ YouTube Player Error: ${_controller.value.errorCode}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading video (Error ${_controller.value.errorCode}). Please check your internet connection.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } else if (_controller.value.isReady && !_controller.value.isPlaying) {
+        debugPrint('✅ Player ready, attempting autoplay...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_controller.value.isPlaying) {
+            debugPrint('⏯️ Calling play() method...');
+            _controller.play();
+            // Double-check that play was triggered
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted && !_controller.value.isPlaying) {
+                debugPrint('🔄 Play attempt failed, retrying...');
+                _controller.play();
+              }
+            });
+          }
+        });
+      } else if (_controller.value.isPlaying) {
+        debugPrint('▶️ Video is now playing');
+      }
+    });
   }
 
   void _onPlayerStateChanged() {
@@ -113,6 +163,11 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
         _videoDuration = duration;
         _currentPosition = position;
       });
+      
+      // Debug logging
+      if (_controller.value.isPlaying) {
+        debugPrint('▶️ Video playing - Position: ${position.inSeconds}s / ${duration.inSeconds}s');
+      }
     }
   }
 
@@ -239,19 +294,73 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
       body: Column(
         children: [
           // Video Player
-          YoutubePlayer(
-            controller: _controller,
-            showVideoProgressIndicator: true,
-            progressIndicatorColor: const Color(0xFF006833),
-            progressColors: const ProgressBarColors(
-              playedColor: Color(0xFF006833),
-              handleColor: Color(0xFF006833),
-            ),
-            bottomActions: [
-              CurrentPosition(),
-              ProgressBar(isExpanded: true),
-              RemainingDuration(),
-              const PlaybackSpeedButton(),
+          Stack(
+            children: [
+              YoutubePlayer(
+                controller: _controller,
+                showVideoProgressIndicator: true,
+                progressIndicatorColor: const Color(0xFF006833),
+                progressColors: const ProgressBarColors(
+                  playedColor: Color(0xFF006833),
+                  handleColor: Color(0xFF006833),
+                ),
+                bottomActions: [
+                  CurrentPosition(),
+                  ProgressBar(isExpanded: true),
+                  RemainingDuration(),
+                  const PlaybackSpeedButton(),
+                ],
+              ),
+              // Loading indicator overlay
+              if (!_controller.value.isReady && !_controller.value.hasError)
+                Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+                    ),
+                  ),
+                ),
+              // Error state display
+              if (_controller.value.hasError)
+                Container(
+                  color: Colors.black.withOpacity(0.7),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading video\nError Code: ${_controller.value.errorCode}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            _controller.load(_controller.initialVideoId);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF006833),
+                          ),
+                          child: const Text(
+                            'Retry',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
           

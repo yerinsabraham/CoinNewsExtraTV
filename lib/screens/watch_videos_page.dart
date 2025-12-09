@@ -514,24 +514,63 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   void _initializeVideoPlayer() {
     // Extract YouTube video ID from URL
-    String videoId = widget.video.youtubeId;
-    if (videoId.isEmpty && widget.video.url != null) {
-      videoId = YoutubePlayer.convertUrlToId(widget.video.url!) ?? 'M7lc1UVf-VE';
+    String videoId = widget.video.youtubeId.trim();
+    
+    if (videoId.isEmpty && widget.video.url != null && widget.video.url!.isNotEmpty) {
+      final extractedId = YoutubePlayer.convertUrlToId(widget.video.url!);
+      if (extractedId != null && extractedId.isNotEmpty) {
+        videoId = extractedId;
+      }
     }
+    
     if (videoId.isEmpty) {
-      videoId = 'M7lc1UVf-VE'; // Fallback video
+      videoId = 'dQw4w9WgXcQ'; // Fallback video
+      debugPrint('⚠️ No video ID found, using fallback: $videoId');
     }
+    
+    debugPrint('📺 Initializing player with video ID: $videoId');
 
     _controller = YoutubePlayerController(
       initialVideoId: videoId,
       flags: const YoutubePlayerFlags(
         autoPlay: true,
         mute: false,
+        useHybridComposition: false,  // Disabled - causes play() to fail
+        enableCaption: true,
+        controlsVisibleAtStart: true,
+        hideControls: false,
+        isLive: false,
       ),
     );
 
     // Listen to player events
     _controller.addListener(_onPlayerStateChanged);
+    
+    // Add error handling and diagnostic logging
+    _controller.addListener(() {
+      debugPrint('🎯 Player state: Ready=${_controller.value.isReady}, Playing=${_controller.value.isPlaying}, Error=${_controller.value.hasError}');
+      
+      if (_controller.value.hasError) {
+        debugPrint('❌ YouTube Player Error: ${_controller.value.errorCode}');
+      } else if (_controller.value.isReady && !_controller.value.isPlaying) {
+        debugPrint('✅ Player ready, attempting autoplay...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_controller.value.isPlaying) {
+            debugPrint('⏯️ Calling play() method...');
+            _controller.play();
+            // Double-check that play was triggered
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted && !_controller.value.isPlaying) {
+                debugPrint('🔄 Play attempt failed, retrying...');
+                _controller.play();
+              }
+            });
+          }
+        });
+      } else if (_controller.value.isPlaying) {
+        debugPrint('▶️ Video is now playing');
+      }
+    });
   }
 
   void _onPlayerStateChanged() {

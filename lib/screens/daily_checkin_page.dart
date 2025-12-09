@@ -602,7 +602,15 @@ class _VideoDialogState extends State<_VideoDialog> {
     
     // Get a random video from video data
     final videos = VideoData.getAllVideos();
-    final videoId = videos.isNotEmpty ? videos.first.youtubeId : 'p4kmPtTU4lw';
+    String videoId = videos.isNotEmpty ? videos.first.youtubeId.trim() : 'p4kmPtTU4lw';
+    
+    // Validate video ID
+    if (videoId.isEmpty) {
+      videoId = 'dQw4w9WgXcQ';
+      debugPrint('⚠️ No video ID found, using fallback: $videoId');
+    }
+    
+    debugPrint('📺 Daily checkin initializing player with video ID: $videoId');
     
     _controller = YoutubePlayerController(
       initialVideoId: videoId,
@@ -612,8 +620,23 @@ class _VideoDialogState extends State<_VideoDialog> {
         controlsVisibleAtStart: false,
         loop: false,
         hideControls: true,
+        useHybridComposition: true,
       ),
     );
+
+    // Add error handling
+    _controller.addListener(() {
+      if (_controller.value.hasError) {
+        debugPrint('❌ Daily Checkin Video Error: ${_controller.value.errorCode}');
+      } else if (_controller.value.isReady && !_controller.value.isPlaying) {
+        debugPrint('✅ Daily checkin video ready, attempting autoplay...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!(_controller.value.isPlaying)) {
+            _controller.play();
+          }
+        });
+      }
+    });
 
     // Start countdown timer
     _startVideoTimer();

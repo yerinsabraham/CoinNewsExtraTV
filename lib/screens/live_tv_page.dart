@@ -53,10 +53,26 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
         isLive: true,
         disableDragSeek: true,
         mute: false,
+        useHybridComposition: true,
+        enableCaption: true,
       ),
     );
 
     _tabController = TabController(length: 2, vsync: this);
+
+    // Add error handling
+    _controller.addListener(() {
+      if (_controller.value.hasError) {
+        debugPrint('❌ Live Stream Error: ${_controller.value.errorCode}');
+      } else if (_controller.value.isReady && !_controller.value.isPlaying) {
+        debugPrint('✅ Live stream ready, attempting autoplay...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_controller.value.isPlaying) {
+            _controller.play();
+          }
+        });
+      }
+    });
 
     // start a periodic timer to track watch time; auto-claim when threshold met
     _watchTimer = Timer.periodic(const Duration(seconds: 1), (t) {

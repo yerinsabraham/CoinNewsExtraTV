@@ -52,11 +52,26 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
         isLive: LiveVideoConfig.isLiveStream,
         enableCaption: LiveVideoConfig.enableCaptions,
         disableDragSeek: true,
+        useHybridComposition: true,
       ),
     );
     
     // Listen to player state changes
     _controller.addListener(_onPlayerStateChanged);
+    
+    // Add error handling and auto-play retry
+    _controller.addListener(() {
+      if (_controller.value.hasError) {
+        debugPrint('❌ Live Stream Error: ${_controller.value.errorCode}');
+      } else if (_controller.value.isReady && !_controller.value.isPlaying) {
+        debugPrint('✅ Live stream ready, attempting autoplay...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_controller.value.isPlaying) {
+            _controller.play();
+          }
+        });
+      }
+    });
   }
 
   @override
