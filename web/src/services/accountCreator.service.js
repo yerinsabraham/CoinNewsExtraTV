@@ -288,3 +288,68 @@ export const getTotalUsersCount = async () => {
     return 0;
   }
 };
+
+/**
+ * Create multiple accounts in batch
+ * @param {number} count - Number of accounts to create
+ * @param {function} onProgress - Callback for progress updates (current, total, account)
+ * @param {function} onError - Callback for individual account errors
+ * @returns {Promise<Object>} Results with success/failed arrays
+ */
+export const createBulkAccountsBatch = async (count, onProgress = null, onError = null) => {
+  const results = {
+    successful: [],
+    failed: [],
+    total: count
+  };
+  
+  console.log(`🚀 Starting batch creation of ${count} accounts...`);
+  
+  for (let i = 0; i < count; i++) {
+    try {
+      // Generate credentials
+      const email = generateRandomEmail();
+      const password = generateRandomPassword();
+      
+      console.log(`Creating account ${i + 1}/${count}: ${email}`);
+      
+      // Create account
+      const result = await createBulkAccount(email, password);
+      
+      if (result.success) {
+        results.successful.push(result);
+        console.log(`✅ Account ${i + 1}/${count} created successfully`);
+      } else {
+        results.failed.push({ email, error: result.error });
+        console.error(`❌ Account ${i + 1}/${count} failed:`, result.error);
+        if (onError) onError(email, result.error);
+      }
+      
+      // Call progress callback
+      if (onProgress) {
+        onProgress(i + 1, count, result);
+      }
+      
+      // Add small delay to avoid rate limiting (500ms between accounts)
+      if (i < count - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error creating account ${i + 1}/${count}:`, error);
+      results.failed.push({ 
+        email: 'unknown', 
+        error: error.message 
+      });
+      if (onError) onError('unknown', error.message);
+    }
+  }
+  
+  console.log(`\n📊 Batch creation complete:
+    ✅ Successful: ${results.successful.length}
+    ❌ Failed: ${results.failed.length}
+    📈 Total: ${results.total}
+  `);
+  
+  return results;
+};
