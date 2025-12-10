@@ -19,14 +19,41 @@ import { db } from './firebase';
  * Handles admin operations for platform management
  */
 
-// Admin role check
-export const isAdmin = async (userId) => {
+// Super admin emails (matches Flutter app)
+const SUPER_ADMIN_EMAILS = [
+  'yerinssaibs@gmail.com',
+  'elitepr@coinnewsextra.com',
+  'cnesup@outlook.com'
+];
+
+// Admin role check - matches Flutter app logic
+export const isAdmin = async (userId, userEmail = null) => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) return false;
+    // First check: Email-based admin (like Flutter app)
+    if (userEmail && SUPER_ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+      console.log('✅ Admin access granted via email:', userEmail);
+      return true;
+    }
     
-    const userData = userDoc.data();
-    return userData.role === 'admin' || userData.isAdmin === true;
+    // Second check: Firestore user document
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      if (userData.role === 'admin' || userData.isAdmin === true) {
+        console.log('✅ Admin access granted via Firestore role');
+        return true;
+      }
+    }
+    
+    // Third check: Admins collection (legacy)
+    const adminDoc = await getDoc(doc(db, 'admins', userId));
+    if (adminDoc.exists()) {
+      console.log('✅ Admin access granted via admins collection');
+      return true;
+    }
+    
+    console.log('❌ Admin access denied');
+    return false;
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;

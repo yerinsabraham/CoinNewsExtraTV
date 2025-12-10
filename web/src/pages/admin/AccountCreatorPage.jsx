@@ -39,7 +39,7 @@ const AccountCreatorPage = () => {
       return;
     }
 
-    const adminStatus = await isAdmin(user.uid);
+    const adminStatus = await isAdmin(user.uid, user.email);
     if (!adminStatus) {
       toast.error('Access denied: Admin privileges required');
       navigate('/');
