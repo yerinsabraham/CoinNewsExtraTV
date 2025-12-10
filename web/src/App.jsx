@@ -1,47 +1,64 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import PrivateRoute from './components/auth/PrivateRoute';
 
-// Pages
+// Auth pages (not lazy loaded - needed immediately)
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
-import VideosPage from './pages/videos/VideosPage';
-import VideoDetailPage from './pages/videos/VideoDetailPage';
-import QuizListPage from './pages/quiz/QuizListPage';
-import QuizPlayPage from './pages/quiz/QuizPlayPage';
-import SpinPage from './pages/spin/SpinPage';
-import CheckinPage from './pages/checkin/CheckinPage';
-import ChatPage from './pages/chat/ChatPage';
-import MarketPage from './pages/market/MarketPage';
-import ReferralPage from './pages/referral/ReferralPage';
-import WalletPage from './pages/wallet/WalletPage';
-import ProfilePage from './pages/profile/ProfilePage';
+
+// Lazy load feature pages
+const VideosPage = lazy(() => import('./pages/videos/VideosPage'));
+const VideoDetailPage = lazy(() => import('./pages/videos/VideoDetailPage'));
+const QuizListPage = lazy(() => import('./pages/quiz/QuizListPage'));
+const QuizPlayPage = lazy(() => import('./pages/quiz/QuizPlayPage'));
+const SpinPage = lazy(() => import('./pages/spin/SpinPage'));
+const CheckinPage = lazy(() => import('./pages/checkin/CheckinPage'));
+const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
+const MarketPage = lazy(() => import('./pages/market/MarketPage'));
+const ReferralPage = lazy(() => import('./pages/referral/ReferralPage'));
+const WalletPage = lazy(() => import('./pages/wallet/WalletPage'));
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const LeaderboardPage = lazy(() => import('./pages/leaderboard/LeaderboardPage'));
+const AIAssistantPage = lazy(() => import('./pages/ai/AIAssistantPage'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+
+// Loading component
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p className="text-gray-400">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          
-          <Route 
-            path="/" 
-            element={
-              <PrivateRoute>
-                <HomePage />
-              </PrivateRoute>
-            } 
-          />
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            
+            <Route 
+              path="/" 
+              element={
+                <PrivateRoute>
+                  <HomePage />
+                </PrivateRoute>
+              } 
+            />
 
-          <Route 
-            path="/videos" 
-            element={
-              <PrivateRoute>
-                <VideosPage />
-              </PrivateRoute>
+            <Route 
+              path="/videos" 
+              element={
+                <PrivateRoute>
+                  <VideosPage />
+                </PrivateRoute>
             } 
           />
 
@@ -135,9 +152,37 @@ function App() {
             } 
           />
 
+          <Route 
+            path="/leaderboard" 
+            element={
+              <PrivateRoute>
+                <LeaderboardPage />
+              </PrivateRoute>
+            } 
+          />
+
+          <Route 
+            path="/ai" 
+            element={
+              <PrivateRoute>
+                <AIAssistantPage />
+              </PrivateRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin" 
+            element={
+              <PrivateRoute>
+                <AdminDashboard />
+              </PrivateRoute>
+            } 
+          />
+
           {/* Redirect unknown routes to home */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
       
       <Toaster 

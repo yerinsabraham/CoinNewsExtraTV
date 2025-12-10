@@ -1,7 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useBalanceStore } from '../stores/balanceStore';
 import { useNavigate } from 'react-router-dom';
-import { Video, Brain, Disc, CheckSquare, MessageSquare, Award, TrendingUp, BarChart3, Users, Wallet, User } from 'lucide-react';
+import { Video, Brain, Disc, CheckSquare, MessageSquare, Award, TrendingUp, BarChart3, Users, Wallet, User, Trophy, Bot } from 'lucide-react';
 
 const HomePage = () => {
   const { user } = useAuth();
@@ -88,6 +88,24 @@ const HomePage = () => {
       color: 'text-indigo-500',
       bgColor: 'bg-indigo-500/20',
       route: '/profile',
+      available: true
+    },
+    {
+      icon: Trophy,
+      title: 'Leaderboard',
+      description: 'See top earners',
+      color: 'text-yellow-400',
+      bgColor: 'bg-yellow-500/20',
+      route: '/leaderboard',
+      available: true
+    },
+    {
+      icon: Bot,
+      title: 'AI Assistant',
+      description: 'Get instant help',
+      color: 'text-purple-500',
+      bgColor: 'bg-purple-500/20',
+      route: '/ai',
       available: true
     }
   ];
