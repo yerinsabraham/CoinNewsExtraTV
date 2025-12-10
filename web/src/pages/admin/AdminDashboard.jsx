@@ -190,8 +190,32 @@ const AdminDashboard = () => {
         </div>
 
         {/* Overview Tab */}
-        {activeTab === 'overview' && stats && (
+        {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Quick Actions - Always show first */}
+            <div className="bg-gray-800/50 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <button
+                  onClick={() => navigate('/admin/accounts')}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                >
+                  🎯 Create Accounts
+                </button>
+                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition-colors">
+                  Add New Video
+                </button>
+                <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors">
+                  Create Quiz
+                </button>
+                <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors">
+                  Send Notification
+                </button>
+              </div>
+            </div>
+
+            {/* Stats - Only show if loaded */}
+            {stats && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <StatsCard
                 icon={Users}
@@ -236,28 +260,7 @@ const AdminDashboard = () => {
                 color="yellow"
               />
             </div>
-
-            {/* Quick Actions */}
-            <div className="bg-gray-800/50 rounded-xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <button
-                  onClick={() => navigate('/admin/accounts')}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
-                >
-                  🎯 Create Accounts
-                </button>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition-colors">
-                  Add New Video
-                </button>
-                <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors">
-                  Create Quiz
-                </button>
-                <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors">
-                  Send Notification
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         )}
 

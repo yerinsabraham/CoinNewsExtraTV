@@ -57,7 +57,7 @@ const AccountCreatorPage = () => {
     }
 
     console.log('✅ [Account Creator] Admin access granted!');
-    loadData();
+    loadAccountsData();
   };
 
   const loadAccountsData = async () => {
