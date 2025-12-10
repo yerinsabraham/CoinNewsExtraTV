@@ -28,34 +28,52 @@ const SUPER_ADMIN_EMAILS = [
 
 // Admin role check - matches Flutter app logic
 export const isAdmin = async (userId, userEmail = null) => {
+  console.log('🔍 isAdmin called with:', { userId, userEmail });
+  console.log('📋 SUPER_ADMIN_EMAILS:', SUPER_ADMIN_EMAILS);
+  
   try {
     // First check: Email-based admin (like Flutter app)
-    if (userEmail && SUPER_ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-      console.log('✅ Admin access granted via email:', userEmail);
-      return true;
+    if (userEmail) {
+      const emailLower = userEmail.toLowerCase();
+      console.log('🔍 Checking email:', emailLower);
+      console.log('🔍 Email in list?', SUPER_ADMIN_EMAILS.includes(emailLower));
+      
+      if (SUPER_ADMIN_EMAILS.includes(emailLower)) {
+        console.log('✅ Admin access granted via email:', userEmail);
+        return true;
+      }
+    } else {
+      console.log('⚠️ No email provided');
     }
     
     // Second check: Firestore user document
+    console.log('🔍 Checking Firestore user document...');
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (userDoc.exists()) {
       const userData = userDoc.data();
+      console.log('📄 User document data:', { role: userData.role, isAdmin: userData.isAdmin });
       if (userData.role === 'admin' || userData.isAdmin === true) {
         console.log('✅ Admin access granted via Firestore role');
         return true;
       }
+    } else {
+      console.log('⚠️ User document does not exist');
     }
     
     // Third check: Admins collection (legacy)
+    console.log('🔍 Checking admins collection...');
     const adminDoc = await getDoc(doc(db, 'admins', userId));
     if (adminDoc.exists()) {
       console.log('✅ Admin access granted via admins collection');
       return true;
+    } else {
+      console.log('⚠️ Admin document does not exist');
     }
     
-    console.log('❌ Admin access denied');
+    console.log('❌ Admin access denied - no matching criteria');
     return false;
   } catch (error) {
-    console.error('Error checking admin status:', error);
+    console.error('❌ Error checking admin status:', error);
     return false;
   }
 };

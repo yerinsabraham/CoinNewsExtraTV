@@ -39,14 +39,25 @@ const AccountCreatorPage = () => {
       return;
     }
 
+    // Debug: Log user info
+    console.log('🔍 [Account Creator] Checking admin access for:', {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName
+    });
+
     const adminStatus = await isAdmin(user.uid, user.email);
+    
+    console.log('🔐 [Account Creator] Admin status result:', adminStatus);
+    
     if (!adminStatus) {
-      toast.error('Access denied: Admin privileges required');
+      toast.error(`Access denied: Admin privileges required\n\nYour email: ${user.email || 'No email found'}\nUID: ${user.uid}`);
       navigate('/');
       return;
     }
 
-    loadAccountsData();
+    console.log('✅ [Account Creator] Admin access granted!');
+    loadData();
   };
 
   const loadAccountsData = async () => {

@@ -37,13 +37,24 @@ const AdminDashboard = () => {
       return;
     }
 
+    // Debug: Log user info
+    console.log('🔍 Checking admin access for:', {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName
+    });
+
     const adminStatus = await isAdmin(user.uid, user.email);
+    
+    console.log('🔐 Admin status result:', adminStatus);
+    
     if (!adminStatus) {
-      toast.error('Access denied: Admin privileges required');
+      toast.error(`Access denied: Admin privileges required\n\nYour email: ${user.email || 'No email found'}\nUID: ${user.uid}`);
       navigate('/');
       return;
     }
 
+    console.log('✅ Admin access granted!');
     loadDashboardData();
   };
 
