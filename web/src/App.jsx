@@ -24,6 +24,7 @@ const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const LeaderboardPage = lazy(() => import('./pages/leaderboard/LeaderboardPage'));
 const AIAssistantPage = lazy(() => import('./pages/ai/AIAssistantPage'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AccountCreatorPage = lazy(() => import('./pages/admin/AccountCreatorPage'));
 
 // Loading component
 const LoadingFallback = () => (
@@ -175,6 +176,15 @@ function App() {
             element={
               <PrivateRoute>
                 <AdminDashboard />
+              </PrivateRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/accounts" 
+            element={
+              <PrivateRoute>
+                <AccountCreatorPage />
               </PrivateRoute>
             } 
           />
