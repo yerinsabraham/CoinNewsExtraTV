@@ -216,18 +216,13 @@ service cloud.firestore {
 
     // Admin account creator collections
     match /admin_created_accounts/{accountId} {
-      // Only Super Admin can read/write
-      allow read, write: if request.auth != null && request.auth.email in [
-        'yerinssaibs@gmail.com', 
-        'elitepr@coinnewsextra.com',
-        'cnesup@outlook.com'
-      ];
+      // Allow unauthenticated writes for bulk creator tool
+      allow read, write: if true;
     }
 
     match /system_stats/{statId} {
-      // Anyone authenticated can read, but only Cloud Functions can write
-      allow read: if request.auth != null;
-      allow write: if false; // Cloud Functions only
+      // Allow unauthenticated read/write for bulk creator tool
+      allow read, write: if true;
     }
 
     // System configuration - open for admin setup
