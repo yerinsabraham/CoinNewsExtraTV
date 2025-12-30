@@ -72,7 +72,7 @@ class _EnhancedCallScreenState extends State<EnhancedCallScreen>
       await [Permission.microphone].request();
 
       _engine = createAgoraRtcEngine();
-      await _engine.initialize(RtcEngineContext(
+      await _engine.initialize(const RtcEngineContext(
         appId: _agoraAppId,
         channelProfile: ChannelProfileType.channelProfileCommunication,
       ));

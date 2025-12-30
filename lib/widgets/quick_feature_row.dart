@@ -21,12 +21,12 @@ class QuickFeatureRow extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF1A1A1A),
-            const Color(0xFF0F0F0F),
+            Color(0xFF1A1A1A),
+            Color(0xFF0F0F0F),
           ],
         ),
         borderRadius: BorderRadius.circular(16),

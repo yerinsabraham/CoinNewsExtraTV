@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'support_chat_screen.dart';
 import 'report_issue_screen.dart';
-import 'report_issue_screen.dart';
-import 'support_chat_screen.dart';
+import '../../screens/contact_screen.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -86,15 +85,15 @@ class HelpSupportScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
                       Icon(
                         FeatherIcons.helpCircle,
-                        color: const Color(0xFF006833),
+                        color: Color(0xFF006833),
                         size: 24,
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
+                      SizedBox(width: 12),
+                      Text(
                         'Quick Help',
                         style: TextStyle(
                           color: Colors.white,
@@ -142,6 +141,27 @@ class HelpSupportScreen extends StatelessWidget {
                       color: Colors.grey[300],
                       fontSize: 14,
                       fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ContactScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF006833),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Contact Support'),
+                      ),
                     ),
                   ),
                 ],

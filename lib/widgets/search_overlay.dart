@@ -232,9 +232,9 @@ class _SearchOverlayState extends State<SearchOverlay>
         ),
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Playing: '),
-              backgroundColor: const Color(0xFF006833),
+              backgroundColor: Color(0xFF006833),
             ),
           );
           _closeSearch();

@@ -413,10 +413,10 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUserMessage) ...[
-            CircleAvatar(
+            const CircleAvatar(
               radius: 16,
-              backgroundColor: const Color(0xFF006833),
-              child: const Icon(
+              backgroundColor: Color(0xFF006833),
+              child: Icon(
                 FeatherIcons.user,
                 size: 16,
                 color: Colors.white,

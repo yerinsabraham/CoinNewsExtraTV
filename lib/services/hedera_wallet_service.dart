@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 
 class HederaWalletService {
   static const String _defaultNetworkName = 'testnet';
@@ -46,12 +45,12 @@ class HederaWalletService {
       await Future.delayed(const Duration(seconds: 1)); // Simulate network call
       
       if (accountId.isEmpty || privateKey.isEmpty) {
-        throw HederaWalletException('Account ID and Private Key are required');
+        throw const HederaWalletException('Account ID and Private Key are required');
       }
       
       // Mock validation
       if (!accountId.startsWith('0.0.')) {
-        throw HederaWalletException('Invalid Hedera Account ID format');
+        throw const HederaWalletException('Invalid Hedera Account ID format');
       }
       
       final walletData = {

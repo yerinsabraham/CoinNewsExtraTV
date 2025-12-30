@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/rendering.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_settings_page.dart';
 import '../services/notification_service.dart';
@@ -520,11 +518,11 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                           child: ElevatedButton.icon(
                             onPressed: () => _watchLive(program),
                             icon: const Icon(FeatherIcons.play, size: 18),
-                            label: Flexible(
+                            label: const Flexible(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
-                                child: const Text(
+                                child: Text(
                                   'Watch Live',
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),

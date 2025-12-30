@@ -10,7 +10,6 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
-        background: backgroundColor,
         surface: cardColor,
       ),
       scaffoldBackgroundColor: backgroundColor,

@@ -12,77 +12,77 @@ class _MorePageState extends State<MorePage> {
 
   // List of upcoming features
   final List<UpcomingFeature> upcomingFeatures = [
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Blockchain',
       description: 'Explore blockchain technology and innovations',
       icon: FeatherIcons.link,
-      color: const Color(0xFF1E40AF), // Blue
+      color: Color(0xFF1E40AF), // Blue
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Crypto',
       description: 'Cryptocurrency news, analysis, and insights',
       icon: FeatherIcons.dollarSign,
-      color: const Color(0xFFF59E0B), // Amber
+      color: Color(0xFFF59E0B), // Amber
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Esports',
       description: 'Gaming tournaments and esports coverage',
       icon: FeatherIcons.monitor,
-      color: const Color(0xFF7C3AED), // Purple
+      color: Color(0xFF7C3AED), // Purple
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'AI',
       description: 'Artificial intelligence and machine learning',
       icon: FeatherIcons.zap,
-      color: const Color(0xFF059669), // Emerald
+      color: Color(0xFF059669), // Emerald
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Robotics',
       description: 'Robotics technology and automation',
       icon: FeatherIcons.cpu,
-      color: const Color(0xFFDC2626), // Red
+      color: Color(0xFFDC2626), // Red
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Trading',
       description: 'Trading tools, signals, and market analysis',
       icon: FeatherIcons.trendingUp,
-      color: const Color(0xFF059669), // Green
+      color: Color(0xFF059669), // Green
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Documentary',
       description: 'Tech documentaries and educational content',
       icon: FeatherIcons.film,
-      color: const Color(0xFF7C2D12), // Orange
+      color: Color(0xFF7C2D12), // Orange
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Summits',
       description: 'Tech conferences and summit coverage',
       icon: FeatherIcons.users,
-      color: const Color(0xFF1E40AF), // Blue
+      color: Color(0xFF1E40AF), // Blue
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Innovation',
       description: 'Latest tech innovations and breakthroughs',
       icon: FeatherIcons.star,
-      color: const Color(0xFFF59E0B), // Amber
+      color: Color(0xFFF59E0B), // Amber
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Airdrop',
       description: 'Cryptocurrency airdrops and token distributions',
       icon: FeatherIcons.gift,
-      color: const Color(0xFF7C3AED), // Purple
+      color: Color(0xFF7C3AED), // Purple
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Health Tech',
       description: 'Healthcare technology and digital health',
       icon: FeatherIcons.heart,
-      color: const Color(0xFFDC2626), // Red
+      color: Color(0xFFDC2626), // Red
     ),
-    UpcomingFeature(
+    const UpcomingFeature(
       name: 'Agric Tech',
       description: 'Agricultural technology and smart farming',
       icon: FeatherIcons.sun,
-      color: const Color(0xFF059669), // Green
+      color: Color(0xFF059669), // Green
     ),
   ];
 
@@ -532,15 +532,15 @@ class _MorePageState extends State<MorePage> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   FeatherIcons.mail,
                   color: Color(0xFF006833),
                   size: 20,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'feedback@coinnewsextra.com',
                   style: TextStyle(
                     color: Color(0xFF006833),

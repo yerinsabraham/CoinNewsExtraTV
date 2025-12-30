@@ -1,4 +1,4 @@
-package com.coinnewsextra.tv
+package com.coinnewsextratv.cnetv
 
 import io.flutter.embedding.android.FlutterActivity
 

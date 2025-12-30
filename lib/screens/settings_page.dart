@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:feather_icons/feather_icons.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../provider/theme_provider.dart';
-import '../services/user_balance_service.dart';
 import '../services/first_launch_service.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -26,7 +23,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
   bool _emailUpdatesEnabled = false;
   bool _autoPlayVideos = true;
-  bool _darkModeEnabled = true;
+  final bool _darkModeEnabled = true;
   bool _isEditing = false;
   File? _selectedImage;
 
@@ -643,7 +640,7 @@ class _SettingsPageState extends State<SettingsPage> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFF006833),
+        activeThumbColor: const Color(0xFF006833),
         activeTrackColor: const Color(0xFF006833).withOpacity(0.3),
         inactiveThumbColor: Colors.grey[400],
         inactiveTrackColor: Colors.grey[700],

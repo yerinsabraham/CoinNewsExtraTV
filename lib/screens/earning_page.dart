@@ -470,7 +470,7 @@ class _EarningPageState extends State<EarningPage> {
                   const SizedBox(height: 20),
                   
                   // Social Media Platforms List
-                  ..._socialMediaLinks.map((social) => _buildSocialMediaTile(social)).toList(),
+                  ..._socialMediaLinks.map((social) => _buildSocialMediaTile(social)),
                   
                   const SizedBox(height: 16),
                 ],
@@ -637,10 +637,10 @@ class _EarningPageState extends State<EarningPage> {
                 size: 28,
               ),
               const SizedBox(width: 12),
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Claim Your Reward',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white, 
                     fontFamily: 'Lato',
                     fontSize: 18,

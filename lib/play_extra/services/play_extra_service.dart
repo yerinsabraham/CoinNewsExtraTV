@@ -63,7 +63,7 @@ class PlayExtraService extends ChangeNotifier {
         _battleHistory = historyList.map((item) => BattleResult.fromJson(item)).toList();
       }
       
-      print('✅ Player data loaded: ${_playerCoins} CNE, Bull: ${_selectedBullType}');
+      print('✅ Player data loaded: $_playerCoins CNE, Bull: $_selectedBullType');
     } catch (e) {
       print('❌ Error loading player data: $e');
     }
@@ -140,7 +140,7 @@ class PlayExtraService extends ChangeNotifier {
       
       await _savePlayerData();
       
-      print('⚔️ Joined battle: ${arena.name} with ${stakeAmount} CNE');
+      print('⚔️ Joined battle: ${arena.name} with $stakeAmount CNE');
       print('👥 ${_currentBattle!.players.length} players in battle');
       return true;
       
@@ -211,7 +211,7 @@ class PlayExtraService extends ChangeNotifier {
     if (isPlayerWinner) {
       _playerCoins += winnerReward;
       _updatePlayerStats(true, winnerReward, _currentPlayer!.stakeAmount);
-      print('🎉 Victory! Won ${winnerReward} CNE tokens!');
+      print('🎉 Victory! Won $winnerReward CNE tokens!');
     } else {
       _updatePlayerStats(false, 0, _currentPlayer!.stakeAmount);
       print('😞 Defeat! Better luck next time!');
@@ -246,7 +246,7 @@ class PlayExtraService extends ChangeNotifier {
       
       opponents.add(BattlePlayer(
         id: 'ai_${DateTime.now().millisecondsSinceEpoch}_$i',
-        username: aiNames[random.nextInt(aiNames.length)] + '${random.nextInt(999)}',
+        username: '${aiNames[random.nextInt(aiNames.length)]}${random.nextInt(999)}',
         bullType: bullType,
         stakeAmount: stake,
         arenaId: arenaId,
@@ -311,7 +311,7 @@ class PlayExtraService extends ChangeNotifier {
   Future<void> addCoins(int amount) async {
     _playerCoins += amount;
     await _savePlayerData();
-    print('💰 Added ${amount} CNE tokens');
+    print('💰 Added $amount CNE tokens');
   }
 
   // Get Player Rank Color
@@ -325,8 +325,4 @@ class PlayExtraService extends ChangeNotifier {
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

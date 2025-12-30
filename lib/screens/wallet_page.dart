@@ -385,9 +385,9 @@ class _WalletPageState extends State<WalletPage> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '\ CNE',
-            style: const TextStyle(
+          const Text(
+            ' CNE',
+            style: TextStyle(
               color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.bold,

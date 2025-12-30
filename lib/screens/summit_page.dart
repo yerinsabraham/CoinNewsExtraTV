@@ -379,7 +379,7 @@ class _SummitPageState extends State<SummitPage> {
                         ),
                       ),
                       child: Text(
-                        event.isPaid ? '${event.price.toStringAsFixed(0)}' : 'FREE',
+                        event.isPaid ? event.price.toStringAsFixed(0) : 'FREE',
                         style: TextStyle(
                           color: event.isPaid ? Colors.orange : Colors.green,
                           fontSize: 12,

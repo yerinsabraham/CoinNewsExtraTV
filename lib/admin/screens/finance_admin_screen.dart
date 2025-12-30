@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:feather_icons/feather_icons.dart';
-import '../../models/admin_role.dart';
 
 class FinanceAdminScreen extends StatefulWidget {
   const FinanceAdminScreen({super.key});

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import 'package:feather_icons/feather_icons.dart';
 import '../models/video_model.dart';
 import '../services/user_balance_service.dart';
 
@@ -304,11 +303,11 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                   playedColor: Color(0xFF006833),
                   handleColor: Color(0xFF006833),
                 ),
-                bottomActions: [
+                bottomActions: const [
                   CurrentPosition(),
                   ProgressBar(isExpanded: true),
                   RemainingDuration(),
-                  const PlaybackSpeedButton(),
+                  PlaybackSpeedButton(),
                 ],
               ),
               // Loading indicator overlay
@@ -760,7 +759,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                         const SizedBox(height: 20),
                         
                         // Comments List
-                        ..._comments.map((comment) => _buildCommentItem(comment)).toList(),
+                        ..._comments.map((comment) => _buildCommentItem(comment)),
                       ],
                     ),
                   ),

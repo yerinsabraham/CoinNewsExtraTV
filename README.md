@@ -182,7 +182,7 @@ flutter build apk --release
 **Hedera Network:** Mainnet  
 **CNE Token ID:** `0.0.9764298`  
 **Firebase Project:** `cne-watch2earn`  
-**Package Name:** `com.coinnewsextra.tv`
+**Package Name:** `com.coinnewsextratv.cnetv`
 
 ---
 

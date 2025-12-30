@@ -79,7 +79,7 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                     const Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
                     const SizedBox(width: 4),
                     Text(
-                      '${balanceService.balance.toStringAsFixed(1)}',
+                      balanceService.balance.toStringAsFixed(1),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -316,8 +316,8 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                                           final url = video.url ?? 'https://www.youtube.com/watch?v=${video.youtubeId}';
                                           Share.share('Watch "${video.title}" on CoinNewsExtra: $url');
                                         },
-                                        child: Row(
-                                          children: const [
+                                        child: const Row(
+                                          children: [
                                             Icon(Icons.share_outlined, color: Colors.white, size: 18),
                                             SizedBox(width: 6),
                                             Text(
@@ -626,7 +626,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     if (_rewardClaimed || _isClaimingReward) return;
 
     // Check if watched enough (25% of video)
-    final requiredWatchPercentage = 0.25;
+    const requiredWatchPercentage = 0.25;
     final actualWatchPercentage = _videoDuration.inSeconds > 0
         ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
@@ -712,7 +712,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     const Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
                     const SizedBox(width: 4),
                     Text(
-                      '${balanceService.balance.toStringAsFixed(1)}',
+                      balanceService.balance.toStringAsFixed(1),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -733,11 +733,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
             controller: _controller,
             showVideoProgressIndicator: true,
             progressIndicatorColor: const Color(0xFF006833),
-            bottomActions: [
+            bottomActions: const [
               CurrentPosition(),
               ProgressBar(isExpanded: true),
               RemainingDuration(),
-              const PlaybackSpeedButton(),
+              PlaybackSpeedButton(),
             ],
           ),
           
@@ -780,18 +780,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                             _buildActionButton(
                               icon: _isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
                               label: 'Like',
-                              onTap: () => setState(() => {
-                                _isLiked = !_isLiked,
-                                if (_isLiked) _isDisliked = false,
+                              onTap: () => setState(() {
+                                _isLiked = !_isLiked;
+                                if (_isLiked) _isDisliked = false;
                               }),
                               isActive: _isLiked,
                             ),
                             _buildActionButton(
                               icon: _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
                               label: 'Dislike',
-                              onTap: () => setState(() => {
-                                _isDisliked = !_isDisliked,
-                                if (_isDisliked) _isLiked = false,
+                              onTap: () => setState(() {
+                                _isDisliked = !_isDisliked;
+                                if (_isDisliked) _isLiked = false;
                               }),
                               isActive: _isDisliked,
                             ),
@@ -1026,7 +1026,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   // Check if reward can be claimed
   bool _canClaimReward() {
     if (_rewardClaimed) return false;
-    final requiredWatchPercentage = 0.25;
+    const requiredWatchPercentage = 0.25;
     final actualWatchPercentage = _videoDuration.inSeconds > 0
         ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;
@@ -1035,7 +1035,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   // Build watch progress indicator
   Widget _buildWatchProgress() {
-    final requiredWatchPercentage = 0.25;
+    const requiredWatchPercentage = 0.25;
     final actualWatchPercentage = _videoDuration.inSeconds > 0
         ? _currentPosition.inSeconds / _videoDuration.inSeconds
         : 0.0;

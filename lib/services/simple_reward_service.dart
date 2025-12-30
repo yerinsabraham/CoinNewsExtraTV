@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 /// Simple mock reward service to avoid compilation issues
 class SimpleRewardService {

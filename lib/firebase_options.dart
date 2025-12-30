@@ -58,21 +58,21 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyA7-2vEKZUu8WhTD5rRtrQQPnJcU1Xm0GA',
-    appId: '1:771639011569:ios:8ec053edd85b5a5e792150',
-    messagingSenderId: '771639011569',
-    projectId: 'cne-watch2earn',
-    storageBucket: 'cne-watch2earn.firebasestorage.app',
-    iosBundleId: 'com.example.watch2earnApp',
+    apiKey: 'AIzaSyCWXdv9MAUpjneGnR4P_zizdek720NFRNs',
+    appId: '1:889552494681:ios:c7dd062e4e71fe6e681148',
+    messagingSenderId: '889552494681',
+    projectId: 'coinnewsextratv-9c75a',
+    storageBucket: 'coinnewsextratv-9c75a.firebasestorage.app',
+    iosBundleId: 'com.coinnewsextratv.cnetv',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyA7-2vEKZUu8WhTD5rRtrQQPnJcU1Xm0GA',
-    appId: '1:771639011569:ios:8ec053edd85b5a5e792150',
-    messagingSenderId: '771639011569',
-    projectId: 'cne-watch2earn',
-    storageBucket: 'cne-watch2earn.firebasestorage.app',
-    iosBundleId: 'com.example.watch2earnApp',
+    apiKey: 'AIzaSyCWXdv9MAUpjneGnR4P_zizdek720NFRNs',
+    appId: '1:889552494681:ios:c7dd062e4e71fe6e681148',
+    messagingSenderId: '889552494681',
+    projectId: 'coinnewsextratv-9c75a',
+    storageBucket: 'coinnewsextratv-9c75a.firebasestorage.app',
+    iosBundleId: 'com.coinnewsextratv.cnetv',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

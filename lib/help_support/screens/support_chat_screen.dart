@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:feather_icons/feather_icons.dart';
 import '../services/support_service.dart';
 import '../models/support_chat.dart';

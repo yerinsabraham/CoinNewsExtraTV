@@ -347,8 +347,7 @@ class NotificationService {
         body,
         tzScheduled,
         details,
-        androidAllowWhileIdle: true,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: payload?.toString(),
       );
 

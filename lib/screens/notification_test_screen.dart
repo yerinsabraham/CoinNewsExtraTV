@@ -198,21 +198,21 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Card(
+            const Card(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       '📋 Testing Instructions',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
+                    SizedBox(height: 12),
+                    Text(
                       '1. Login as super admin (yerinssaibs@gmail.com)\n'
                       '2. Go to Admin Dashboard\n'
                       '3. Click "Send Announcements"\n'

@@ -121,7 +121,7 @@ class _SpotlightManagementScreenState extends State<SpotlightManagementScreen> w
                       ],
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),
@@ -131,11 +131,11 @@ class _SpotlightManagementScreenState extends State<SpotlightManagementScreen> w
         controller: _tabController,
         children: [
           // All items tab
-          SpotlightManagementList(category: null),
+          const SpotlightManagementList(category: null),
           // Category-specific tabs
           ..._categories.map((category) {
             return SpotlightManagementList(category: category);
-          }).toList(),
+          }),
         ],
       ),
       floatingActionButton: FloatingActionButton(

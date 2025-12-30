@@ -14,6 +14,7 @@ import '../help_support/screens/help_support_screen.dart';
 import '../admin/screens/role_based_admin_dashboard.dart';
 import 'login_screen.dart';
 import 'settings_page.dart';
+import 'contact_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -598,7 +599,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
-    return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -837,6 +838,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const HelpSupportScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildMenuOption(
+              icon: Icons.mail_outline,
+              title: 'Contact Us',
+              subtitle: 'Get in touch with our team',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContactScreen(),
                   ),
                 );
               },

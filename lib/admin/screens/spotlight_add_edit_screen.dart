@@ -597,7 +597,7 @@ class _SpotlightAddEditScreenState extends State<SpotlightAddEditScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.amber,
+            activeThumbColor: Colors.amber,
             activeTrackColor: Colors.amber.withOpacity(0.3),
           ),
         ],

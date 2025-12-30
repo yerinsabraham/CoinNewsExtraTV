@@ -253,7 +253,7 @@ class _LiveStreamPageState extends State<LiveStreamPage> {
       body: Column(
         children: [
           // YouTube video player
-          Container(
+          SizedBox(
             height: 240,
             child: Stack(
               children: [

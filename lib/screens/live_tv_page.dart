@@ -48,7 +48,7 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
 
     _controller = YoutubePlayerController(
       initialVideoId: LiveVideoConfig.getVideoId(),
-      flags: YoutubePlayerFlags(
+      flags: const YoutubePlayerFlags(
         autoPlay: LiveVideoConfig.autoPlayOnLaunch,
         isLive: true,
         disableDragSeek: true,
@@ -107,10 +107,10 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Earned ${LiveVideoConfig.watchReward} CNE for watching live TV!'),
-            backgroundColor: const Color(0xFF006833),
-            duration: const Duration(seconds: 3),
+            backgroundColor: Color(0xFF006833),
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -451,7 +451,7 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Expanded(child: Text(LiveVideoConfig.liveStreamTitle, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Lato'))),
+              const Expanded(child: Text(LiveVideoConfig.liveStreamTitle, style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Lato'))),
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)), child: Text('$viewerCount viewers', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
             ]),
             const SizedBox(height: 8),
@@ -479,7 +479,7 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
                 margin: const EdgeInsets.only(top: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(8)),
-                child: Row(children: [const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18), const SizedBox(width: 8), const Expanded(child: Text('Open Chat', style: TextStyle(color: Colors.white))), const SizedBox(width: 8), const Icon(Icons.keyboard_arrow_up, color: Colors.white)]),
+                child: const Row(children: [Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18), SizedBox(width: 8), Expanded(child: Text('Open Chat', style: TextStyle(color: Colors.white))), SizedBox(width: 8), Icon(Icons.keyboard_arrow_up, color: Colors.white)]),
               ),
             ),
 
@@ -491,7 +491,7 @@ class _LiveTvPageState extends State<LiveTvPage> with TickerProviderStateMixin {
 
               // Watch progress / manual claim
               if (LiveVideoConfig.hasMetWatchRequirement(_watchTimeSeconds))
-                ElevatedButton(onPressed: _isClaimingReward ? null : _claimWatchReward, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006833), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)), child: _isClaimingReward ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text('Claim ${LiveVideoConfig.watchReward} CNE', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)))
+                ElevatedButton(onPressed: _isClaimingReward ? null : _claimWatchReward, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006833), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)), child: _isClaimingReward ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Claim ${LiveVideoConfig.watchReward} CNE', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)))
               else
                 Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(4)), child: Text('Watch ${LiveVideoConfig.formatWatchTime(LiveVideoConfig.getRemainingWatchTime(_watchTimeSeconds))} more', style: const TextStyle(color: Colors.white, fontSize: 12)))
             ])

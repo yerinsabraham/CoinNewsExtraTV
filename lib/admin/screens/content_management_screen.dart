@@ -433,7 +433,7 @@ class _ContentManagementScreenState extends State<ContentManagementScreen>
                   ),
                 ),
                 const SizedBox(width: 16),
-                Icon(FeatherIcons.star, size: 12, color: Colors.amber),
+                const Icon(FeatherIcons.star, size: 12, color: Colors.amber),
                 const SizedBox(width: 4),
                 Text(
                   '${video.reward ?? 7.0} CNE',
@@ -532,7 +532,7 @@ class _ContentManagementScreenState extends State<ContentManagementScreen>
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.purple,
+            activeThumbColor: Colors.purple,
           ),
         ],
       ),

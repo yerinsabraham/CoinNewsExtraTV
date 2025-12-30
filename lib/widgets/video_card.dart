@@ -180,7 +180,7 @@ class VideoCard extends StatelessWidget {
                     ? loadingProgress.cumulativeBytesLoaded / 
                       loadingProgress.expectedTotalBytes!
                     : null,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
               ),
             ),
           );
@@ -204,7 +204,7 @@ class VideoCard extends StatelessWidget {
                     ? loadingProgress.cumulativeBytesLoaded / 
                       loadingProgress.expectedTotalBytes!
                     : null,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
               ),
             ),
           );
@@ -227,7 +227,7 @@ class VideoCard extends StatelessWidget {
             color: Colors.white,
             size: 64,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'CoinNews Extra',
             style: TextStyle(

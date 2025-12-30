@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../utils/external_link_helper.dart';
 import '../models/event.dart';
 
@@ -200,7 +199,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 ),
               ),
               child: Text(
-                widget.event.isPaid ? '${widget.event.price.toStringAsFixed(0)}' : 'FREE',
+                widget.event.isPaid ? widget.event.price.toStringAsFixed(0) : 'FREE',
                 style: TextStyle(
                   color: widget.event.isPaid ? Colors.orange : Colors.green,
                   fontSize: 14,
@@ -438,7 +437,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         
         const SizedBox(height: 16),
         
-        ...widget.event.speakers.map((speaker) => _buildSpeakerItem(speaker)).toList(),
+        ...widget.event.speakers.map((speaker) => _buildSpeakerItem(speaker)),
       ],
     );
   }
@@ -563,7 +562,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         onPressed: () async {
           // If an organizer URL is provided, open it in external browser
           // Prefer the event's organizerUrl, but fall back to the company site
-          final defaultUrl = 'https://coinnewsextra.com/';
+          const defaultUrl = 'https://coinnewsextra.com/';
           final urlString = (widget.event.organizerUrl != null && widget.event.organizerUrl!.isNotEmpty)
               ? widget.event.organizerUrl!
               : defaultUrl;

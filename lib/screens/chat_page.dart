@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:flutter/foundation.dart' as foundation;
 import '../services/user_balance_service.dart';
 
 class ChatMessage {
@@ -66,8 +65,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
   late AnimationController _connectionAnimationController;
   late Animation<double> _connectionAnimation;
   
-  bool _isOnline = true;
-  int _onlineUsers = 42; // Mock count, would be real in production
+  final bool _isOnline = true;
+  final int _onlineUsers = 42; // Mock count, would be real in production
   String _currentUserName = '';
   bool _showEmojiPicker = false;
 
@@ -243,7 +242,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   Container(
                     width: 24,
                     height: 24,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
                           Color(0xFF006833),
@@ -281,10 +280,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               color: message.isSystem
                   ? const Color(0xFF006833).withOpacity(0.15)
                   : isCurrentUser
-                      ? const LinearGradient(
-                          colors: [Color(0xFF006833), Color(0xFF00A651)],
-                        ).createShader(const Rect.fromLTWH(0, 0, 200, 70)) != null
-                          ? null : const Color(0xFF006833)
+                      ? null
                       : Colors.grey[850],
               gradient: isCurrentUser && !message.isSystem
                   ? const LinearGradient(
@@ -711,8 +707,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     child: Container(
                       width: 44,
                       height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF006833), // Always active for testing
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF006833), // Always active for testing
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(

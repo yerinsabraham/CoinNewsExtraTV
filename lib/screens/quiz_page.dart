@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import 'dart:math' as math;
 import '../models/quiz_models.dart';
 import '../services/quiz_data_service.dart';
 import '../services/quiz_progress_service.dart';
@@ -216,7 +215,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       
       try {
         if (netTokenChange > 0) {
-          debugPrint('Quiz completed: Awarding ${netTokenChange} CNE tokens');
+          debugPrint('Quiz completed: Awarding $netTokenChange CNE tokens');
           await balanceService.addBalance(netTokenChange.toDouble(), 'Quiz reward');
         } else {
           debugPrint('Quiz completed: No tokens earned');
@@ -482,10 +481,10 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
               ),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(FeatherIcons.helpCircle, color: Colors.white, size: 24),
                     SizedBox(width: 12),
@@ -502,10 +501,10 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   '• Entry Fee: Free (no tokens required)\n• Only ONE category can be played every 24 hours\n• Questions: ${QuizDataService.questionsPerQuiz} per quiz\n• Time Limit: ${QuizDataService.questionTimeLimit}s per question\n• Correct Answer: +2 CNE\n• Wrong Answer: No penalty\n• Game ends when all questions are answered',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                     height: 1.5,
@@ -786,7 +785,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
               ),
             );
-          }).toList(),
+          }),
           
           // Answer feedback
           if (showAnswerFeedback) ...[
@@ -875,7 +874,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${netChange > 0 ? '+' : ''}${netChange} CNE',
+                  '${netChange > 0 ? '+' : ''}$netChange CNE',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,

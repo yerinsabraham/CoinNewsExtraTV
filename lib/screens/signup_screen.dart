@@ -1,9 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import '../services/user_balance_service.dart';
+import '../utils/error_message_helper.dart';
 import 'home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -66,8 +65,9 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = formatAuthError(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Signup failed: ")),
+          SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
         );
       }
     } finally {
@@ -106,7 +106,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     // Final code length 6-8, prefix with 'CNE' for clarity
-    final finalCode = ('CNE' + code).toUpperCase().substring(0, 8);
+    final finalCode = ('CNE$code').toUpperCase().substring(0, 8);
     return finalCode;
   }
 
@@ -198,8 +198,9 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = formatAuthError(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ")),
+          SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
         );
       }
     } finally {

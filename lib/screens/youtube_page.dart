@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../utils/external_link_helper.dart';
 import '../services/user_balance_service.dart';
 import '../data/video_data.dart';

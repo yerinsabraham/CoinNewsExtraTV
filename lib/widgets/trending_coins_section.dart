@@ -31,10 +31,10 @@ class TrendingCoinsSection extends StatelessWidget {
                     ),
                   );
                 },
-                child: Text(
+                child: const Text(
                   'View All',
                   style: TextStyle(
-                    color: const Color(0xFF006833),
+                    color: Color(0xFF006833),
                     fontSize: 14,
                     fontFamily: 'Lato',
                   ),
@@ -73,12 +73,12 @@ class TrendingCoinsSection extends StatelessWidget {
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF1A1A1A),
-            const Color(0xFF0F0F0F),
+            Color(0xFF1A1A1A),
+            Color(0xFF0F0F0F),
           ],
         ),
         borderRadius: BorderRadius.circular(16),

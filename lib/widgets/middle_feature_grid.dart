@@ -99,7 +99,7 @@ class MiddleFeatureGrid extends StatelessWidget {
                       width: 28,
                       height: 28,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Icon(Icons.videogame_asset, color: const Color(0xFF00B359)),
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.videogame_asset, color: Color(0xFF00B359)),
                     ),
                     label: 'Play Extra',
                     onTap: () => Navigator.pushNamed(context, '/play-extra'),
@@ -145,12 +145,12 @@ class MiddleFeatureGrid extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF2A2A2A),
-                const Color(0xFF1F1F1F),
+                Color(0xFF2A2A2A),
+                Color(0xFF1F1F1F),
               ],
             ),
             borderRadius: BorderRadius.circular(12),

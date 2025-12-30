@@ -15,7 +15,7 @@ class YouTubeThumbnailWidget extends StatelessWidget {
   final VoidCallback? onTap;
 
   const YouTubeThumbnailWidget({
-    Key? key,
+    super.key,
     required this.youtubeUrl,
     this.width,
     this.height,
@@ -25,7 +25,7 @@ class YouTubeThumbnailWidget extends StatelessWidget {
     this.errorWidget,
     this.showPlayButton = true,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class YouTubeThumbnailWidget extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SizedBox(
         width: width,
         height: height,
         child: Stack(
@@ -67,8 +67,8 @@ class YouTubeThumbnailWidget extends StatelessWidget {
                     color: Colors.black.withOpacity(0.7),
                     shape: BoxShape.circle,
                   ),
-                  padding: EdgeInsets.all(12),
-                  child: Icon(
+                  padding: const EdgeInsets.all(12),
+                  child: const Icon(
                     Icons.play_arrow,
                     color: Colors.white,
                     size: 32,
@@ -90,7 +90,7 @@ class YouTubeThumbnailWidget extends StatelessWidget {
               ? loadingProgress.cumulativeBytesLoaded / 
                 loadingProgress.expectedTotalBytes!
               : null,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
         ),
       ),
     );
@@ -111,7 +111,7 @@ class YouTubeThumbnailWidget extends StatelessWidget {
                 color: Colors.grey[400],
                 size: 48,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'CoinNews Extra',
                 style: TextStyle(
@@ -129,8 +129,8 @@ class YouTubeThumbnailWidget extends StatelessWidget {
                   color: Colors.black.withOpacity(0.7),
                   shape: BoxShape.circle,
                 ),
-                padding: EdgeInsets.all(12),
-                child: Icon(
+                padding: const EdgeInsets.all(12),
+                child: const Icon(
                   Icons.play_arrow,
                   color: Colors.white,
                   size: 32,
@@ -151,24 +151,24 @@ class YouTubeCarouselItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   const YouTubeCarouselItem({
-    Key? key,
+    super.key,
     required this.youtubeUrl,
     required this.title,
     this.subtitle,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -198,14 +198,14 @@ class YouTubeCarouselItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -214,7 +214,7 @@ class YouTubeCarouselItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (subtitle != null) ...[
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         subtitle!,
                         style: TextStyle(
@@ -246,14 +246,14 @@ class YouTubeGridItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   const YouTubeGridItem({
-    Key? key,
+    super.key,
     required this.youtubeUrl,
     required this.title,
     this.channelName,
     this.views,
     this.timeAgo,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +267,7 @@ class YouTubeGridItem extends StatelessWidget {
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
               blurRadius: 4,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -277,7 +277,7 @@ class YouTubeGridItem extends StatelessWidget {
             // Thumbnail
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                 child: YouTubeThumbnailWidget(
                   youtubeUrl: youtubeUrl,
                   width: double.infinity,
@@ -287,24 +287,24 @@ class YouTubeGridItem extends StatelessWidget {
             ),
             // Video info
             Container(
-              padding: EdgeInsets.all(8),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     _buildMetadata(),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.grey,
                       fontSize: 11,
                     ),

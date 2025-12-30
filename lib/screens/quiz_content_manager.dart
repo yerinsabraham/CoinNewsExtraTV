@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../models/quiz_models.dart';
 import '../services/quiz_data_service.dart';
 
@@ -18,7 +16,7 @@ class _QuizContentManagerState extends State<QuizContentManager> {
   int _questionsGenerated = 0;
   final int _questionsToGenerate = 5;
   
-  List<Question> _generatedQuestions = [];
+  final List<Question> _generatedQuestions = [];
   String _selectedCategory = 'blockchain';
 
   @override
@@ -348,7 +346,7 @@ class _QuizContentManagerState extends State<QuizContentManager> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -368,7 +366,7 @@ class _QuizContentManagerState extends State<QuizContentManager> {
         children: [
           Row(
             children: [
-              Icon(FeatherIcons.checkCircle, color: Colors.green, size: 20),
+              const Icon(FeatherIcons.checkCircle, color: Colors.green, size: 20),
               const SizedBox(width: 8),
               Text(
                 '${_generatedQuestions.length} New Questions Generated',
@@ -441,7 +439,7 @@ class _QuizContentManagerState extends State<QuizContentManager> {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             );
@@ -511,11 +509,11 @@ class _QuizContentManagerState extends State<QuizContentManager> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              Icon(FeatherIcons.zap, color: const Color(0xFF006833), size: 20),
-              const SizedBox(width: 8),
-              const Text(
+              Icon(FeatherIcons.zap, color: Color(0xFF006833), size: 20),
+              SizedBox(width: 8),
+              Text(
                 'Recommended Approach',
                 style: TextStyle(
                   color: Colors.white,
@@ -555,7 +553,7 @@ class _QuizContentManagerState extends State<QuizContentManager> {
             ),
             child: Row(
               children: [
-                Icon(FeatherIcons.star, color: const Color(0xFF006833), size: 16),
+                const Icon(FeatherIcons.star, color: Color(0xFF006833), size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -639,7 +637,7 @@ class _QuizContentManagerState extends State<QuizContentManager> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               dropdownColor: Colors.grey[800],
               style: const TextStyle(color: Colors.white, fontFamily: 'Lato'),
               decoration: InputDecoration(

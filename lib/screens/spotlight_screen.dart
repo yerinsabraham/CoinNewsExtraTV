@@ -132,7 +132,7 @@ class _SpotlightScreenState extends State<SpotlightScreen> with SingleTickerProv
   void _showSearchDialog() {
     showDialog(
       context: context,
-      builder: (context) => SpotlightSearchDialog(),
+      builder: (context) => const SpotlightSearchDialog(),
     );
   }
 }

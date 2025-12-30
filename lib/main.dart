@@ -16,7 +16,6 @@ import 'screens/quiz_page.dart';
 import 'screens/wallet_page.dart';
 import 'screens/watch_videos_page.dart';
 import 'screens/live_tv_page.dart';
-import 'screens/video_detail_page.dart';
 import 'screens/chat_page.dart';
 import 'screens/extra_ai_page.dart';
 import 'screens/live_stream_page.dart';
@@ -85,7 +84,6 @@ class Watch2EarnApp extends StatelessWidget {
           title: 'CoinNewsExtra TV',
           themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
           theme: ThemeData.light().copyWith(
-            useMaterial3: true,
             primaryColor: const Color(0xFF006833),
             colorScheme: const ColorScheme.light(
               primary: Color(0xFF00B359),
@@ -93,7 +91,7 @@ class Watch2EarnApp extends StatelessWidget {
               secondary: Color(0xFF4CAF50),
               secondaryContainer: Color(0xFF1B5E20),
               surface: Colors.white,
-              surfaceVariant: Color(0xFFF6F6F6),
+              surfaceContainerHighest: Color(0xFFF6F6F6),
               onPrimary: Colors.white,
               onSurface: Colors.black,
               onSurfaceVariant: Color(0xFF333333),
@@ -101,7 +99,6 @@ class Watch2EarnApp extends StatelessWidget {
             ),
           ),
           darkTheme: ThemeData.dark().copyWith(
-            useMaterial3: true,
             scaffoldBackgroundColor: const Color(0xFF0A0A0A),
             primaryColor: const Color(0xFF006833),
             colorScheme: const ColorScheme.dark(
@@ -110,7 +107,7 @@ class Watch2EarnApp extends StatelessWidget {
               secondary: Color(0xFF4CAF50),
               secondaryContainer: Color(0xFF1B5E20),
               surface: Color(0xFF1A1A1A),
-              surfaceVariant: Color(0xFF2A2A2A),
+              surfaceContainerHighest: Color(0xFF2A2A2A),
               onPrimary: Colors.white,
               onSurface: Colors.white,
               onSurfaceVariant: Color(0xFFE0E0E0),

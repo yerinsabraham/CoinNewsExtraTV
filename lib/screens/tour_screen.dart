@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/first_launch_service.dart';
 
 class TourScreen extends StatefulWidget {
-  const TourScreen({Key? key}) : super(key: key);
+  const TourScreen({super.key});
 
   @override
   State<TourScreen> createState() => _TourScreenState();

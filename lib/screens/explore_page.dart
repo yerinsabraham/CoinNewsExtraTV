@@ -337,9 +337,7 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Widget _buildVideoCard(VideoModel video) {
-    final duration = video.durationSeconds != null 
-        ? '${(video.durationSeconds! ~/ 60)}:${(video.durationSeconds! % 60).toString().padLeft(2, '0')}'
-        : '0:00';
+    final duration = '${(video.durationSeconds ~/ 60)}:${(video.durationSeconds % 60).toString().padLeft(2, '0')}';
     
     return Material(
       color: Colors.transparent,

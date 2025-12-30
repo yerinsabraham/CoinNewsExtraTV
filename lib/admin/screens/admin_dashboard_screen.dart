@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:feather_icons/feather_icons.dart';
-import '../../provider/admin_provider.dart';
 import '../../help_support/services/support_service.dart';
 import '../widgets/dashboard_stats_card.dart';
 import '../widgets/dashboard_menu_card.dart';
@@ -133,8 +132,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       Container(
                         width: 48,
                         height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF006833),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF006833),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -389,15 +388,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(
+                      Icon(
                         FeatherIcons.activity,
                         color: Color(0xFF006833),
                         size: 20,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         'System Status',
                         style: TextStyle(
                           color: Colors.white,
@@ -652,7 +651,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: selectedPriority,
+                  initialValue: selectedPriority,
                   dropdownColor: Colors.grey[800],
                   style: const TextStyle(color: Colors.white, fontFamily: 'Lato'),
                   decoration: InputDecoration(

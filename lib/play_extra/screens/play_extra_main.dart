@@ -656,7 +656,7 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '✅ Successfully joined global battle! (${stake} CNE)',
+            '✅ Successfully joined global battle! ($stake CNE)',
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF00B359),
@@ -935,7 +935,7 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
       builder: (context, child) {
         final currentRotation = _finalWheelAngle * _wheelRotation.value;
         
-        return Container(
+        return SizedBox(
           width: 250,
           height: 250,
           child: Stack(
@@ -959,7 +959,7 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
               ),
               
               // Accurate spinning wheel
-              Container(
+              SizedBox(
                 width: 230,
                 height: 230,
                 child: CustomPaint(
@@ -1646,11 +1646,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.warning, color: Colors.orange, size: 32),
-            const SizedBox(width: 8),
-            const Text(
+            Icon(Icons.warning, color: Colors.orange, size: 32),
+            SizedBox(width: 8),
+            Text(
               'Forfeit Game?',
               style: TextStyle(
                 color: Colors.orange,
@@ -1737,11 +1737,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 32),
-            const SizedBox(width: 8),
-            const Text(
+            Icon(Icons.check_circle, color: Colors.green, size: 32),
+            SizedBox(width: 8),
+            Text(
               'Exit Game',
               style: TextStyle(
                 color: Colors.white,
@@ -1771,11 +1771,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.green, width: 1),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.security, color: Colors.green, size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.security, color: Colors.green, size: 20),
+                  SizedBox(width: 8),
+                  Text(
                     'Your amount is saved!',
                     style: TextStyle(
                       color: Colors.green,

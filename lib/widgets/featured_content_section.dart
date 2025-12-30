@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../data/video_data.dart';
-import '../models/video_model.dart';
 
 class FeaturedContentSection extends StatelessWidget {
   const FeaturedContentSection({super.key});
@@ -28,10 +27,10 @@ class FeaturedContentSection extends StatelessWidget {
                 onPressed: () {
                   Navigator.pushNamed(context, '/youtube');
                 },
-                child: Text(
+                child: const Text(
                   'View All',
                   style: TextStyle(
-                    color: const Color(0xFF006833),
+                    color: Color(0xFF006833),
                     fontSize: 14,
                     fontFamily: 'Lato',
                   ),
@@ -163,11 +162,11 @@ class FeaturedContentSection extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
+          const Padding(
+            padding: EdgeInsets.all(16),
             child: Icon(
               Icons.play_arrow,
-              color: const Color(0xFF006833),
+              color: Color(0xFF006833),
               size: 24,
             ),
           ),

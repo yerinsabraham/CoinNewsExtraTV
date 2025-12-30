@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../utils/error_message_helper.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,8 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = formatAuthError(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login failed: $e")),
+          SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
         );
       }
     } finally {
@@ -40,16 +42,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _googleSignIn() async {
     setState(() => _loading = true);
     try {
-      await AuthService.signInWithGoogle();
-      
-      // Force immediate navigation to home screen
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+      final result = await AuthService.signInWithGoogle();
+      if (result != null) {
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
       if (mounted) {
+        final msg = formatAuthError(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google sign-in failed: $e")),
+          SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
         );
       }
     } finally {

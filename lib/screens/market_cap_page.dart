@@ -410,7 +410,7 @@ class _MarketCapPageState extends State<MarketCapPage> {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '${_formatNumber(crypto.currentPrice)}',
+                      _formatNumber(crypto.currentPrice),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -426,7 +426,7 @@ class _MarketCapPageState extends State<MarketCapPage> {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '${_formatMarketCap(crypto.marketCap)}',
+                      _formatMarketCap(crypto.marketCap),
                       style: TextStyle(
                         color: Colors.grey[400],
                         fontSize: 11,

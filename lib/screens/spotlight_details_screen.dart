@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../utils/external_link_helper.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
@@ -174,11 +173,11 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
                 Icon(FeatherIcons.award, color: Colors.amber, size: 16),
-                const SizedBox(width: 6),
-                const Text(
+                SizedBox(width: 6),
+                Text(
                   '+2.8 CNE',
                   style: TextStyle(
                     color: Colors.amber,
@@ -218,11 +217,11 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.amber.withOpacity(0.3)),
         ),
-        child: Row(
+        child: const Row(
           children: [
             Icon(FeatherIcons.checkCircle, color: Colors.amber, size: 16),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               'Reward earned! +2.8 CNE tokens',
               style: TextStyle(
                 color: Colors.amber,
@@ -245,7 +244,7 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.amber.withOpacity(0.3)),
         ),
-        child: Row(
+        child: const Row(
           children: [
             SizedBox(
               width: 16,
@@ -255,8 +254,8 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
                 strokeWidth: 2,
               ),
             ),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               'Claiming reward...',
               style: TextStyle(
                 color: Colors.amber,
@@ -311,7 +310,7 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
               ),
             ),
           ),
-          Icon(FeatherIcons.award, color: Colors.amber, size: 16),
+          const Icon(FeatherIcons.award, color: Colors.amber, size: 16),
         ],
       ),
     );
@@ -511,16 +510,16 @@ class _SpotlightDetailsScreenState extends State<SpotlightDetailsScreen> {
                             ),
                           ],
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               FeatherIcons.star,
                               color: Colors.black,
                               size: 14,
                             ),
-                            const SizedBox(width: 4),
-                            const Text(
+                            SizedBox(width: 4),
+                            Text(
                               'FEATURED',
                               style: TextStyle(
                                 color: Colors.black,

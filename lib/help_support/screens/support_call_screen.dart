@@ -3,7 +3,6 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/support_service.dart';
-import '../models/support_call.dart';
 
 class SupportCallScreen extends StatefulWidget {
   final String callId;

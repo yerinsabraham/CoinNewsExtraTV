@@ -630,10 +630,10 @@ class _ExtraAIPageState extends State<ExtraAIPage> with TickerProviderStateMixin
                         width: 24,
                         height: 24,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
+                          gradient: const LinearGradient(
                             colors: [
-                              const Color(0xFF006833),
-                              const Color(0xFF00A651),
+                              Color(0xFF006833),
+                              Color(0xFF00A651),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),

@@ -1,5 +1,4 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../utils/external_link_helper.dart';
 import 'dart:async';
 import '../data/video_data.dart';

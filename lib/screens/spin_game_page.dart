@@ -166,7 +166,7 @@ class _SpinGamePageState extends State<SpinGamePage>
       // sliceCenter = startOffset + i*anglePerSection + anglePerSection/2
       // After rotating the wheel by _lastSpinRotation, the rotated center is (sliceCenter + rotation) mod 2π.
       // The pointer sits at startOffset (top). We'll pick the slice whose rotated center is nearest to the pointer angle.
-      final startOffset = -pi / 2;
+      const startOffset = -pi / 2;
 
       double normalize(double a) => (a % (2 * pi) + (2 * pi)) % (2 * pi);
 
@@ -521,15 +521,15 @@ class _SpinGamePageState extends State<SpinGamePage>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey[700]!),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
-                    const Icon(
+                    Icon(
                       FeatherIcons.clock,
                       color: Colors.orange,
                       size: 32,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
+                    SizedBox(height: 12),
+                    Text(
                       'Daily Limit Reached',
                       style: TextStyle(
                         color: Colors.white,
@@ -538,8 +538,8 @@ class _SpinGamePageState extends State<SpinGamePage>
                         fontFamily: 'Lato',
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'Come back tomorrow for more spins!',
                       style: TextStyle(
                         color: Colors.white70,
@@ -714,7 +714,7 @@ class SpinWheelPainter extends CustomPainter {
     final anglePerSection = (2 * pi) / prizes.length;
     
     // Start from top (12 o'clock position) - subtract π/2 to align with pointer
-    final startOffset = -pi / 2;
+    const startOffset = -pi / 2;
 
     for (int i = 0; i < prizes.length; i++) {
       final startAngle = startOffset + (i * anglePerSection);

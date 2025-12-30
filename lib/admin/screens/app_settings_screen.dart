@@ -427,7 +427,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF006833),
+            activeThumbColor: const Color(0xFF006833),
           ),
         ],
       ),
