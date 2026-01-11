@@ -18,7 +18,8 @@ class OpenAIService {
   // No client-side OpenAI API key required — calls are proxied via the
   // deployed Cloud Function which holds the secret server-side.
 
-  Future<String> sendMessage(String message, {bool includeSources = true, bool preferConcise = true}) async {
+  Future<String> sendMessage(String message,
+      {bool includeSources = true, bool preferConcise = true}) async {
     // The app proxies all OpenAI calls to the server-side Cloud Function.
     // No client-side OpenAI key is required.
 
@@ -28,7 +29,8 @@ class OpenAIService {
     // `preferConcise` is false, allow a more detailed response (up to
     // three short paragraphs).
     final systemPrompt = StringBuffer();
-    systemPrompt.writeln('You are CNETV AI — a factual assistant for technology, blockchain, fintech, AI research, health-tech, and general software topics.');
+    systemPrompt.writeln(
+        'You are CNETV AI — a factual assistant for technology, blockchain, fintech, AI research, health-tech, and general software topics.');
 
     // Use the server-side Cloud Function proxy if configured
     if (_openaiFunctionUrl.isEmpty) {
@@ -78,6 +80,7 @@ class OpenAIService {
   }
 
   String _getErrorResponse() {
-    return "Sorry, I'm having trouble connecting right now. Please try again later. In the meantime, feel free to ask about Bitcoin, Ethereum, DeFi, or other crypto topics!";
+    // Return a marker message that the app can detect and fall back to local responses
+    return "Sorry, I'm having trouble connecting to the AI service right now.";
   }
 }

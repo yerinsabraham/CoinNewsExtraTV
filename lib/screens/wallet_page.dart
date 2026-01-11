@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/user_balance_service.dart';
 
 class WalletPage extends StatefulWidget {
@@ -35,7 +36,8 @@ class _WalletPageState extends State<WalletPage> {
               ),
               IconButton(
                 icon: const Icon(Icons.history, color: Colors.white),
-                onPressed: () => _showTransactionHistory(context, balanceService),
+                onPressed: () =>
+                    _showTransactionHistory(context, balanceService),
               ),
             ],
           ),
@@ -85,14 +87,18 @@ class _WalletPageState extends State<WalletPage> {
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006833)),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Color(0xFF006833)),
                                       ),
                                     ),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF006833).withOpacity(0.2),
+                                      color: const Color(0xFF006833)
+                                          .withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Text(
@@ -149,7 +155,8 @@ class _WalletPageState extends State<WalletPage> {
                             label: 'Send',
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Send feature coming soon!')),
+                                const SnackBar(
+                                    content: Text('Send feature coming soon!')),
                               );
                             },
                           ),
@@ -161,7 +168,9 @@ class _WalletPageState extends State<WalletPage> {
                             label: 'Receive',
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Receive feature coming soon!')),
+                                const SnackBar(
+                                    content:
+                                        Text('Receive feature coming soon!')),
                               );
                             },
                           ),
@@ -173,7 +182,8 @@ class _WalletPageState extends State<WalletPage> {
                             label: 'Swap',
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Swap feature coming soon!')),
+                                const SnackBar(
+                                    content: Text('Swap feature coming soon!')),
                               );
                             },
                           ),
@@ -204,6 +214,38 @@ class _WalletPageState extends State<WalletPage> {
                       change: '+0.00%',
                       isPositive: true,
                     ),
+
+                    const SizedBox(height: 24),
+
+                    // NFT Collection section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'NFT Collection',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _showNFTInfo(context),
+                          icon: const Icon(Icons.info_outline,
+                              size: 16, color: Color(0xFF006833)),
+                          label: const Text(
+                            'About NFTs',
+                            style: TextStyle(
+                                color: Color(0xFF006833), fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildNFTCollection(),
 
                     const SizedBox(height: 24),
 
@@ -358,7 +400,8 @@ class _WalletPageState extends State<WalletPage> {
     );
   }
 
-  Widget _buildBalanceDetail(String label, String amount, IconData icon, Color color) {
+  Widget _buildBalanceDetail(
+      String label, String amount, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -439,7 +482,8 @@ class _WalletPageState extends State<WalletPage> {
     );
   }
 
-  void _showTransactionHistory(BuildContext context, UserBalanceService balanceService) {
+  void _showTransactionHistory(
+      BuildContext context, UserBalanceService balanceService) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.black,
@@ -489,6 +533,212 @@ class _WalletPageState extends State<WalletPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildNFTCollection() {
+    return FutureBuilder<List<String>>(
+      future: _loadNFTs(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF006833)),
+          );
+        }
+
+        final nfts = snapshot.data ?? [];
+
+        if (nfts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[700]!, width: 1),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.collections_outlined,
+                  size: 48,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No NFTs yet',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Win NFTs by playing Spin to Earn!',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                    fontFamily: 'Lato',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/spin-game'),
+                  icon: const Icon(Icons.casino, size: 18),
+                  label: const Text('Play Spin to Earn'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF006833),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: nfts.length,
+          itemBuilder: (context, index) {
+            return _buildNFTCard(index + 1, nfts[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNFTCard(int index, String nftData) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFE91E63).withOpacity(0.3),
+            const Color(0xFF9C27B0).withOpacity(0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE91E63).withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.palette,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Spin2Earn NFT',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '#$index',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontSize: 12,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF006833),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'Owned',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<String>> _loadNFTs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getStringList('user_nfts') ?? [];
+    } catch (e) {
+      debugPrint('Error loading NFTs: $e');
+      return [];
+    }
+  }
+
+  void _showNFTInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Color(0xFF006833)),
+            SizedBox(width: 8),
+            Text(
+              'About NFTs',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'NFTs (Non-Fungible Tokens) are unique digital collectibles that you can win by playing Spin to Earn!\n\n'
+          '🎨 Each NFT is one-of-a-kind\n'
+          '🏆 Collect them as you play\n'
+          '💎 They are stored securely in your wallet\n\n'
+          'Keep playing to expand your collection!',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Got it!',
+              style: TextStyle(color: Color(0xFF006833)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

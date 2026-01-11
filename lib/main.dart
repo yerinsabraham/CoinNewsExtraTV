@@ -29,8 +29,10 @@ import 'screens/program_page.dart';
 import 'screens/spotlight_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/tour_screen.dart';
-import 'play_extra/screens/play_extra_main.dart';
-import 'provider/admin_provider.dart'; 
+import 'screens/referral_page.dart';
+// TEMPORARILY DISABLED: play_extra has compilation errors
+// import 'play_extra/screens/play_extra_main.dart';
+import 'provider/admin_provider.dart';
 import 'services/user_balance_service.dart';
 import 'services/first_launch_service.dart';
 import 'services/notification_service.dart';
@@ -49,13 +51,13 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // Initialize Firebase Analytics
   FirebaseAnalytics.instance;
-  
+
   // Set background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  
+
   // Initialize notification service
   await NotificationService().initialize();
 
@@ -145,10 +147,11 @@ class Watch2EarnApp extends StatelessWidget {
             '/chat': (context) => const ChatPage(),
             '/extra-ai': (context) => const ExtraAIPage(),
             '/live-stream': (context) => const LiveStreamPage(
-              streamId: 'live_stream_001',
-              title: 'CoinNewsExtra Live',
-              description: 'Watch our live crypto news and analysis stream to earn rewards!',
-            ),
+                  streamId: 'live_stream_001',
+                  title: 'CoinNewsExtra Live',
+                  description:
+                      'Watch our live crypto news and analysis stream to earn rewards!',
+                ),
             '/news': (context) => const NewsPage(),
             '/market-cap': (context) => const MarketCapPage(),
             '/more': (context) => const MorePage(),
@@ -158,7 +161,9 @@ class Watch2EarnApp extends StatelessWidget {
             '/spotlight': (context) => const SpotlightScreen(),
             '/welcome': (context) => const WelcomeScreen(),
             '/tour': (context) => const TourScreen(),
-            '/play-extra': (context) => const PlayExtraMain(),
+            // TEMPORARILY DISABLED: play_extra has compilation errors
+            // '/play-extra': (context) => const PlayExtraMain(),
+            '/referral': (context) => const ReferralPage(),
           },
         );
       }),

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hedera Account Generator - CNE Platform</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      color: #667eea;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .warning-box {
+      background: #fff3e0;
+      border-left: 4px solid #ff9800;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .success-box {
+      background: #e8f5e9;
+      border-left: 4px solid #4caf50;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: border-color 0.3s;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #4caf50;
+      color: white;
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #45a049;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .accounts-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .accounts-table th,
+    .accounts-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .accounts-table th {
+      background: #f5f5f5;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .accounts-table tr:hover {
+      background: #f9f9f9;
+    }
+
+    .copy-btn {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .copy-btn:hover {
+      background: #1976D2;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #f0f0f0;
+      border-radius: 15px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+
+    .log-box {
+      background: #1e1e1e;
+      color: #00ff00;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .log-entry {
+      margin-bottom: 5px;
+    }
+
+    .network-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .network-testnet {
+      background: #fff3e0;
+      color: #ff9800;
+    }
+
+    .network-mainnet {
+      background: #e8f5e9;
+      color: #4caf50;
+    }
+
+    .explorer-link {
+      color: #2196F3;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .explorer-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🔐 Hedera Account Generator</h1>
+      <p>Bulk create Hedera blockchain accounts with one click</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="card">
+      <h2>📊 Generation Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalGenerated">0</div>
+          <div class="stat-label">Total Accounts Generated</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="lastBatch">0</div>
+          <div class="stat-label">Last Batch Size</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="successRate">100%</div>
+          <div class="stat-label">Success Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generator Controls -->
+    <div class="card">
+      <h2>⚙️ Account Generator</h2>
+      
+      <div class="info-box">
+        <strong>How it works:</strong><br>
+        • Generates ED25519 cryptographic key pairs<br>
+        • Creates Hedera blockchain accounts<br>
+        • No email or personal information required<br>
+        • All accounts are publicly trackable on blockchain explorers<br>
+        • Each account costs ~0.1 HBAR to create (~$0.005 USD)
+      </div>
+
+      <div class="warning-box">
+        <strong>⚠️ Important:</strong> Generated accounts will be stored in Firestore. Keep the private keys secure!
+      </div>
+
+      <div class="input-group">
+        <label for="accountCount">Number of Accounts to Generate (1-100)</label>
+        <input 
+          type="number" 
+          id="accountCount" 
+          min="1" 
+          max="100" 
+          value="5"
+          placeholder="Enter number of accounts"
+        />
+        <p style="color: #666; font-size: 13px; margin-top: 8px;">
+          Estimated cost: <span id="estimatedCost">0.5</span> HBAR (~$<span id="estimatedUSD">0.003</span>)
+        </p>
+      </div>
+
+      <div class="input-group">
+        <label for="network">Hedera Network</label>
+        <select id="network">
+          <option value="testnet">Testnet (Free - For Testing)</option>
+          <option value="mainnet">Mainnet (Real HBAR Required)</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="accountMemo">Account Memo (Optional)</label>
+        <input 
+          type="text" 
+          id="accountMemo" 
+          placeholder="e.g., CNE-Batch-001"
+          maxlength="100"
+        />
+      </div>
+
+      <button class="btn btn-primary" id="generateBtn" onclick="generateAccounts()">
+        🚀 Generate Hedera Accounts
+      </button>
+
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill">0%</div>
+      </div>
+
+      <div class="log-box" id="logBox"></div>
+    </div>
+
+    <!-- Generated Accounts -->
+    <div class="card" id="accountsCard" style="display: none;">
+      <h2>✅ Generated Accounts</h2>
+      
+      <div class="success-box">
+        Successfully generated <strong id="generatedCount">0</strong> Hedera accounts!
+      </div>
+
+      <button class="btn btn-secondary" onclick="downloadAccountsCSV()">
+        📥 Download Accounts (CSV)
+      </button>
+
+      <button class="btn btn-secondary" onclick="downloadAccountsJSON()">
+        📥 Download Accounts (JSON)
+      </button>
+
+      <table class="accounts-table" id="accountsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Account ID</th>
+            <th>Public Key</th>
+            <th>Network</th>
+            <th>Explorer</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="accountsTableBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js';
+    import { getFirestore, collection, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOjEu3E_n8YQGR-E0cVdz_NMAwGWXENzE",
+      authDomain: "coinnewsextratv-9c75a.firebaseapp.com",
+      projectId: "coinnewsextratv-9c75a",
+      storageBucket: "coinnewsextratv-9c75a.firebasestorage.app",
+      messagingSenderId: "427114508472",
+      appId: "1:427114508472:web:6e716bcd85fba5c5d51c8a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const functions = getFunctions(app);
+    const db = getFirestore(app);
+
+    // Make functions globally available
+    window.functions = functions;
+    window.db = db;
+    window.generatedAccounts = [];
+
+    // Update cost estimate
+    document.getElementById('accountCount').addEventListener('input', (e) => {
+      const count = parseInt(e.target.value) || 0;
+      const hbarCost = (count * 0.1).toFixed(2);
+      const usdCost = (count * 0.1 * 0.05).toFixed(3); // Assuming 1 HBAR = $0.05
+      document.getElementById('estimatedCost').textContent = hbarCost;
+      document.getElementById('estimatedUSD').textContent = usdCost;
+    });
+
+    // Load statistics on page load
+    loadStatistics();
+  </script>
+
+  <script>
+    let generatedAccounts = [];
+
+    function addLog(message, type = 'info') {
+      const logBox = document.getElementById('logBox');
+      logBox.style.display = 'block';
+      const timestamp = new Date().toLocaleTimeString();
+      const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      logEntry.textContent = `[${timestamp}] ${prefix} ${message}`;
+      logBox.appendChild(logEntry);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    async function generateAccounts() {
+      const count = parseInt(document.getElementById('accountCount').value);
+      const network = document.getElementById('network').value;
+      const memo = document.getElementById('accountMemo').value;
+
+      if (!count || count < 1 || count > 100) {
+        alert('Please enter a valid number between 1 and 100');
+        return;
+      }
+
+      const generateBtn = document.getElementById('generateBtn');
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+
+      generateBtn.disabled = true;
+      progressBar.style.display = 'block';
+      generatedAccounts = [];
+
+      addLog(`Starting generation of ${count} Hedera accounts on ${network}...`);
+
+      try {
+        const batchGenerateAccounts = httpsCallable(window.functions, 'batchGenerateHederaAccounts');
+        
+        for (let i = 0; i < count; i++) {
+          const progress = Math.round(((i + 1) / count) * 100);
+          progressFill.style.width = `${progress}%`;
+          progressFill.textContent = `${progress}% (${i + 1}/${count})`;
+
+          addLog(`Generating account ${i + 1}/${count}...`);
+
+          const result = await batchGenerateAccounts({
+            network: network,
+            memo: memo ? `${memo}-${i + 1}` : `CNE-Generated-${Date.now()}-${i + 1}`
+          });
+
+          if (result.data.success) {
+            generatedAccounts.push(result.data);
+            addLog(`Account created: ${result.data.accountId}`, 'success');
+          } else {
+            addLog(`Failed to create account ${i + 1}: ${result.data.error}`, 'error');
+          }
+
+          // Small delay to avoid rate limiting
+          if (i < count - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+
+        addLog('✅ Batch generation complete!', 'success');
+        displayAccounts();
+        updateStatistics();
+        
+      } catch (error) {
+        addLog(`Error: ${error.message}`, 'error');
+        alert('Generation failed: ' + error.message);
+      } finally {
+        generateBtn.disabled = false;
+        progressBar.style.display = 'none';
+      }
+    }
+
+    function displayAccounts() {
+      const accountsCard = document.getElementById('accountsCard');
+      const accountsTableBody = document.getElementById('accountsTableBody');
+      const generatedCount = document.getElementById('generatedCount');
+
+      accountsCard.style.display = 'block';
+      generatedCount.textContent = generatedAccounts.length;
+      accountsTableBody.innerHTML = '';
+
+      generatedAccounts.forEach((account, index) => {
+        const row = document.createElement('tr');
+        const network = account.network || 'testnet';
+        const explorerUrl = network === 'mainnet' 
+          ? `https://hashscan.io/mainnet/account/${account.accountId}`
+          : `https://hashscan.io/testnet/account/${account.accountId}`;
+
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td><strong>${account.accountId}</strong></td>
+          <td><code style="font-size: 11px;">${account.publicKey.substring(0, 20)}...</code></td>
+          <td><span class="network-badge network-${network}">${network.toUpperCase()}</span></td>
+          <td><a href="${explorerUrl}" target="_blank" class="explorer-link">View on HashScan →</a></td>
+          <td>
+            <button class="copy-btn" onclick="copyToClipboard('${account.accountId}')">Copy ID</button>
+            <button class="copy-btn" onclick="copyToClipboard('${account.privateKey}')">Copy Key</button>
+          </td>
+        `;
+        accountsTableBody.appendChild(row);
+      });
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard!');
+      });
+    }
+
+    function downloadAccountsCSV() {
+      let csv = 'Index,Account ID,Public Key,Private Key,Network,DID,Created At\n';
+      
+      generatedAccounts.forEach((account, index) => {
+        csv += `${index + 1},"${account.accountId}","${account.publicKey}","${account.privateKey}","${account.network || 'testnet'}","${account.did || ''}","${new Date().toISOString()}"\n`;
+      });
+
+      downloadFile(csv, 'hedera-accounts.csv', 'text/csv');
+    }
+
+    function downloadAccountsJSON() {
+      const json = JSON.stringify(generatedAccounts, null, 2);
+      downloadFile(json, 'hedera-accounts.json', 'application/json');
+    }
+
+    function downloadFile(content, filename, contentType) {
+      const blob = new Blob([content], { type: contentType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadStatistics() {
+      try {
+        const accountsRef = collection(window.db, 'hedera_generated_accounts');
+        const q = query(accountsRef, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        document.getElementById('totalGenerated').textContent = snapshot.size;
+      } catch (error) {
+        console.error('Error loading statistics:', error);
+      }
+    }
+
+    function updateStatistics() {
+      const totalGenerated = parseInt(document.getElementById('totalGenerated').textContent) + generatedAccounts.length;
+      document.getElementById('totalGenerated').textContent = totalGenerated;
+      document.getElementById('lastBatch').textContent = generatedAccounts.length;
+    }
+
+    // Make functions globally available
+    window.generateAccounts = generateAccounts;
+    window.copyToClipboard = copyToClipboard;
+    window.downloadAccountsCSV = downloadAccountsCSV;
+    window.downloadAccountsJSON = downloadAccountsJSON;
+  </script>
+</body>
+</html>

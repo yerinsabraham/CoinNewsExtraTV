@@ -613,12 +613,12 @@
     import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js';
     
     const firebaseConfig = {
-        apiKey: "AIzaSyB0-13Ect8f_uNj4coPlx1u7hy3UxCTZps",
-        authDomain: "coinnewsextratv-batch-04-e38fd.firebaseapp.com",
-        projectId: "coinnewsextratv-batch-04-e38fd",
-        storageBucket: "coinnewsextratv-batch-04-e38fd.firebasestorage.app",
-        messagingSenderId: "603404082830",
-        appId: "1:603404082830:web:3a79d64aa14341921fb3df"
+        apiKey: "AIzaSyAorupR6qylmTUZ-c9soXLF7EKKIJt9XEg",
+        authDomain: "coinnewsextratv-batch-03-c94f4.firebaseapp.com",
+        projectId: "coinnewsextratv-batch-03-c94f4",
+        storageBucket: "coinnewsextratv-batch-03-c94f4.firebasestorage.app",
+        messagingSenderId: "465938733738",
+        appId: "1:465938733738:web:d2506c2dfb4073126b4ed3"
     
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -862,8 +862,10 @@
       try {
         console.log(`Calling bulkCreateAccounts function with count: ${count}`);
         
-        // Call server-side Cloud Function (no rate limiting!)
-        const bulkCreate = httpsCallable(functions, 'bulkCreateAccounts');
+        // Call server-side Cloud Function with extended timeout (5 minutes for large batches)
+        const bulkCreate = httpsCallable(functions, 'bulkCreateAccounts', {
+          timeout: 300000 // 5 minutes = 300,000 milliseconds
+        });
         const result = await bulkCreate({ count: count });
         
         // Clear progress interval

@@ -66,14 +66,14 @@ class UserBalanceService extends ChangeNotifier {
   String? _error;
   StreamSubscription? _authSubscription;
   StreamSubscription? _firestoreSubscription;
-  
+
   // Firebase Firestore instance
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   // Simple in-memory balance for demo
   double _balance = 10.0; // Start with 10 CNE from backend
-  
+
   // Getters
   UserBalance get userBalance => _userBalance;
   double get balance => _balance;
@@ -107,7 +107,7 @@ class UserBalanceService extends ChangeNotifier {
 
   void _listenToUserBalance(String userId) {
     _firestoreSubscription?.cancel();
-    
+
     _firestoreSubscription = _firestore
         .collection('users')
         .doc(userId)
@@ -131,17 +131,19 @@ class UserBalanceService extends ChangeNotifier {
     // Check both totalBalance and cneBalance for compatibility
     final totalBalance = (data['totalBalance'] ?? 0.0).toDouble();
     final cneBalance = (data['cneBalance'] ?? 0.0).toDouble();
-    
+
     // Use the higher value to ensure we don't lose rewards
     final actualBalance = totalBalance > cneBalance ? totalBalance : cneBalance;
-    
+
     // If there's a mismatch, sync them by updating totalBalance to match cneBalance
     if (totalBalance != cneBalance && cneBalance > 0) {
-      print('🔄 Syncing balance fields: totalBalance=$totalBalance, cneBalance=$cneBalance');
+      print(
+          '🔄 Syncing balance fields: totalBalance=$totalBalance, cneBalance=$cneBalance');
       _syncBalanceFields(cneBalance);
     }
-    
-    _balance = actualBalance > 0 ? actualBalance : 10.0; // Default to 10 if both are 0
+
+    _balance =
+        actualBalance > 0 ? actualBalance : 10.0; // Default to 10 if both are 0
     _userBalance = UserBalance.fromMap(data);
     _error = null;
     notifyListeners();
@@ -150,13 +152,14 @@ class UserBalanceService extends ChangeNotifier {
   Future<void> _syncBalanceFields(double cneBalance) async {
     final user = _auth.currentUser;
     if (user == null) return;
-    
+
     try {
       await _firestore.collection('users').doc(user.uid).update({
         'totalBalance': cneBalance,
         'lastSyncAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Balance fields synchronized: totalBalance updated to $cneBalance');
+      print(
+          '✅ Balance fields synchronized: totalBalance updated to $cneBalance');
     } catch (e) {
       print('❌ Failed to sync balance fields: $e');
     }
@@ -174,13 +177,16 @@ class UserBalanceService extends ChangeNotifier {
         lastUpdated: DateTime.now().toIso8601String(),
       );
 
-      await _firestore.collection('users').doc(userId).set(initialBalance.toMap());
-      
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .set(initialBalance.toMap());
+
       _balance = 10.0;
       _userBalance = initialBalance;
       _error = null;
       notifyListeners();
-      
+
       debugPrint('Created initial user document with 10 CNE for user: $userId');
     } catch (e) {
       _error = 'Failed to create user document: $e';
@@ -192,13 +198,13 @@ class UserBalanceService extends ChangeNotifier {
   Future<void> loadUserBalance() async {
     final user = _auth.currentUser;
     if (user == null || _isLoading) return;
-    
+
     _setLoading(true);
     _error = null;
 
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      
+
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         _updateBalanceFromFirestore(data);
@@ -257,9 +263,12 @@ class UserBalanceService extends ChangeNotifier {
         final doc = await _firestore.collection('users').doc(user.uid).get();
         if (doc.exists) {
           final data = doc.data() as Map<String, dynamic>;
-          final persistedTotal = (data['totalBalance'] ?? data['cneBalance'] ?? 0).toDouble();
-          final persistedCne = (data['cneBalance'] ?? data['totalBalance'] ?? 0).toDouble();
-          debugPrint('Persisted values after addBalance -> totalBalance: $persistedTotal, cneBalance: $persistedCne');
+          final persistedTotal =
+              (data['totalBalance'] ?? data['cneBalance'] ?? 0).toDouble();
+          final persistedCne =
+              (data['cneBalance'] ?? data['totalBalance'] ?? 0).toDouble();
+          debugPrint(
+              'Persisted values after addBalance -> totalBalance: $persistedTotal, cneBalance: $persistedCne');
         } else {
           debugPrint('User doc not found after write (unexpected)');
         }
@@ -267,7 +276,8 @@ class UserBalanceService extends ChangeNotifier {
         debugPrint('Error reading back user doc after addBalance: $e');
       }
 
-      debugPrint('Added $amount CNE: $reason. New balance (local): $newBalance CNE');
+      debugPrint(
+          'Added $amount CNE: $reason. New balance (local): $newBalance CNE');
     } catch (e) {
       _error = 'Failed to add balance: $e';
       debugPrint('Error adding balance: $e');
@@ -275,9 +285,14 @@ class UserBalanceService extends ChangeNotifier {
     }
   }
 
-  Future<void> _logEarningActivity(String userId, double amount, String reason) async {
+  Future<void> _logEarningActivity(
+      String userId, double amount, String reason) async {
     try {
-      await _firestore.collection('users').doc(userId).collection('earnings').add({
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('earnings')
+          .add({
         'amount': amount,
         'reason': reason,
         'timestamp': FieldValue.serverTimestamp(),
@@ -303,7 +318,8 @@ class UserBalanceService extends ChangeNotifier {
         if (!snapshot.exists) throw Exception('User document does not exist');
 
         final data = snapshot.data() as Map<String, dynamic>;
-        final currentTotal = (data['totalBalance'] ?? data['cneBalance'] ?? 0).toDouble();
+        final currentTotal =
+            (data['totalBalance'] ?? data['cneBalance'] ?? 0).toDouble();
 
         if (currentTotal < amount) {
           throw Exception('Insufficient balance');
@@ -338,7 +354,11 @@ class UserBalanceService extends ChangeNotifier {
 
   Future<void> _logSpendingActivity(String userId, double amount) async {
     try {
-      await _firestore.collection('users').doc(userId).collection('spendings').add({
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('spendings')
+          .add({
         'amount': amount,
         'timestamp': FieldValue.serverTimestamp(),
         'date': DateTime.now().toIso8601String(),
@@ -361,7 +381,7 @@ class UserBalanceService extends ChangeNotifier {
   }
 
   double get availableBalance => _balance;
-  
+
   bool canAfford(double amount) {
     return _balance >= amount;
   }
@@ -382,6 +402,41 @@ class UserBalanceService extends ChangeNotifier {
       print('❌ Failed to refresh balance: $e');
       _error = 'Failed to refresh balance: $e';
       notifyListeners();
+    }
+  }
+
+  /// Get transaction history from Firestore
+  Future<List<Map<String, dynamic>>> getTransactionHistory() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final earningsSnapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('earnings')
+          .orderBy('timestamp', descending: true)
+          .limit(50)
+          .get();
+
+      final transactions = <Map<String, dynamic>>[];
+
+      for (final doc in earningsSnapshot.docs) {
+        final data = doc.data();
+        final timestamp = data['timestamp'] as Timestamp?;
+
+        transactions.add({
+          'description': data['reason'] ?? 'Unknown',
+          'amount': (data['amount'] ?? 0.0).toDouble(),
+          'timestamp': timestamp?.millisecondsSinceEpoch ??
+              DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+
+      return transactions;
+    } catch (e) {
+      debugPrint('❌ Error fetching transaction history: $e');
+      return [];
     }
   }
 

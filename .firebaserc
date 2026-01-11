@@ -1,7 +1,8 @@
 {
   "projects": {
     "default": "coinnewsextratv-9c75a",
-    "y": "coinnewsextratv-9c75a"
+    "y": "coinnewsextratv-9c75a",
+    "staging": "coinnewsextratv-batch-03-c94f4"
   },
   "targets": {},
   "etags": {}

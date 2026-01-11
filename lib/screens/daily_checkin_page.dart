@@ -54,12 +54,12 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
       final today = DateTime.now().toIso8601String().substring(0, 10);
       final lastClaimDate = prefs.getString('daily_claim_date_$userId');
       final lastClaimTimestamp = prefs.getInt('daily_claim_timestamp_$userId');
-      
+
       _currentStreak = prefs.getInt('daily_streak_$userId') ?? 0;
       _bestStreak = prefs.getInt('best_streak_$userId') ?? 0;
-      
+
       bool canClaimToday = lastClaimDate != today;
-      
+
       setState(() {
         _canClaim = canClaimToday;
         _calculateTimeUntilNextClaim(lastClaimTimestamp);
@@ -77,7 +77,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
       _timeUntilNextClaim = Duration.zero;
       return;
     }
-    
+
     if (lastClaimTimestamp != null) {
       // Next claim should be exactly 24 hours after the last claim time
       final lastClaim = DateTime.fromMillisecondsSinceEpoch(lastClaimTimestamp);
@@ -94,13 +94,14 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
 
   void _startCountdownTimer() {
     _countdownTimer?.cancel();
-    
+
     if (_timeUntilNextClaim.inSeconds <= 0) return;
-    
+
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeUntilNextClaim.inSeconds > 0) {
         setState(() {
-          _timeUntilNextClaim = _timeUntilNextClaim - const Duration(seconds: 1);
+          _timeUntilNextClaim =
+              _timeUntilNextClaim - const Duration(seconds: 1);
         });
       } else {
         timer.cancel();
@@ -113,7 +114,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final seconds = duration.inSeconds % 60;
-    
+
     if (hours > 0) {
       return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {
@@ -133,7 +134,8 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
     setState(() => _isClaiming = true);
 
     try {
-      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
+      final balanceService =
+          Provider.of<UserBalanceService>(context, listen: false);
       await balanceService.addBalance(_rewardAmount, 'Daily check-in reward');
 
       // Save user-specific claim data
@@ -143,16 +145,17 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
         final now = DateTime.now();
         final userId = user.uid;
         final today = now.toIso8601String().substring(0, 10);
-        
+
         // Update streak
         final newStreak = _currentStreak + 1;
         final newBestStreak = newStreak > _bestStreak ? newStreak : _bestStreak;
-        
+
         await prefs.setString('daily_claim_date_$userId', today);
-        await prefs.setInt('daily_claim_timestamp_$userId', now.millisecondsSinceEpoch);
+        await prefs.setInt(
+            'daily_claim_timestamp_$userId', now.millisecondsSinceEpoch);
         await prefs.setInt('daily_streak_$userId', newStreak);
         await prefs.setInt('best_streak_$userId', newBestStreak);
-        
+
         setState(() {
           _currentStreak = newStreak;
           _bestStreak = newBestStreak;
@@ -165,7 +168,8 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Daily reward claimed! +${_rewardAmount.toStringAsFixed(0)} CNE'),
+            content: Text(
+                'Daily reward claimed! +${_rewardAmount.toStringAsFixed(0)} CNE'),
             backgroundColor: const Color(0xFF006833),
           ),
         );
@@ -186,12 +190,13 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
 
   Future<bool> _showMandatoryVideo() async {
     return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false, // User must watch the video
-      builder: (BuildContext context) {
-        return const _VideoDialog();
-      },
-    ) ?? false;
+          context: context,
+          barrierDismissible: false, // User must watch the video
+          builder: (BuildContext context) {
+            return const _VideoDialog();
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -314,9 +319,8 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                           _canClaim
                               ? FeatherIcons.gift
                               : FeatherIcons.checkCircle,
-                          color: _canClaim
-                              ? const Color(0xFF006833)
-                              : Colors.grey,
+                          color:
+                              _canClaim ? const Color(0xFF006833) : Colors.grey,
                           size: 64,
                         ),
                         const SizedBox(height: 16),
@@ -325,9 +329,7 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                               ? 'Ready to Check-in!'
                               : 'Already Checked-in Today',
                           style: TextStyle(
-                            color: _canClaim
-                                ? Colors.white
-                                : Colors.grey[400],
+                            color: _canClaim ? Colors.white : Colors.grey[400],
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Lato',
@@ -346,14 +348,17 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        if (!_canClaim && _timeUntilNextClaim.inSeconds > 0) ...[
+                        if (!_canClaim &&
+                            _timeUntilNextClaim.inSeconds > 0) ...[
                           const SizedBox(height: 12),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
                             decoration: BoxDecoration(
                               color: Colors.grey[800],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey[600]!, width: 1),
+                              border: Border.all(
+                                  color: Colors.grey[600]!, width: 1),
                             ),
                             child: Text(
                               _formatCountdown(_timeUntilNextClaim),
@@ -376,7 +381,8 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF006833),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -391,7 +397,8 @@ class _DailyCheckinPageState extends State<DailyCheckinPage> {
                                       ),
                                     )
                                   : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         const Icon(FeatherIcons.gift),
                                         const SizedBox(width: 8),
@@ -599,35 +606,37 @@ class _VideoDialogState extends State<_VideoDialog> {
   @override
   void initState() {
     super.initState();
-    
+
     // Get a random video from video data
     final videos = VideoData.getAllVideos();
-    String videoId = videos.isNotEmpty ? videos.first.youtubeId.trim() : 'p4kmPtTU4lw';
-    
+    String videoId =
+        videos.isNotEmpty ? videos.first.youtubeId.trim() : 'p4kmPtTU4lw';
+
     // Validate video ID
     if (videoId.isEmpty) {
       videoId = 'dQw4w9WgXcQ';
       debugPrint('⚠️ No video ID found, using fallback: $videoId');
     }
-    
+
     debugPrint('📺 Daily checkin initializing player with video ID: $videoId');
-    
+
     _controller = YoutubePlayerController(
       initialVideoId: videoId,
       flags: const YoutubePlayerFlags(
         autoPlay: true,
         mute: false,
-        controlsVisibleAtStart: false,
+        controlsVisibleAtStart: true,
         loop: false,
-        hideControls: true,
-        useHybridComposition: true,
+        hideControls: false,
+        useHybridComposition: false,
       ),
     );
 
     // Add error handling
     _controller.addListener(() {
       if (_controller.value.hasError) {
-        debugPrint('❌ Daily Checkin Video Error: ${_controller.value.errorCode}');
+        debugPrint(
+            '❌ Daily Checkin Video Error: ${_controller.value.errorCode}');
       } else if (_controller.value.isReady && !_controller.value.isPlaying) {
         debugPrint('✅ Daily checkin video ready, attempting autoplay...');
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -708,7 +717,8 @@ class _VideoDialogState extends State<_VideoDialog> {
                   ),
                   if (!_canSkip)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(4),
@@ -772,12 +782,13 @@ class _VideoDialogState extends State<_VideoDialog> {
                     child: ElevatedButton(
                       onPressed: _canSkip
                           ? () {
-                              Navigator.of(context).pop(true); // Video completed
+                              Navigator.of(context)
+                                  .pop(true); // Video completed
                             }
                           : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _canSkip 
-                            ? const Color(0xFF006833) 
+                        backgroundColor: _canSkip
+                            ? const Color(0xFF006833)
                             : Colors.grey[700],
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(

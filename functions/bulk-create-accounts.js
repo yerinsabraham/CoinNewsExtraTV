@@ -54,10 +54,84 @@ exports.bulkCreateAccounts = functions.https.onCall(
     'jacob', 'sophia', 'noah', 'olivia', 'lucas', 'emma', 'mason', 'ava', 'ethan', 'isabella'
   ];
 
+  const lastNames = [
+    'smith', 'johnson', 'williams', 'brown', 'jones', 'garcia', 'miller', 'davis', 'rodriguez', 'martinez',
+    'hernandez', 'lopez', 'gonzalez', 'wilson', 'anderson', 'thomas', 'taylor', 'moore', 'jackson', 'martin',
+    'lee', 'perez', 'thompson', 'white', 'harris', 'sanchez', 'clark', 'ramirez', 'lewis', 'robinson',
+    'walker', 'young', 'allen', 'king', 'wright', 'scott', 'torres', 'nguyen', 'hill', 'flores',
+    'green', 'adams', 'nelson', 'baker', 'hall', 'rivera', 'campbell', 'mitchell', 'carter', 'roberts'
+  ];
+
+  const emailProviders = [
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 
+    'protonmail.com', 'zoho.com', 'aol.com', 'mail.com', 'yandex.com'
+  ];
+
   function generateRandomEmail() {
-    const name = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const number = Math.floor(Math.random() * 99) + 1; // 1-99 for short numbers
-    return `${name}.${number}@gmail.com`; // e.g., hannah.37@gmail.com
+    const formats = [
+      // Format 1: firstname.lastname@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first}.${last}@${provider}`;
+      },
+      // Format 2: firstname.lastname.number@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const num = Math.floor(Math.random() * 999) + 1;
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first}.${last}.${num}@${provider}`;
+      },
+      // Format 3: firstnamelastname.number@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const num = Math.floor(Math.random() * 9999) + 1;
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first}${last}${num}@${provider}`;
+      },
+      // Format 4: firstname_lastname@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first}_${last}@${provider}`;
+      },
+      // Format 5: firstname.number@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const num = Math.floor(Math.random() * 99999) + 1;
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first}.${num}@${provider}`;
+      },
+      // Format 6: firstname-lastname@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first}-${last}@${provider}`;
+      },
+      // Format 7: firstinitial.lastname.number@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const num = Math.floor(Math.random() * 999) + 1;
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${first[0]}.${last}.${num}@${provider}`;
+      },
+      // Format 8: lastname.firstname@domain
+      () => {
+        const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const provider = emailProviders[Math.floor(Math.random() * emailProviders.length)];
+        return `${last}.${first}@${provider}`;
+      }
+    ];
+
+    const format = formats[Math.floor(Math.random() * formats.length)];
+    return format();
   }
 
   function generateRandomPassword() {

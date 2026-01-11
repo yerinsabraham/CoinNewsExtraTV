@@ -15,7 +15,8 @@ class ProgramPage extends StatefulWidget {
   State<ProgramPage> createState() => _ProgramPageState();
 }
 
-class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin {
+class _ProgramPageState extends State<ProgramPage>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   // schedule capture/export removed to avoid PDF/download and storage permission issues
   final Set<String> _reminderKeys = <String>{};
@@ -27,71 +28,84 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
       TVProgram(
         time: '08:00 AM',
         title: 'Crypto Morning Brief',
-        description: 'Start your day with the latest cryptocurrency market updates, breaking news, and analysis of top digital assets.',
+        description:
+            'Start your day with the latest cryptocurrency market updates, breaking news, and analysis of top digital assets.',
         duration: '30 min',
         category: 'News',
         isLive: false,
+        thumbnail: 'assets/images/summit1.png',
         host: 'Sarah Chen',
         viewers: '12.5K',
       ),
       TVProgram(
         time: '09:00 AM',
         title: 'Bitcoin Deep Dive',
-        description: 'Comprehensive technical analysis and price predictions for Bitcoin with expert traders and analysts.',
+        description:
+            'Comprehensive technical analysis and price predictions for Bitcoin with expert traders and analysts.',
         duration: '45 min',
         category: 'Analysis',
         isLive: false,
+        thumbnail: 'assets/images/summit2.png',
         host: 'Michael Rodriguez',
         viewers: '18.2K',
       ),
-     
       TVProgram(
         time: '12:00 PM',
         title: 'Crypto Lunch & Learn',
-        description: 'Casual discussion about crypto trends, community updates, and educational content for beginners.',
+        description:
+            'Casual discussion about crypto trends, community updates, and educational content for beginners.',
         duration: '30 min',
         category: 'Education',
         isLive: false,
+        thumbnail: 'assets/images/summit3.png',
         host: 'Emma Wilson',
         viewers: '9.8K',
       ),
       TVProgram(
         time: '02:00 PM',
         title: 'NFT Market Spotlight',
-        description: 'Latest trends, featured collections, and artist interviews in the dynamic NFT marketplace.',
+        description:
+            'Latest trends, featured collections, and artist interviews in the dynamic NFT marketplace.',
         duration: '45 min',
         category: 'NFT',
         isLive: false,
+        thumbnail: 'assets/images/summit4.png',
         host: 'David Kim',
         viewers: '14.3K',
       ),
       TVProgram(
         time: '04:00 PM',
         title: 'Trading Masterclass',
-        description: 'Advanced trading strategies, risk management, and portfolio optimization with professional traders.',
+        description:
+            'Advanced trading strategies, risk management, and portfolio optimization with professional traders.',
         duration: '90 min',
         category: 'Trading',
         isLive: false,
+        thumbnail: 'assets/images/summit1.png',
         host: 'Jennifer Martinez',
         viewers: '32.1K',
       ),
       TVProgram(
         time: '06:30 PM',
         title: 'Blockchain Tech Explained',
-        description: 'Understanding the fundamentals of blockchain technology, consensus mechanisms, and emerging innovations.',
+        description:
+            'Understanding the fundamentals of blockchain technology, consensus mechanisms, and emerging innovations.',
         duration: '60 min',
         category: 'Technology',
         isLive: false,
+        thumbnail: 'assets/images/summit2.png',
         host: 'Robert Chang',
         viewers: '16.9K',
       ),
       TVProgram(
         time: '08:00 PM',
         title: 'Crypto Evening Wrap',
-        description: 'Evening summary of crypto market movements, regulatory news, and tomorrow\'s outlook.',
+        description:
+            'Evening summary of crypto market movements, regulatory news, and tomorrow\'s outlook.',
         duration: '30 min',
         category: 'News',
         isLive: false,
+        thumbnail: 'assets/images/summit3.png',
         host: 'Lisa Parker',
         viewers: '21.4K',
       ),
@@ -100,80 +114,96 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
       TVProgram(
         time: '08:00 AM',
         title: 'Weekly Market Outlook',
-        description: 'Comprehensive weekly crypto market analysis, upcoming events, and key levels to watch.',
+        description:
+            'Comprehensive weekly crypto market analysis, upcoming events, and key levels to watch.',
         duration: '45 min',
         category: 'Analysis',
         isLive: false,
+        thumbnail: 'assets/images/summit1.png',
         host: 'Mark Johnson',
         viewers: '0',
       ),
       TVProgram(
         time: '09:30 AM',
         title: 'Altcoin Discovery',
-        description: 'Featured analysis of promising alternative cryptocurrencies and emerging blockchain projects.',
+        description:
+            'Featured analysis of promising alternative cryptocurrencies and emerging blockchain projects.',
         duration: '60 min',
         category: 'Analysis',
         isLive: false,
+        thumbnail: 'assets/images/summit2.png',
         host: 'Rachel Green',
         viewers: '0',
       ),
       TVProgram(
         time: '11:00 AM',
         title: 'Regulatory Watch',
-        description: 'Latest cryptocurrency regulations, compliance updates, and policy impacts across global markets.',
+        description:
+            'Latest cryptocurrency regulations, compliance updates, and policy impacts across global markets.',
         duration: '30 min',
         category: 'Regulation',
         isLive: false,
+        thumbnail: 'assets/images/summit3.png',
         host: 'Thomas Anderson',
         viewers: '0',
       ),
       TVProgram(
         time: '01:00 PM',
         title: 'Community Q&A Live',
-        description: 'Interactive Q&A session with crypto experts, answering viewer questions and market concerns.',
+        description:
+            'Interactive Q&A session with crypto experts, answering viewer questions and market concerns.',
         duration: '60 min',
         category: 'Discussion',
         isLive: false,
+        thumbnail: 'assets/images/summit4.png',
         host: 'Monica Davis',
         viewers: '0',
       ),
       TVProgram(
         time: '03:00 PM',
         title: 'Metaverse & Gaming',
-        description: 'Exploring virtual worlds, gaming tokens, and metaverse investment opportunities.',
+        description:
+            'Exploring virtual worlds, gaming tokens, and metaverse investment opportunities.',
         duration: '45 min',
         category: 'Metaverse',
         isLive: false,
+        thumbnail: 'assets/images/summit1.png',
         host: 'Carlos Rivera',
         viewers: '0',
       ),
       TVProgram(
         time: '05:00 PM',
         title: 'Crypto Security Deep Dive',
-        description: 'Essential security practices, wallet safety, and protecting your crypto investments.',
+        description:
+            'Essential security practices, wallet safety, and protecting your crypto investments.',
         duration: '60 min',
         category: 'Security',
         isLive: false,
+        thumbnail: 'assets/images/summit2.png',
         host: 'Amanda Foster',
         viewers: '0',
       ),
       TVProgram(
         time: '07:00 PM',
         title: 'Web3 Innovation Hub',
-        description: 'Latest developments in Web3 technologies, dApps, and decentralized internet infrastructure.',
+        description:
+            'Latest developments in Web3 technologies, dApps, and decentralized internet infrastructure.',
         duration: '75 min',
         category: 'Web3',
         isLive: false,
+        thumbnail: 'assets/images/summit3.png',
         host: 'Kevin Liu',
         viewers: '0',
       ),
       TVProgram(
         time: '09:00 PM',
         title: 'Weekend Crypto Recap',
-        description: 'Comprehensive summary of the week in cryptocurrency markets and key developments.',
+        description:
+            'Comprehensive summary of the week in cryptocurrency markets and key developments.',
         duration: '30 min',
         category: 'News',
         isLive: false,
+        thumbnail: 'assets/images/summit4.png',
         host: 'Stephanie Brown',
         viewers: '0',
       ),
@@ -202,7 +232,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false),
+          onPressed: () => Navigator.of(context)
+              .pushNamedAndRemoveUntil('/home', (route) => false),
         ),
         title: const Text(
           'TV Programs',
@@ -225,7 +256,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (c) => const NotificationSettingsPage()),
+                MaterialPageRoute(
+                    builder: (c) => const NotificationSettingsPage()),
               );
             },
           ),
@@ -250,7 +282,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         children: [
           // Ads carousel
           const AdsCarousel(),
-          
+
           // Tab view content
           Expanded(
             child: TabBarView(
@@ -268,7 +300,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
 
   Widget _buildScheduleList(String day) {
     final programs = scheduleData[day] ?? [];
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: programs.length,
@@ -281,24 +313,24 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
 
   Widget _buildProgramCard(TVProgram program) {
     final isToday = _tabController.index == 0;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
-        border: program.isLive 
-          ? Border.all(color: Colors.red, width: 2)
-          : Border.all(color: Colors.grey[800]!, width: 1),
-        boxShadow: program.isLive 
-          ? [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.3),
-                blurRadius: 8,
-                spreadRadius: 1,
-              ),
-            ]
-          : null,
+        border: program.isLive
+            ? Border.all(color: Colors.red, width: 2)
+            : Border.all(color: Colors.grey[800]!, width: 1),
+        boxShadow: program.isLive
+            ? [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,13 +345,15 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                   Colors.transparent,
                 ],
               ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
                 // Time badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF006833),
                     borderRadius: BorderRadius.circular(8),
@@ -334,29 +368,46 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // Program thumbnail
                 Container(
                   width: 56,
                   height: 56,
                   margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey[800],
+                    color: const Color(0xFF006833).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF006833).withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: program.thumbnail != null
-                        ? Image.network(program.thumbnail!, fit: BoxFit.cover, errorBuilder: (c,e,s)=>const Icon(Icons.tv, color: Colors.white))
-                        : const Icon(Icons.tv, color: Colors.white),
+                        ? Image.asset(
+                            program.thumbnail!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => const Icon(
+                              Icons.tv,
+                              color: Color(0xFF006833),
+                              size: 24,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.tv,
+                            color: Color(0xFF006833),
+                            size: 24,
+                          ),
                   ),
                 ),
 
                 // Category badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: _getCategoryColor(program.category),
                     borderRadius: BorderRadius.circular(6),
@@ -371,12 +422,13 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                     ),
                   ),
                 ),
-                
+
                 // Live indicator
                 if (program.isLive) ...[
                   const SizedBox(width: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.red,
                       borderRadius: BorderRadius.circular(6),
@@ -406,9 +458,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                     ),
                   ),
                 ],
-                
+
                 const Spacer(),
-                
+
                 // Duration and viewers
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -451,7 +503,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
               ],
             ),
           ),
-          
+
           // Program content
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -468,9 +520,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                     fontFamily: 'Lato',
                   ),
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Host info
                 Row(
                   children: [
@@ -491,9 +543,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Description
                 Text(
                   program.description,
@@ -504,9 +556,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                     fontFamily: 'Lato',
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Action buttons
                 Row(
                   children: [
@@ -545,7 +597,9 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
 
                       return Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: isSetting || isReminderSet ? null : () => _setReminder(program),
+                          onPressed: isSetting || isReminderSet
+                              ? null
+                              : () => _setReminder(program),
                           icon: isSetting
                               ? const SizedBox(
                                   width: 16,
@@ -559,12 +613,20 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
-                              child: Text(isReminderSet ? 'Reminder Set' : 'Set Reminder', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              child: Text(
+                                  isReminderSet
+                                      ? 'Reminder Set'
+                                      : 'Set Reminder',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isReminderSet ? Colors.amber : const Color(0xFF006833),
-                            foregroundColor: isReminderSet ? Colors.black : Colors.white,
+                            backgroundColor: isReminderSet
+                                ? Colors.amber
+                                : const Color(0xFF006833),
+                            foregroundColor:
+                                isReminderSet ? Colors.black : Colors.white,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -574,9 +636,7 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                         ),
                       );
                     }),
-
                     const SizedBox(width: 12),
-
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey[700]!),
@@ -633,23 +693,24 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
     }
   }
 
-    Future<void> _downloadSchedule() async {
-      // Fallback 'download' that copies a plain-text schedule to clipboard.
-      final buffer = StringBuffer();
-      buffer.writeln('CoinNewsExtra TV - Schedule');
-      buffer.writeln('');
-      for (final day in scheduleData.keys) {
-        buffer.writeln('--- $day ---');
-        for (final p in scheduleData[day]!) {
-          buffer.writeln('${p.time} - ${p.title} (${p.duration})');
-        }
-        buffer.writeln('');
+  Future<void> _downloadSchedule() async {
+    // Fallback 'download' that copies a plain-text schedule to clipboard.
+    final buffer = StringBuffer();
+    buffer.writeln('CoinNewsExtra TV - Schedule');
+    buffer.writeln('');
+    for (final day in scheduleData.keys) {
+      buffer.writeln('--- $day ---');
+      for (final p in scheduleData[day]!) {
+        buffer.writeln('${p.time} - ${p.title} (${p.duration})');
       }
-
-      final text = buffer.toString();
-      await Clipboard.setData(ClipboardData(text: text));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Schedule copied to clipboard')));
+      buffer.writeln('');
     }
+
+    final text = buffer.toString();
+    await Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Schedule copied to clipboard')));
+  }
 
   void _watchLive(TVProgram program) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -668,7 +729,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
     );
   }
 
-  String _reminderKeyFor(TVProgram p) => 'program_reminder_${p.time}_${p.title}';
+  String _reminderKeyFor(TVProgram p) =>
+      'program_reminder_${p.time}_${p.title}';
 
   Future<void> _loadPersistedReminders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -707,7 +769,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('program_reminders_enabled') ?? true;
       if (!enabled) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Program reminders are disabled in settings')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Program reminders are disabled in settings')));
         return;
       }
 
@@ -732,10 +795,12 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
         _reminderKeys.add(key);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder set for ${program.title}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reminder set for ${program.title}')));
     } catch (e) {
       debugPrint('❌ Error scheduling reminder: $e');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to set reminder')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to set reminder')));
     }
   }
 
@@ -743,7 +808,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
     // Copy a program-specific link to clipboard (no descriptive text)
     final encodedTitle = Uri.encodeComponent(program.title);
     final encodedTime = Uri.encodeComponent(program.time);
-    final link = 'https://coinnewsextra.com/programs?title=$encodedTitle&time=$encodedTime';
+    final link =
+        'https://coinnewsextra.com/programs?title=$encodedTitle&time=$encodedTime';
     Clipboard.setData(ClipboardData(text: link));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Program link copied to clipboard.')),
@@ -865,7 +931,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
           children: [
             // 'Download Schedule' feature intentionally removed to avoid file export and storage permission changes.
             ListTile(
-              leading: const Icon(FeatherIcons.settings, color: Color(0xFF006833)),
+              leading:
+                  const Icon(FeatherIcons.settings, color: Color(0xFF006833)),
               title: const Text(
                 'Notification Settings',
                 style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
@@ -874,7 +941,8 @@ class _ProgramPageState extends State<ProgramPage> with TickerProviderStateMixin
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (c) => const NotificationSettingsPage()),
+                  MaterialPageRoute(
+                      builder: (c) => const NotificationSettingsPage()),
                 );
               },
             ),

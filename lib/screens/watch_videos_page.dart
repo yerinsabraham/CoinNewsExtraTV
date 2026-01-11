@@ -76,7 +76,8 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
+                    const Icon(Icons.account_balance_wallet,
+                        color: Colors.white, size: 16),
                     const SizedBox(width: 4),
                     Text(
                       '${balanceService.balance.toStringAsFixed(1)}',
@@ -111,7 +112,8 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
               children: [
                 Row(
                   children: [
-                    const Icon(FeatherIcons.play, color: Colors.white, size: 32),
+                    const Icon(FeatherIcons.play,
+                        color: Colors.white, size: 32),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -142,15 +144,17 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    _buildStatItem('Videos Watched', '${watchedVideos.length}', FeatherIcons.checkCircle),
+                    _buildStatItem('Videos Watched', '${watchedVideos.length}',
+                        FeatherIcons.checkCircle),
                     const SizedBox(width: 32),
-                    _buildStatItem('Reward Per Video', '5 CNE', FeatherIcons.award),
+                    _buildStatItem(
+                        'Reward Per Video', '5 CNE', FeatherIcons.award),
                   ],
                 ),
               ],
             ),
           ),
-          
+
           // Video List
           Expanded(
             child: ListView.builder(
@@ -159,15 +163,15 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
               itemBuilder: (context, index) {
                 final video = videos[index];
                 final isWatched = watchedVideos.contains(video.id);
-                
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: Colors.grey[900],
                     borderRadius: BorderRadius.circular(16),
-                    border: isWatched 
-                      ? Border.all(color: const Color(0xFF006833), width: 2)
-                      : Border.all(color: Colors.grey[700]!, width: 1),
+                    border: isWatched
+                        ? Border.all(color: const Color(0xFF006833), width: 2)
+                        : Border.all(color: Colors.grey[700]!, width: 1),
                   ),
                   child: Column(
                     children: [
@@ -183,7 +187,8 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12),
                                 image: DecorationImage(
-                                  image: NetworkImage(video.youtubeThumbnailUrl),
+                                  image:
+                                      NetworkImage(video.youtubeThumbnailUrl),
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -222,7 +227,8 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                                     bottom: 4,
                                     right: 4,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: Colors.black.withOpacity(0.8),
                                         borderRadius: BorderRadius.circular(4),
@@ -278,10 +284,12 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                                   const SizedBox(height: 8),
                                   // Reward status
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: isWatched 
-                                          ? const Color(0xFF006833).withOpacity(0.2)
+                                      color: isWatched
+                                          ? const Color(0xFF006833)
+                                              .withOpacity(0.2)
                                           : Colors.orange.withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -289,15 +297,23 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
-                                          isWatched ? Icons.check_circle : Icons.monetization_on,
-                                          color: isWatched ? const Color(0xFF006833) : Colors.orange,
+                                          isWatched
+                                              ? Icons.check_circle
+                                              : Icons.monetization_on,
+                                          color: isWatched
+                                              ? const Color(0xFF006833)
+                                              : Colors.orange,
                                           size: 14,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          isWatched ? 'Reward Claimed' : '5 CNE Reward',
+                                          isWatched
+                                              ? 'Reward Claimed'
+                                              : '5 CNE Reward',
                                           style: TextStyle(
-                                            color: isWatched ? const Color(0xFF006833) : Colors.orange,
+                                            color: isWatched
+                                                ? const Color(0xFF006833)
+                                                : Colors.orange,
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                             fontFamily: 'Lato',
@@ -313,12 +329,15 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
                                     children: [
                                       GestureDetector(
                                         onTap: () {
-                                          final url = video.url ?? 'https://www.youtube.com/watch?v=${video.youtubeId}';
-                                          Share.share('Watch "${video.title}" on CoinNewsExtra: $url');
+                                          final url = video.url ??
+                                              'https://www.youtube.com/watch?v=${video.youtubeId}';
+                                          Share.share(
+                                              'Watch "${video.title}" on CoinNewsExtra: $url');
                                         },
                                         child: Row(
                                           children: const [
-                                            Icon(Icons.share_outlined, color: Colors.white, size: 18),
+                                            Icon(Icons.share_outlined,
+                                                color: Colors.white, size: 18),
                                             SizedBox(width: 6),
                                             Text(
                                               'Share',
@@ -377,7 +396,7 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
               },
             ),
           ),
-          
+
           // Footer
           const Padding(
             padding: EdgeInsets.all(20),
@@ -439,7 +458,7 @@ class _WatchVideosPageState extends State<WatchVideosPage> {
         ),
       ),
     );
-    
+
     // If reward was claimed, update the UI
     if (result == true) {
       setState(() {
@@ -468,12 +487,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   bool _isLiked = false;
   bool _isDisliked = false;
   bool _showDescription = false;
-  
+
   // Reward tracking
   Timer? _watchTimer;
   bool _rewardClaimed = false;
   bool _isClaimingReward = false;
-  
+
   // Watch progress tracking
   Duration _videoDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
@@ -493,8 +512,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       final id = widget.video.id;
       final posMs = prefs.getInt('video_last_position_$id') ?? 0;
       final claimed = prefs.getBool('video_reward_claimed_$id') ?? false;
+      final liked = prefs.getBool('video_liked_$id') ?? false;
+
       setState(() {
         _rewardClaimed = claimed;
+        _isLiked = liked;
       });
 
       if (posMs > 0) {
@@ -515,19 +537,21 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   void _initializeVideoPlayer() {
     // Extract YouTube video ID from URL
     String videoId = widget.video.youtubeId.trim();
-    
-    if (videoId.isEmpty && widget.video.url != null && widget.video.url!.isNotEmpty) {
+
+    if (videoId.isEmpty &&
+        widget.video.url != null &&
+        widget.video.url!.isNotEmpty) {
       final extractedId = YoutubePlayer.convertUrlToId(widget.video.url!);
       if (extractedId != null && extractedId.isNotEmpty) {
         videoId = extractedId;
       }
     }
-    
+
     if (videoId.isEmpty) {
       videoId = 'dQw4w9WgXcQ'; // Fallback video
       debugPrint('⚠️ No video ID found, using fallback: $videoId');
     }
-    
+
     debugPrint('📺 Initializing player with video ID: $videoId');
 
     _controller = YoutubePlayerController(
@@ -535,7 +559,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       flags: const YoutubePlayerFlags(
         autoPlay: true,
         mute: false,
-        useHybridComposition: false,  // Disabled - causes play() to fail
+        useHybridComposition: false, // Disabled - causes play() to fail
         enableCaption: true,
         controlsVisibleAtStart: true,
         hideControls: false,
@@ -545,11 +569,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
     // Listen to player events
     _controller.addListener(_onPlayerStateChanged);
-    
+
     // Add error handling and diagnostic logging
     _controller.addListener(() {
-      debugPrint('🎯 Player state: Ready=${_controller.value.isReady}, Playing=${_controller.value.isPlaying}, Error=${_controller.value.hasError}');
-      
+      debugPrint(
+          '🎯 Player state: Ready=${_controller.value.isReady}, Playing=${_controller.value.isPlaying}, Error=${_controller.value.hasError}');
+
       if (_controller.value.hasError) {
         debugPrint('❌ YouTube Player Error: ${_controller.value.errorCode}');
       } else if (_controller.value.isReady && !_controller.value.isPlaying) {
@@ -577,7 +602,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     if (mounted) {
       final duration = _controller.metadata.duration;
       final position = _controller.value.position;
-      
+
       setState(() {
         _videoDuration = duration;
         _currentPosition = position;
@@ -596,7 +621,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         if (sec % 5 == 0 && sec != _lastPersistedSecond) {
           _lastPersistedSecond = sec;
           SharedPreferences.getInstance().then((prefs) {
-            prefs.setInt('video_last_position_${widget.video.id}', _controller.value.position.inMilliseconds);
+            prefs.setInt('video_last_position_${widget.video.id}',
+                _controller.value.position.inMilliseconds);
           });
         }
       }
@@ -611,7 +637,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       final id = widget.video.id;
       SharedPreferences.getInstance().then((prefs) {
         // If reward has been claimed, save full duration as last position to mark completed
-        final saveMs = _rewardClaimed ? _videoDuration.inMilliseconds : _controller.value.position.inMilliseconds;
+        final saveMs = _rewardClaimed
+            ? _videoDuration.inMilliseconds
+            : _controller.value.position.inMilliseconds;
         prefs.setInt('video_last_position_$id', saveMs);
       });
     } catch (e) {
@@ -633,7 +661,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     if (actualWatchPercentage < requiredWatchPercentage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Watch at least 25% of the video to claim your reward!'),
+          content:
+              Text('Watch at least 25% of the video to claim your reward!'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -646,22 +675,25 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
     try {
       // Award reward using current token system
-      final balanceService = Provider.of<UserBalanceService>(context, listen: false);
-      await balanceService.addBalance(5.0, 'Video watch reward: ${widget.video.title}');
+      final balanceService =
+          Provider.of<UserBalanceService>(context, listen: false);
+      await balanceService.addBalance(
+          5.0, 'Video watch reward: ${widget.video.title}');
 
       setState(() {
         _rewardClaimed = true;
       });
 
-        // Persist reward claimed flag
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('video_reward_claimed_${widget.video.id}', true);
-            // Also persist final watched position as full duration so it's not claimable again
-            await prefs.setInt('video_last_position_${widget.video.id}', _videoDuration.inMilliseconds);
-        } catch (e) {
-          debugPrint('❌ Error saving reward claimed flag: $e');
-        }
+      // Persist reward claimed flag
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('video_reward_claimed_${widget.video.id}', true);
+        // Also persist final watched position as full duration so it's not claimable again
+        await prefs.setInt('video_last_position_${widget.video.id}',
+            _videoDuration.inMilliseconds);
+      } catch (e) {
+        debugPrint('❌ Error saving reward claimed flag: $e');
+      }
       // Notify parent widget
       widget.onRewardClaimed?.call();
 
@@ -709,7 +741,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
+                    const Icon(Icons.account_balance_wallet,
+                        color: Colors.white, size: 16),
                     const SizedBox(width: 4),
                     Text(
                       '${balanceService.balance.toStringAsFixed(1)}',
@@ -740,7 +773,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               const PlaybackSpeedButton(),
             ],
           ),
-          
+
           // Video Info and Controls
           Expanded(
             child: SingleChildScrollView(
@@ -778,29 +811,69 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             _buildActionButton(
-                              icon: _isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                              icon: _isLiked
+                                  ? Icons.thumb_up
+                                  : Icons.thumb_up_outlined,
                               label: 'Like',
-                              onTap: () => setState(() => {
-                                _isLiked = !_isLiked,
-                                if (_isLiked) _isDisliked = false,
-                              }),
+                              onTap: () async {
+                                setState(() {
+                                  _isLiked = !_isLiked;
+                                  if (_isLiked) _isDisliked = false;
+                                });
+
+                                // Save like state to SharedPreferences
+                                try {
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  await prefs.setBool(
+                                      'video_liked_${widget.video.id}',
+                                      _isLiked);
+                                  if (_isLiked) {
+                                    await prefs.setInt(
+                                        'video_liked_time_${widget.video.id}',
+                                        DateTime.now().millisecondsSinceEpoch);
+                                  }
+                                } catch (e) {
+                                  debugPrint('❌ Error saving like state: $e');
+                                }
+                              },
                               isActive: _isLiked,
                             ),
                             _buildActionButton(
-                              icon: _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                              icon: _isDisliked
+                                  ? Icons.thumb_down
+                                  : Icons.thumb_down_outlined,
                               label: 'Dislike',
-                              onTap: () => setState(() => {
-                                _isDisliked = !_isDisliked,
-                                if (_isDisliked) _isLiked = false,
-                              }),
+                              onTap: () async {
+                                setState(() {
+                                  _isDisliked = !_isDisliked;
+                                  if (_isDisliked) _isLiked = false;
+                                });
+
+                                // Clear like state if disliked
+                                if (_isDisliked) {
+                                  try {
+                                    final prefs =
+                                        await SharedPreferences.getInstance();
+                                    await prefs.setBool(
+                                        'video_liked_${widget.video.id}',
+                                        false);
+                                  } catch (e) {
+                                    debugPrint(
+                                        '❌ Error clearing like state: $e');
+                                  }
+                                }
+                              },
                               isActive: _isDisliked,
                             ),
                             _buildActionButton(
                               icon: Icons.share_outlined,
                               label: 'Share',
                               onTap: () {
-                                final url = widget.video.url ?? 'https://www.youtube.com/watch?v=${widget.video.youtubeId}';
-                                Share.share('Watch "${widget.video.title}" on CoinNewsExtra: $url');
+                                final url = widget.video.url ??
+                                    'https://www.youtube.com/watch?v=${widget.video.youtubeId}';
+                                Share.share(
+                                    'Watch "${widget.video.title}" on CoinNewsExtra: $url');
                               },
                             ),
                           ],
@@ -808,20 +881,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       ],
                     ),
                   ),
-                  
+
                   const Divider(color: Colors.grey, height: 1),
-                  
+
                   // Enhanced earn reward section
                   Container(
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: _rewardClaimed 
+                      color: _rewardClaimed
                           ? Colors.green.withOpacity(0.1)
                           : const Color(0xFF006833).withOpacity(0.1),
                       border: Border.all(
-                        color: _rewardClaimed 
-                            ? Colors.green 
+                        color: _rewardClaimed
+                            ? Colors.green
                             : const Color(0xFF006833),
                         width: 2,
                       ),
@@ -832,8 +905,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                         Row(
                           children: [
                             Icon(
-                              _rewardClaimed ? Icons.check_circle : Icons.monetization_on,
-                              color: _rewardClaimed ? Colors.green : const Color(0xFF006833),
+                              _rewardClaimed
+                                  ? Icons.check_circle
+                                  : Icons.monetization_on,
+                              color: _rewardClaimed
+                                  ? Colors.green
+                                  : const Color(0xFF006833),
                               size: 32,
                             ),
                             const SizedBox(width: 16),
@@ -842,9 +919,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _rewardClaimed ? 'Reward Claimed!' : 'Watch & Earn',
+                                    _rewardClaimed
+                                        ? 'Reward Claimed!'
+                                        : 'Watch & Earn',
                                     style: TextStyle(
-                                      color: _rewardClaimed ? Colors.green : Colors.white,
+                                      color: _rewardClaimed
+                                          ? Colors.green
+                                          : Colors.white,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
                                       fontFamily: 'Lato',
@@ -881,13 +962,15 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: _canClaimReward() ? _claimReward : null,
+                              onPressed:
+                                  _canClaimReward() ? _claimReward : null,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _canClaimReward() 
-                                    ? const Color(0xFF006833) 
+                                backgroundColor: _canClaimReward()
+                                    ? const Color(0xFF006833)
                                     : Colors.grey[600],
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -898,7 +981,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Colors.white),
                                       ),
                                     )
                                   : const Text(
@@ -915,10 +1000,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       ],
                     ),
                   ),
-                  
+
                   // Description section
                   GestureDetector(
-                    onTap: () => setState(() => _showDescription = !_showDescription),
+                    onTap: () =>
+                        setState(() => _showDescription = !_showDescription),
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       padding: const EdgeInsets.all(16),
@@ -943,7 +1029,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                 ),
                               ),
                               Icon(
-                                _showDescription ? Icons.expand_less : Icons.expand_more,
+                                _showDescription
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
                                 color: Colors.white,
                               ),
                             ],
@@ -951,7 +1039,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           if (_showDescription) ...[
                             const SizedBox(height: 12),
                             Text(
-                              widget.video.description ?? 'Watch this educational cryptocurrency and blockchain content to learn about the latest trends, market analysis, and technology insights. Earn CNE tokens for watching and engaging with quality content.',
+                              widget.video.description ??
+                                  'Watch this educational cryptocurrency and blockchain content to learn about the latest trends, market analysis, and technology insights. Earn CNE tokens for watching and engaging with quality content.',
                               style: TextStyle(
                                 color: Colors.grey[300],
                                 fontSize: 14,
@@ -964,9 +1053,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Ads section
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1061,7 +1150,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: progress >= 1.0 ? const Color(0xFF006833) : Colors.orange,
+                color:
+                    progress >= 1.0 ? const Color(0xFF006833) : Colors.orange,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1078,8 +1168,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          progress >= 1.0 
-              ? 'Ready to claim your reward!' 
+          progress >= 1.0
+              ? 'Ready to claim your reward!'
               : 'Watch ${((requiredWatchPercentage - actualWatchPercentage) * 100).toInt()}% more',
           style: TextStyle(
             color: progress >= 1.0 ? const Color(0xFF006833) : Colors.grey[400],
