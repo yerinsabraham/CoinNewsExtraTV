@@ -661,3 +661,34 @@ try {
   console.warn('batch-generate-hedera-accounts not available to export:', e.message);
 }
 
+// Export bulk key generation functions (FREE - no blockchain transactions)
+try {
+  const bulkKeysModule = require('./bulk-generate-keys');
+  exports.bulkGenerateKeys = bulkKeysModule.bulkGenerateKeys;
+  exports.getKeyStats = bulkKeysModule.getKeyStats;
+} catch (e) {
+  console.warn('bulk-generate-keys not available to export:', e.message);
+}
+
+// Export status field removal function
+try {
+  exports.removeStatusField = require('./remove-status-field').removeStatusField;
+} catch (e) {
+  console.warn('remove-status-field not available to export:', e.message);
+}
+
+// Export verification function
+try {
+  exports.verifyHederaData = require('./verify-hedera-data').verifyHederaData;
+} catch (e) {
+  console.warn('verify-hedera-data not available to export:', e.message);
+}
+
+// Export users function
+try {
+  exports.exportUsers = require('./export-users').exportUsers;
+} catch (e) {
+  console.warn('export-users not available to export:', e.message);
+}
+
+

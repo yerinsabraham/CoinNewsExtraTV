@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Export Users - Batch 04</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      max-width: 700px;
+      width: 100%;
+    }
+    h1 { color: #667eea; margin-bottom: 10px; }
+    .subtitle { color: #666; margin-bottom: 30px; }
+    .stats {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+    .stat-label { color: #666; }
+    .stat-value { font-weight: bold; color: #333; font-size: 20px; }
+    .btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+      display: inline-block;
+      width: calc(50% - 10px);
+    }
+    .btn:hover { background: #5568d3; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .progress {
+      background: #f0f0f0;
+      border-radius: 10px;
+      height: 30px;
+      overflow: hidden;
+      margin: 15px 0;
+      display: none;
+    }
+    .progress-bar {
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      height: 100%;
+      width: 0%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: none;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>👥 Export Users - Batch 04</h1>
+    <p class="subtitle">Download all Firebase Authentication users (10,263) as CSV or JSON</p>
+
+    <div class="stats">
+      <div class="stat-row">
+        <span class="stat-label">Total Users:</span>
+        <span class="stat-value" id="totalCount">Click Export to Load</span>
+      </div>
+    </div>
+
+    <button class="btn" onclick="downloadCSV()" id="csvBtn">📊 Download Excel CSV</button>
+    <button class="btn" onclick="downloadJSON()" id="jsonBtn">📄 Download JSON</button>
+
+    <div class="progress" id="progressBar">
+      <div class="progress-bar" id="progressFill">Loading...</div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAm6qPuwwU-4zv3-KMxN6IKlPF8JjLvpqY",
+      authDomain: "coinnewsextratv-batch-04-e38fd.firebaseapp.com",
+      projectId: "coinnewsextratv-batch-04-e38fd",
+      storageBucket: "coinnewsextratv-batch-04-e38fd.firebasestorage.app",
+      messagingSenderId: "603404082830",
+      appId: "1:603404082830:web:08c880d74e2dda3f8e6db9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const functions = getFunctions(app);
+
+    function showStatus(message, isError = false) {
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+      status.className = isError ? 'status error' : 'status success';
+      status.innerHTML = message;
+    }
+
+    function showProgress(message) {
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      progressBar.style.display = 'block';
+      progressFill.style.width = '100%';
+      progressFill.textContent = message;
+    }
+
+    function hideProgress() {
+      document.getElementById('progressBar').style.display = 'none';
+    }
+
+    async function fetchAllUsers() {
+      showProgress('Fetching all users from Firebase Authentication...');
+      
+      try {
+        const exportUsers = httpsCallable(functions, 'exportUsers');
+        const result = await exportUsers();
+        
+        if (result.data.success) {
+          document.getElementById('totalCount').textContent = result.data.count.toLocaleString();
+          return result.data.users;
+        } else {
+          throw new Error('Failed to fetch users');
+        }
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    window.downloadCSV = async function() {
+      const csvBtn = document.getElementById('csvBtn');
+      const jsonBtn = document.getElementById('jsonBtn');
+      
+      try {
+        csvBtn.disabled = true;
+        jsonBtn.disabled = true;
+        
+        const users = await fetchAllUsers();
+        
+        showProgress('Converting to CSV format...');
+        
+        const headers = [
+          'UID',
+          'Email',
+          'Display Name',
+          'Phone Number',
+          'Photo URL',
+          'Email Verified',
+          'Disabled',
+          'Creation Time',
+          'Last Sign In',
+          'Providers'
+        ];
+        const csvRows = [headers.join(',')];
+        
+        users.forEach((user) => {
+          const row = [
+            user.uid,
+            user.email,
+            `"${user.displayName}"`,
+            user.phoneNumber,
+            user.photoURL,
+            user.emailVerified,
+            user.disabled,
+            user.creationTime,
+            user.lastSignInTime,
+            `"${user.providerData}"`
+          ];
+          csvRows.push(row.join(','));
+        });
+        
+        const csv = csvRows.join('\n');
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch-04-users_${users.length}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        hideProgress();
+        showStatus(`✅ <strong>Downloaded ${users.length.toLocaleString()} users as CSV!</strong><br>File can be opened in Excel or Google Sheets.`);
+        
+      } catch (error) {
+        hideProgress();
+        showStatus(`❌ Error: ${error.message}`, true);
+      } finally {
+        csvBtn.disabled = false;
+        jsonBtn.disabled = false;
+      }
+    };
+
+    window.downloadJSON = async function() {
+      const csvBtn = document.getElementById('csvBtn');
+      const jsonBtn = document.getElementById('jsonBtn');
+      
+      try {
+        csvBtn.disabled = true;
+        jsonBtn.disabled = true;
+        
+        const users = await fetchAllUsers();
+        
+        showProgress('Converting to JSON format...');
+        
+        const json = JSON.stringify(users, null, 2);
+        
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch-04-users_${users.length}_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        hideProgress();
+        showStatus(`✅ <strong>Downloaded ${users.length.toLocaleString()} users as JSON!</strong>`);
+        
+      } catch (error) {
+        hideProgress();
+        showStatus(`❌ Error: ${error.message}`, true);
+      } finally {
+        csvBtn.disabled = false;
+        jsonBtn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

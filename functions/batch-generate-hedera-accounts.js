@@ -1,4 +1,4 @@
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 
 // Import Hedera SDK
@@ -19,53 +19,62 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Hedera Configuration
-const HEDERA_MAINNET_OPERATOR_ID = process.env.HEDERA_ACCOUNT_ID || '0.0.9764298';
-const HEDERA_TESTNET_OPERATOR_ID = process.env.HEDERA_TESTNET_ACCOUNT_ID || '0.0.4506257';
-const HEDERA_MAINNET_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
-const HEDERA_TESTNET_PRIVATE_KEY = process.env.HEDERA_TESTNET_PRIVATE_KEY || 'YOUR_TESTNET_PRIVATE_KEY_HERE';
+// Hedera Configuration from environment variables
+// Set these in Firebase Console > Functions > Configuration or in .env file
+const HEDERA_ACCOUNT_ID = process.env.HEDERA_ACCOUNT_ID || '0.0.9741152';
+const HEDERA_PRIVATE_KEY = process.env.HEDERA_PRIVATE_KEY;
 
 /**
  * Batch Generate Hedera Accounts
  * Creates individual Hedera blockchain accounts without requiring email
  * Each account is standalone with its own keypair
  */
-exports.batchGenerateHederaAccounts = functions.https.onCall(
-  {
+exports.batchGenerateHederaAccounts = functions
+  .runWith({
     timeoutSeconds: 120,
-    memory: '512MB',
-    invoker: 'public'
-  },
-  async (data, context) => {
+    memory: '512MB'
+  })
+  .https.onCall(async (data, context) => {
     const { network, memo } = data;
     
-    console.log(`🔐 Generating Hedera account on ${network || 'testnet'}`);
+    console.log(`🔐 Generating Hedera account on mainnet`);
     
     // Check if Hedera SDK loaded
     if (!Client || !PrivateKey || !AccountCreateTransaction || !Hbar) {
       throw new functions.https.HttpsError('failed-precondition', 'Hedera SDK not properly loaded');
     }
 
-    // Determine network and credentials
-    const useMainnet = network === 'mainnet';
-    const operatorId = useMainnet ? HEDERA_MAINNET_OPERATOR_ID : HEDERA_TESTNET_OPERATOR_ID;
-    const operatorKey = useMainnet ? HEDERA_MAINNET_PRIVATE_KEY : HEDERA_TESTNET_PRIVATE_KEY;
+    // Use mainnet credentials
+    const operatorId = HEDERA_ACCOUNT_ID;
+    const operatorKeyString = HEDERA_PRIVATE_KEY;
 
     // Check if operator key is set
-    if (!operatorKey || operatorKey.includes('YOUR_')) {
+    if (!operatorKeyString || operatorKeyString.includes('YOUR_')) {
       throw new functions.https.HttpsError(
         'failed-precondition', 
-        `Hedera ${network || 'testnet'} operator key not configured. Please set environment variable.`
+        `Hedera operator key not configured. Please set HEDERA_PRIVATE_KEY environment variable.`
       );
     }
 
     try {
-      // Set up Hedera client
-      const client = useMainnet ? Client.forMainnet() : Client.forTestnet();
-      client.setOperator(operatorId, operatorKey);
-      client.setDefaultMaxTransactionFee(new Hbar(2));
+      // Parse the private key - try fromString which auto-detects format
+      console.log('Parsing operator private key...');
+      let operatorKey;
+      try {
+        operatorKey = PrivateKey.fromString(operatorKeyString);
+      } catch (e) {
+        console.error('Failed to parse with fromString, trying fromStringDer:', e.message);
+        operatorKey = PrivateKey.fromStringDer(operatorKeyString);
+      }
       
-      console.log(`✅ Hedera client initialized for ${network || 'testnet'}`);
+      console.log('✅ Private key parsed successfully');
+      
+      // Set up Hedera client for mainnet only
+      const client = Client.forMainnet();
+      client.setOperator(operatorId, operatorKey);
+      client.setDefaultMaxTransactionFee(new Hbar(0.5)); // Network requires ~0.43 HBAR minimum
+      
+      console.log(`✅ Hedera client initialized for mainnet`);
       console.log(`Operator ID: ${operatorId}`);
 
       // Generate new ED25519 keypair
@@ -90,9 +99,9 @@ exports.batchGenerateHederaAccounts = functions.https.onCall(
       
       const transaction = new AccountCreateTransaction()
         .setKey(newPublicKey)
-        .setInitialBalance(new Hbar(useMainnet ? 0.1 : 1)) // Mainnet: 0.1 HBAR, Testnet: 1 HBAR
+        .setInitialBalance(new Hbar(0.001)) // Minimum balance: 0.001 HBAR
         .setAccountMemo(accountMemo)
-        .setMaxTransactionFee(new Hbar(2));
+        .setMaxTransactionFee(new Hbar(0.5)); // Network requires ~0.43 HBAR minimum
       
       console.log('Executing account creation transaction...');
       const response = await transaction.execute(client);
@@ -103,7 +112,7 @@ exports.batchGenerateHederaAccounts = functions.https.onCall(
       console.log(`Transaction ID: ${response.transactionId.toString()}`);
 
       // Create DID (Decentralized Identifier)
-      const did = `did:hedera:${network || 'testnet'}:${newAccountId.toString()}_0.0.0`;
+      const did = `did:hedera:mainnet:${newAccountId.toString()}_0.0.0`;
 
       // Prepare account data
       const accountData = {
@@ -111,16 +120,14 @@ exports.batchGenerateHederaAccounts = functions.https.onCall(
         publicKey: newPublicKey.toString(),
         privateKey: newPrivateKey.toString(), // ⚠️ Store securely in production!
         did: did,
-        network: network || 'testnet',
+        network: 'mainnet',
         memo: accountMemo,
-        initialBalance: useMainnet ? 0.1 : 1,
+        initialBalance: 0.001,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         createdVia: 'batch_generator',
         transactionId: response.transactionId.toString(),
         // Blockchain explorer links
-        explorerUrl: useMainnet 
-          ? `https://hashscan.io/mainnet/account/${newAccountId.toString()}`
-          : `https://hashscan.io/testnet/account/${newAccountId.toString()}`,
+        explorerUrl: `https://hashscan.io/mainnet/account/${newAccountId.toString()}`,
         // Additional metadata
         keyType: 'ED25519',
         isStandalone: true, // Not linked to email/user
@@ -163,20 +170,18 @@ exports.batchGenerateHederaAccounts = functions.https.onCall(
         { code: error.code || 'unknown', details: error.toString() }
       );
     }
-  }
-);
+  });
 
 /**
  * Query Generated Accounts
  * Retrieves all standalone Hedera accounts from Firestore
  */
-exports.getGeneratedHederaAccounts = functions.https.onCall(
-  {
+exports.getGeneratedHederaAccounts = functions
+  .runWith({
     timeoutSeconds: 60,
-    memory: '256MB',
-    invoker: 'public'
-  },
-  async (data, context) => {
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
     try {
       const { limit = 100, network = null } = data;
 
@@ -217,20 +222,18 @@ exports.getGeneratedHederaAccounts = functions.https.onCall(
       console.error('❌ Error querying accounts:', error);
       throw new functions.https.HttpsError('internal', error.message);
     }
-  }
-);
+  });
 
 /**
  * Get Account Details (including private key)
  * Requires Firestore document ID
  */
-exports.getHederaAccountDetails = functions.https.onCall(
-  {
+exports.getHederaAccountDetails = functions
+  .runWith({
     timeoutSeconds: 30,
-    memory: '256MB',
-    invoker: 'public'
-  },
-  async (data, context) => {
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
     try {
       const { accountId } = data;
 
@@ -268,20 +271,18 @@ exports.getHederaAccountDetails = functions.https.onCall(
       console.error('❌ Error fetching account details:', error);
       throw new functions.https.HttpsError('internal', error.message);
     }
-  }
-);
+  });
 
 /**
  * Export Accounts to CSV/JSON
  * Generates exportable data for backup
  */
-exports.exportGeneratedAccounts = functions.https.onCall(
-  {
+exports.exportGeneratedAccounts = functions
+  .runWith({
     timeoutSeconds: 120,
-    memory: '512MB',
-    invoker: 'public'
-  },
-  async (data, context) => {
+    memory: '512MB'
+  })
+  .https.onCall(async (data, context) => {
     try {
       const { format = 'json', includePrivateKeys = false } = data;
 
@@ -321,5 +322,4 @@ exports.exportGeneratedAccounts = functions.https.onCall(
       console.error('❌ Error exporting accounts:', error);
       throw new functions.https.HttpsError('internal', error.message);
     }
-  }
-);
+  });
