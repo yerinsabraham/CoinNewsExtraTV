@@ -116,3 +116,18 @@ secret.txt
 /**/flutter/ephemeral/
 *.apk
 /releases/
+
+# Hedera account generation files
+hedera_accounts_*.csv
+hedera_accounts_*.json
+**/hedera_accounts_*
+
+# User generation files
+firebase_users_*.csv
+firebase_users_*.json
+batch-*-users*.csv
+batch-*-users*.json
+users-batch*.json
+users-main.json
+**/batch-*-users*
+**/firebase_users_*

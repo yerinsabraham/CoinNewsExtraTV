@@ -629,3 +629,69 @@ try {
   console.warn('ask_openai not available to export:', e.message);
 }
 
+<<<<<<< HEAD
+=======
+// Export the createAdminAccount function
+try {
+  exports.createAdminAccount = require('./create-admin-account').createAdminAccount;
+} catch (e) {
+  console.warn('create-admin-account not available to export:', e.message);
+}
+
+// Export the bulkCreateAccounts function
+try {
+  exports.bulkCreateAccounts = require('./bulk-create-accounts').bulkCreateAccounts;
+} catch (e) {
+  console.warn('bulk-create-accounts not available to export:', e.message);
+}
+
+// Export the createPendingHederaAccounts function
+try {
+  exports.createPendingHederaAccounts = require('./create-pending-hedera-accounts').createPendingHederaAccounts;
+} catch (e) {
+  console.warn('create-pending-hedera-accounts not available to export:', e.message);
+}
+
+// Export batch Hedera account generator functions (standalone accounts)
+try {
+  const batchGenerateModule = require('./batch-generate-hedera-accounts');
+  exports.batchGenerateHederaAccounts = batchGenerateModule.batchGenerateHederaAccounts;
+  exports.getGeneratedHederaAccounts = batchGenerateModule.getGeneratedHederaAccounts;
+  exports.getHederaAccountDetails = batchGenerateModule.getHederaAccountDetails;
+  exports.exportGeneratedAccounts = batchGenerateModule.exportGeneratedAccounts;
+} catch (e) {
+  console.warn('batch-generate-hedera-accounts not available to export:', e.message);
+}
+
+// Export bulk key generation functions (FREE - no blockchain transactions)
+try {
+  const bulkKeysModule = require('./bulk-generate-keys');
+  exports.bulkGenerateKeys = bulkKeysModule.bulkGenerateKeys;
+  exports.getKeyStats = bulkKeysModule.getKeyStats;
+} catch (e) {
+  console.warn('bulk-generate-keys not available to export:', e.message);
+}
+
+// Export status field removal function
+try {
+  exports.removeStatusField = require('./remove-status-field').removeStatusField;
+} catch (e) {
+  console.warn('remove-status-field not available to export:', e.message);
+}
+
+// Export verification function
+try {
+  exports.verifyHederaData = require('./verify-hedera-data').verifyHederaData;
+} catch (e) {
+  console.warn('verify-hedera-data not available to export:', e.message);
+}
+
+// Export users function
+try {
+  exports.exportUsers = require('./export-users').exportUsers;
+} catch (e) {
+  console.warn('export-users not available to export:', e.message);
+}
+
+
+>>>>>>> cd71868d (Add Hedera account generator and user management tools, update gitignore)
