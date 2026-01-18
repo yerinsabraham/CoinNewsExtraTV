@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "889552494681-upkf9l3kq5cen66vsvvibf1bcm3cp79k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.coinnewsextra.tv",
+            "certificate_hash": "7d43d353a9fcf104396c5f229f01952eb6c808a2"
+          }
+        },
+        {
           "client_id": "889552494681-52shssr5ar3pvde98g6u485j3o0e2ula.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -37,6 +45,59 @@
             {
               "client_id": "889552494681-52shssr5ar3pvde98g6u485j3o0e2ula.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "889552494681-11gfg580lk58u8hbsglf5i1ircamougq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.coinnewsextratv.cnetv",
+                "app_store_id": "6475177975"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889552494681:android:15659458c86985e1681148",
+        "android_client_info": {
+          "package_name": "com.coinnewsextratv.cnetv"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "889552494681-7b9sbecivi0eu8dajtv83q3u5u2lgiat.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.coinnewsextratv.cnetv",
+            "certificate_hash": "f258c58e0e9f5ed52db0f541d60876843509a3b9"
+          }
+        },
+        {
+          "client_id": "889552494681-52shssr5ar3pvde98g6u485j3o0e2ula.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByEm21sFAKx7pQp2RQ0hiZeNWgAM8k4EE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889552494681-52shssr5ar3pvde98g6u485j3o0e2ula.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "889552494681-11gfg580lk58u8hbsglf5i1ircamougq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.coinnewsextratv.cnetv",
+                "app_store_id": "6475177975"
+              }
             }
           ]
         }

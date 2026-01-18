@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/support_service.dart';
 import '../models/support_chat.dart';
 import 'enhanced_call_screen.dart';
@@ -14,7 +15,8 @@ class SupportChatDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<SupportChatDetailScreen> createState() => _SupportChatDetailScreenState();
+  State<SupportChatDetailScreen> createState() =>
+      _SupportChatDetailScreenState();
 }
 
 class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
@@ -102,11 +104,11 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
           ],
         ),
         actions: [
-          // Call button
+          // WhatsApp button
           IconButton(
             icon: const Icon(FeatherIcons.phone, color: Colors.white),
             onPressed: _initiateCall,
-            tooltip: 'Call Support',
+            tooltip: 'WhatsApp Support',
           ),
           // Menu button
           PopupMenuButton<String>(
@@ -133,7 +135,7 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
                     Icon(FeatherIcons.phone, color: Colors.white, size: 16),
                     SizedBox(width: 12),
                     Text(
-                      'Start Voice Call',
+                      'WhatsApp Support',
                       style: TextStyle(color: Colors.white, fontFamily: 'Lato'),
                     ),
                   ],
@@ -290,7 +292,8 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
                   child: TextField(
                     controller: _messageController,
                     focusNode: _messageFocusNode,
-                    style: const TextStyle(color: Colors.white, fontFamily: 'Lato'),
+                    style: const TextStyle(
+                        color: Colors.white, fontFamily: 'Lato'),
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
@@ -404,7 +407,7 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
 
   Widget _buildMessageItem(ChatMessage message) {
     final isUserMessage = message.senderType == 'user';
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -428,9 +431,8 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isUserMessage
-                    ? const Color(0xFF006833)
-                    : Colors.grey[800],
+                color:
+                    isUserMessage ? const Color(0xFF006833) : Colors.grey[800],
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -464,9 +466,8 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
                   Text(
                     _formatTimestamp(message.timestamp),
                     style: TextStyle(
-                      color: isUserMessage
-                          ? Colors.green[100]
-                          : Colors.grey[500],
+                      color:
+                          isUserMessage ? Colors.green[100] : Colors.grey[500],
                       fontSize: 10,
                       fontFamily: 'Lato',
                     ),
@@ -481,7 +482,10 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
               radius: 16,
               backgroundColor: Colors.grey[700],
               child: Text(
-                FirebaseAuth.instance.currentUser?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                FirebaseAuth.instance.currentUser?.displayName
+                        ?.substring(0, 1)
+                        .toUpperCase() ??
+                    'U',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -563,38 +567,34 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
 
   Future<void> _initiateCall() async {
     try {
-      final callId = await SupportService.initiateCall(widget.chatId, null);
+      // Open WhatsApp instead of initiating in-app call
+      final whatsappUrl = Uri.parse(
+          'https://wa.me/2349060000000?text=Hello, I need support with CoinNewsExtra TV');
 
-      if (mounted) {
-        // Navigate to enhanced call screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EnhancedCallScreen(
-              callId: callId,
-              callerName: 'CNETV Support Team',
-              isAdmin: false,
-            ),
-          ),
-        );
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
 
-        // Show confirmation message after call screen is dismissed
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              '📞 Call request sent to support team',
-              style: TextStyle(fontWeight: FontWeight.bold),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '📱 Opening WhatsApp support...',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: Color(0xFF006833),
+              duration: Duration(seconds: 2),
             ),
-            backgroundColor: Color(0xFF006833),
-            duration: Duration(seconds: 2),
-          ),
-        );
+          );
+        }
+      } else {
+        throw Exception(
+            'Could not open WhatsApp. Please install WhatsApp or contact us at +234 906 000 0000');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to initiate call: ${e.toString()}'),
+            content: Text('Failed to open WhatsApp: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -622,7 +622,8 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInfoRow('Subject', _currentChat!.subject),
-            _buildInfoRow('Status', _getStatusDisplayName(_currentChat!.status)),
+            _buildInfoRow(
+                'Status', _getStatusDisplayName(_currentChat!.status)),
             _buildInfoRow('Created', _formatTimestamp(_currentChat!.createdAt)),
             if (_currentChat!.assignedAdminName.isNotEmpty)
               _buildInfoRow('Assigned to', _currentChat!.assignedAdminName),
@@ -764,7 +765,7 @@ class _SupportChatDetailScreenState extends State<SupportChatDetailScreen> {
       if (mounted) {
         // Close current screen and show success
         Navigator.pop(context);
-        
+
         // Show success message on previous screen
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

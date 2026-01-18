@@ -5,6 +5,9 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/user_balance_service.dart';
 import '../provider/admin_provider.dart';
@@ -26,6 +29,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
   String? _displayName;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
@@ -43,7 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final docRef =
+          FirebaseFirestore.instance.collection('users').doc(user.uid);
       final snap = await docRef.get();
       if (snap.exists) {
         final data = snap.data();
@@ -62,8 +67,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _generateReferralCode(String uid) {
     // Simple base62-encode of a numeric hash of the UID to get a short code
-    final hash = uid.codeUnits.fold<int>(0, (p, c) => (p * 31 + c) & 0x7fffffff);
-    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    final hash =
+        uid.codeUnits.fold<int>(0, (p, c) => (p * 31 + c) & 0x7fffffff);
+    const alphabet =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     var val = hash == 0 ? 1 : hash;
     final buffer = StringBuffer();
     while (buffer.length < 6) {
@@ -78,18 +85,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
       String code = '';
       if (doc.exists) {
         code = (doc.data()?['referralCode'] as String?) ?? '';
       }
       if (code.isEmpty) {
         code = _generateReferralCode(user.uid);
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'referralCode': code}, SetOptions(merge: true));
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({'referralCode': code}, SetOptions(merge: true));
       }
 
-      final link = 'https://coinnewsextra.app/ref?code=${Uri.encodeComponent(code)}';
-      await Share.share('Join CoinNewsExtra and earn rewards! Use my referral code $code or tap: $link');
+      final link =
+          'https://coinnewsextra.app/ref?code=${Uri.encodeComponent(code)}';
+      await Share.share(
+          'Join CoinNewsExtra and earn rewards! Use my referral code $code or tap: $link');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to share referral: ${e.toString()}')),
@@ -106,7 +121,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
           if (snap.exists) {
             final data = snap.data();
             if (data != null && data['displayName'] is String) {
@@ -114,10 +132,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
             // Persist server values to prefs for offline use
             if (data != null && data['displayName'] is String) {
-              await prefs.setString('profile_name', data['displayName'] as String);
+              await prefs.setString(
+                  'profile_name', data['displayName'] as String);
             }
             if (data != null && data['username'] is String) {
-              await prefs.setString('profile_username', data['username'] as String);
+              await prefs.setString(
+                  'profile_username', data['username'] as String);
             }
           }
         }
@@ -146,6 +166,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _uploadProfilePicture() async {
+    if (_isUploadingImage) return;
+
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (image == null || currentUser == null) return;
+
+      setState(() => _isUploadingImage = true);
+
+      // Upload to Firebase Storage
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child('${currentUser!.uid}.jpg');
+
+      await storageRef.putFile(File(image.path));
+      final downloadURL = await storageRef.getDownloadURL();
+
+      // Update Firebase Auth profile
+      await currentUser!.updatePhotoURL(downloadURL);
+
+      // Update Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .update({'photoURL': downloadURL});
+
+      // Save to SharedPreferences for offline access
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profile_photo_url', downloadURL);
+
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully!'),
+            backgroundColor: Color(0xFF006833),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error uploading profile picture: $e');
+
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   void _signOut() async {
     showDialog(
       context: context,
@@ -171,7 +257,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 await AuthService.signOut();
                 if (mounted) {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const LoginScreen()),
                     (Route<dynamic> route) => false,
                   );
                 }
@@ -194,7 +281,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.grey[900],
         title: const Text(
           'Watch History',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Lato'),
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Lato'),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -207,9 +297,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: CircularProgressIndicator(color: Color(0xFF006833)),
                 );
               }
-              
+
               final watchHistory = snapshot.data ?? [];
-              
+
               if (watchHistory.isEmpty) {
                 return const Center(
                   child: Text(
@@ -219,13 +309,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 itemCount: watchHistory.length,
                 itemBuilder: (context, index) {
                   final item = watchHistory[index];
                   final VideoModel video = item['video'];
-                  
+
                   return ListTile(
                     leading: Container(
                       width: 60,
@@ -240,24 +330,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.play_arrow, color: Colors.white);
+                            return const Icon(Icons.play_arrow,
+                                color: Colors.white);
                           },
                         ),
                       ),
                     ),
                     title: Text(
                       video.title,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontFamily: 'Lato'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
                       _formatWatchDate(item['watchedAt']),
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
+                      style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                          fontFamily: 'Lato'),
                     ),
                     trailing: Text(
                       _formatDuration(video.durationSeconds ?? 0),
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
+                      style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                          fontFamily: 'Lato'),
                     ),
                   );
                 },
@@ -285,7 +385,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.grey[900],
         title: const Text(
           'Liked Videos',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Lato'),
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Lato'),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -298,9 +401,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: CircularProgressIndicator(color: Color(0xFF006833)),
                 );
               }
-              
+
               final likedVideos = snapshot.data ?? [];
-              
+
               if (likedVideos.isEmpty) {
                 return const Center(
                   child: Text(
@@ -310,13 +413,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 itemCount: likedVideos.length,
                 itemBuilder: (context, index) {
                   final item = likedVideos[index];
                   final VideoModel video = item['video'];
-                  
+
                   return ListTile(
                     leading: Container(
                       width: 60,
@@ -337,7 +440,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   color: Colors.grey[800],
-                                  child: const Icon(Icons.play_arrow, color: Colors.white),
+                                  child: const Icon(Icons.play_arrow,
+                                      color: Colors.white),
                                 );
                               },
                             ),
@@ -363,13 +467,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     title: Text(
                       video.title,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontFamily: 'Lato'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
                       _formatWatchDate(item['likedAt']),
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
+                      style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                          fontFamily: 'Lato'),
                     ),
                     trailing: const Icon(
                       Icons.favorite,
@@ -402,7 +512,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.grey[900],
         title: const Text(
           'Earnings History',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Lato'),
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Lato'),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -415,9 +528,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: CircularProgressIndicator(color: Color(0xFF006833)),
                 );
               }
-              
+
               final earnings = snapshot.data ?? [];
-              
+
               if (earnings.isEmpty) {
                 return const Center(
                   child: Text(
@@ -427,13 +540,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 itemCount: earnings.length,
                 itemBuilder: (context, index) {
                   final transaction = earnings[index];
                   final isPositive = (transaction['amount'] ?? 0.0) > 0;
-                  
+
                   return ListTile(
                     leading: Container(
                       width: 40,
@@ -450,11 +563,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     title: Text(
                       transaction['source'] ?? 'Unknown',
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Lato'),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontFamily: 'Lato'),
                     ),
                     subtitle: Text(
                       _formatWatchDate(transaction['timestamp']),
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12, fontFamily: 'Lato'),
+                      style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                          fontFamily: 'Lato'),
                     ),
                     trailing: Text(
                       '${isPositive ? '+' : ''}${(transaction['amount'] ?? 0.0).toStringAsFixed(2)} CNE',
@@ -485,84 +604,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _getWatchHistory() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Get real videos from video data and simulate watch history
-    final allVideos = VideoData.getAllVideos();
-    final watchHistory = <Map<String, dynamic>>[];
-    
-    // Add some recent videos as watched with random timing
-    if (allVideos.isNotEmpty) {
-      watchHistory.add({
-        'video': allVideos[0],
-        'watchedAt': DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return [];
+
+      final allVideos = VideoData.getAllVideos();
+      final watchHistory = <Map<String, dynamic>>[];
+
+      // Get all watched videos from SharedPreferences
+      for (final video in allVideos) {
+        final claimed =
+            prefs.getBool('video_reward_claimed_${video.id}') ?? false;
+        final lastPos = prefs.getInt('video_last_position_${video.id}') ?? 0;
+
+        if (claimed || lastPos > 0) {
+          // Video was watched
+          watchHistory.add({
+            'video': video,
+            'watchedAt': DateTime.now()
+                .subtract(Duration(milliseconds: lastPos))
+                .millisecondsSinceEpoch,
+          });
+        }
+      }
+
+      // Sort by watch time (most recent first)
+      watchHistory.sort(
+          (a, b) => (b['watchedAt'] as int).compareTo(a['watchedAt'] as int));
+
+      return watchHistory;
+    } catch (e) {
+      debugPrint('❌ Error loading watch history: $e');
+      return [];
     }
-    if (allVideos.length > 1) {
-      watchHistory.add({
-        'video': allVideos[1],
-        'watchedAt': DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch,
-      });
-    }
-    if (allVideos.length > 2) {
-      watchHistory.add({
-        'video': allVideos[2],
-        'watchedAt': DateTime.now().subtract(const Duration(days: 3)).millisecondsSinceEpoch,
-      });
-    }
-    
-    return watchHistory;
   }
 
   Future<List<Map<String, dynamic>>> _getLikedVideos() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Get real videos from video data and simulate liked videos
-    final allVideos = VideoData.getAllVideos();
-    final likedVideos = <Map<String, dynamic>>[];
-    
-    // Add some videos as liked with random timing
-    if (allVideos.length > 3) {
-      likedVideos.add({
-        'video': allVideos[3],
-        'likedAt': DateTime.now().subtract(const Duration(hours: 5)).millisecondsSinceEpoch,
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return [];
+
+      final allVideos = VideoData.getAllVideos();
+      final likedVideos = <Map<String, dynamic>>[];
+
+      // Get all liked videos from SharedPreferences
+      for (final video in allVideos) {
+        final isLiked = prefs.getBool('video_liked_${video.id}') ?? false;
+        final likedTime = prefs.getInt('video_liked_time_${video.id}');
+
+        if (isLiked) {
+          likedVideos.add({
+            'video': video,
+            'likedAt': likedTime ?? DateTime.now().millisecondsSinceEpoch,
+          });
+        }
+      }
+
+      // Sort by liked time (most recent first)
+      likedVideos
+          .sort((a, b) => (b['likedAt'] as int).compareTo(a['likedAt'] as int));
+
+      return likedVideos;
+    } catch (e) {
+      debugPrint('❌ Error loading liked videos: $e');
+      return [];
     }
-    if (allVideos.length > 4) {
-      likedVideos.add({
-        'video': allVideos[4],
-        'likedAt': DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch,
-      });
-    }
-    
-    return likedVideos;
   }
 
   Future<List<Map<String, dynamic>>> _getEarningsHistory() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    return [
-      {
-        'source': 'Video Watch',
-        'amount': 5.0,
-        'timestamp': DateTime.now().subtract(const Duration(hours: 1)).millisecondsSinceEpoch,
-      },
-      {
-        'source': 'Daily Check-in',
-        'amount': 10.0,
-        'timestamp': DateTime.now().subtract(const Duration(hours: 8)).millisecondsSinceEpoch,
-      },
-      {
-        'source': 'Quiz Reward',
-        'amount': 25.0,
-        'timestamp': DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch,
-      },
-      {
-        'source': 'Spin Game',
-        'amount': 15.0,
-        'timestamp': DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch,
-      },
-    ];
+    try {
+      final balanceService =
+          Provider.of<UserBalanceService>(context, listen: false);
+      final transactions = await balanceService.getTransactionHistory();
+
+      return transactions.map((transaction) {
+        return {
+          'source': transaction['description'] ?? 'Unknown',
+          'amount': transaction['amount'] ?? 0.0,
+          'timestamp':
+              transaction['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('❌ Error loading earnings history: $e');
+      return [];
+    }
   }
 
   String _formatWatchDate(dynamic timestamp) {
@@ -575,10 +703,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         return 'Unknown date';
       }
-      
+
       final now = DateTime.now();
       final difference = now.difference(date);
-      
+
       if (difference.inDays == 0) {
         if (difference.inHours == 0) {
           return '${difference.inMinutes} minutes ago';
@@ -605,15 +733,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     // compute avatar initial and displayed name
-    final String avatarInitial = (_displayName != null && _displayName!.isNotEmpty)
-        ? _displayName![0].toUpperCase()
-        : (currentUser?.displayName != null && currentUser!.displayName!.isNotEmpty)
-            ? currentUser!.displayName![0].toUpperCase()
-            : (currentUser?.email != null && currentUser!.email!.isNotEmpty)
-                ? currentUser!.email![0].toUpperCase()
-                : 'U';
+    final String avatarInitial =
+        (_displayName != null && _displayName!.isNotEmpty)
+            ? _displayName![0].toUpperCase()
+            : (currentUser?.displayName != null &&
+                    currentUser!.displayName!.isNotEmpty)
+                ? currentUser!.displayName![0].toUpperCase()
+                : (currentUser?.email != null && currentUser!.email!.isNotEmpty)
+                    ? currentUser!.email![0].toUpperCase()
+                    : 'U';
 
-    final String displayedNameLocal = _displayName ?? currentUser?.displayName ?? 'Anonymous User';
+    final String displayedNameLocal =
+        _displayName ?? currentUser?.displayName ?? 'Anonymous User';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -651,23 +782,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  // Profile Picture
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: const Color(0xFF006833),
-                    backgroundImage: currentUser?.photoURL != null
-                        ? NetworkImage(currentUser!.photoURL!)
-                        : null,
-                    child: currentUser?.photoURL == null
-                        ? Text(
-                            avatarInitial,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontSize: 32,
+                  // Profile Picture with upload functionality
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: const Color(0xFF006833),
+                        backgroundImage: currentUser?.photoURL != null
+                            ? NetworkImage(currentUser!.photoURL!)
+                            : null,
+                        child: _isUploadingImage
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 3,
+                              )
+                            : currentUser?.photoURL == null
+                                ? Text(
+                                    avatarInitial,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                    ),
+                                  )
+                                : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _uploadProfilePicture,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF006833),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
-                          )
-                        : null,
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   // Name
@@ -698,7 +858,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF006833),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -709,9 +870,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildStatItem('Videos Watched', '12'),
-                          Container(width: 1, height: 40, color: Colors.grey[700]),
-                          _buildStatItem('Rewards Earned', '${(balanceService.balance * 0.5).toStringAsFixed(2)} CNE'),
-                          Container(width: 1, height: 40, color: Colors.grey[700]),
+                          Container(
+                              width: 1, height: 40, color: Colors.grey[700]),
+                          _buildStatItem('Rewards Earned',
+                              '${(balanceService.balance * 0.5).toStringAsFixed(2)} CNE'),
+                          Container(
+                              width: 1, height: 40, color: Colors.grey[700]),
                           _buildStatItem('Streak Days', '5'),
                         ],
                       );
@@ -720,7 +884,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            
+
             // Wallet Section
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -782,7 +946,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('View Wallet', style: TextStyle(fontFamily: 'Lato')),
+                    child: const Text('View Wallet',
+                        style: TextStyle(fontFamily: 'Lato')),
                   ),
                 ],
               ),
@@ -813,7 +978,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Consumer<AdminProvider>(
               builder: (context, adminProvider, child) {
                 if (!adminProvider.isAdmin) return const SizedBox.shrink();
-                
+
                 return _buildMenuOption(
                   icon: FeatherIcons.shield,
                   title: 'Admin Dashboard',
@@ -870,7 +1035,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     content: const Text(
                       'CoinNewsExtra TV v2.0.0\n\nWatch cryptocurrency and blockchain content while earning CNE rewards.',
-                      style: TextStyle(color: Colors.white70, fontFamily: 'Lato'),
+                      style:
+                          TextStyle(color: Colors.white70, fontFamily: 'Lato'),
                     ),
                     actions: [
                       TextButton(

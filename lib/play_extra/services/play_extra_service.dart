@@ -14,11 +14,11 @@ class PlayExtraService extends ChangeNotifier {
   PlayerStats _playerStats = PlayerStats(playerId: 'default_player');
   String _selectedBullType = 'blue_bull';
   int _playerCoins = PlayExtraConfig.defaultCoins;
-  
+
   // Current Battle State
   BattleSession? _currentBattle;
   BattlePlayer? _currentPlayer;
-  
+
   // Battle History
   List<BattleResult> _battleHistory = [];
 
@@ -30,9 +30,9 @@ class PlayExtraService extends ChangeNotifier {
   BattlePlayer? get currentPlayer => _currentPlayer;
   List<BattleResult> get battleHistory => _battleHistory;
   List<BattleArena> get availableArenas => PlayExtraConfig.defaultArenas;
-  
+
   bool get isInBattle => _currentBattle != null && _currentPlayer != null;
-  
+
   // Initialize the service
   Future<void> initialize() async {
     await _loadPlayerData();
@@ -43,27 +43,30 @@ class PlayExtraService extends ChangeNotifier {
   Future<void> _loadPlayerData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Load coins
-      _playerCoins = prefs.getInt('play_extra_coins') ?? PlayExtraConfig.defaultCoins;
-      
+      _playerCoins =
+          prefs.getInt('play_extra_coins') ?? PlayExtraConfig.defaultCoins;
+
       // Load selected bull
       _selectedBullType = prefs.getString('selected_bull_type') ?? 'blue_bull';
-      
+
       // Load player stats
       final statsJson = prefs.getString('player_stats');
       if (statsJson != null) {
         _playerStats = PlayerStats.fromJson(json.decode(statsJson));
       }
-      
+
       // Load battle history
       final historyJson = prefs.getString('battle_history');
       if (historyJson != null) {
         final historyList = json.decode(historyJson) as List;
-        _battleHistory = historyList.map((item) => BattleResult.fromJson(item)).toList();
+        _battleHistory =
+            historyList.map((item) => BattleResult.fromJson(item)).toList();
       }
-      
-      print('✅ Player data loaded: $_playerCoins CNE, Bull: $_selectedBullType');
+
+      print(
+          '✅ Player data loaded: ${_playerCoins} CNE, Bull: ${_selectedBullType}');
     } catch (e) {
       print('❌ Error loading player data: $e');
     }
@@ -73,12 +76,13 @@ class PlayExtraService extends ChangeNotifier {
   Future<void> _savePlayerData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       await prefs.setInt('play_extra_coins', _playerCoins);
       await prefs.setString('selected_bull_type', _selectedBullType);
       await prefs.setString('player_stats', json.encode(_playerStats.toJson()));
-      await prefs.setString('battle_history', json.encode(_battleHistory.map((b) => b.toJson()).toList()));
-      
+      await prefs.setString('battle_history',
+          json.encode(_battleHistory.map((b) => b.toJson()).toList()));
+
       notifyListeners();
     } catch (e) {
       print('❌ Error saving player data: $e');
@@ -95,24 +99,26 @@ class PlayExtraService extends ChangeNotifier {
   }
 
   // Join Battle Arena
-  Future<bool> joinBattle(String arenaId, int stakeAmount, String userId, String username) async {
+  Future<bool> joinBattle(
+      String arenaId, int stakeAmount, String userId, String username) async {
     try {
       // Find arena
-      final arena = PlayExtraConfig.defaultArenas.firstWhere((a) => a.id == arenaId);
-      
+      final arena =
+          PlayExtraConfig.defaultArenas.firstWhere((a) => a.id == arenaId);
+
       // Validate stake amount
       if (!arena.isValidStake(stakeAmount)) {
         throw Exception('Invalid stake amount for ${arena.name}');
       }
-      
+
       // Check if player has enough coins
       if (stakeAmount > _playerCoins) {
         throw Exception('Insufficient CNE tokens');
       }
-      
+
       // Deduct stake from player coins
       _playerCoins -= stakeAmount;
-      
+
       // Create battle player
       _currentPlayer = BattlePlayer(
         id: userId,
@@ -124,10 +130,10 @@ class PlayExtraService extends ChangeNotifier {
         level: _playerStats.playerLevel,
         totalWins: _playerStats.totalWins,
       );
-      
+
       // Add AI opponents immediately for demo (in real app, wait for real players)
       final aiOpponents = _generateAIOpponents(arenaId, 3);
-      
+
       // Create battle session with all players
       _currentBattle = BattleSession(
         sessionId: 'battle_${DateTime.now().millisecondsSinceEpoch}',
@@ -137,13 +143,12 @@ class PlayExtraService extends ChangeNotifier {
         startTime: DateTime.now(),
         timeLimit: const Duration(minutes: 2), // 2 minute waiting period
       );
-      
+
       await _savePlayerData();
-      
-      print('⚔️ Joined battle: ${arena.name} with $stakeAmount CNE');
+
+      print('⚔️ Joined battle: ${arena.name} with ${stakeAmount} CNE');
       print('👥 ${_currentBattle!.players.length} players in battle');
       return true;
-      
     } catch (e) {
       print('❌ Error joining battle: $e');
       return false;
@@ -155,7 +160,7 @@ class PlayExtraService extends ChangeNotifier {
     if (_currentBattle == null || _currentPlayer == null) {
       throw Exception('No active battle to start');
     }
-    
+
     // Update battle status
     _currentBattle = BattleSession(
       sessionId: _currentBattle!.sessionId,
@@ -165,36 +170,54 @@ class PlayExtraService extends ChangeNotifier {
       startTime: _currentBattle!.startTime,
       timeLimit: _currentBattle!.timeLimit,
     );
-    
+
     // Simulate battle with wheel mechanics
     return await _simulateBattleWheel();
   }
 
-  // Simulate Rocky Rabbit Style Battle Wheel
+  // Simulate Rocky Rabbit Style Battle Wheel - Using Real Players from Global Manager
   Future<BattleResult> _simulateBattleWheel() async {
     if (_currentBattle == null || _currentPlayer == null) {
       throw Exception('No active battle');
     }
-    
-    final arena = PlayExtraConfig.defaultArenas.firstWhere((a) => a.id == _currentBattle!.arenaId);
+
+    final arena = PlayExtraConfig.defaultArenas
+        .firstWhere((a) => a.id == _currentBattle!.arenaId);
     final random = Random();
-    
-    // Add some AI opponents for demo
-    final aiOpponents = _generateAIOpponents(_currentBattle!.arenaId, 3);
-    final allPlayers = [_currentPlayer!, ...aiOpponents];
-    
-    // Calculate win probability based on stake amount and player level
-    final playerPower = _currentPlayer!.battlePower;
-    final totalPower = allPlayers.fold(0.0, (sum, player) => sum + player.battlePower);
-    final winProbability = playerPower / totalPower;
-    
-    // Determine winner (with some randomness for excitement)
-    final isPlayerWinner = random.nextDouble() < (winProbability * 0.7 + 0.15); // 15-85% chance
-    
-    final winner = isPlayerWinner ? _currentPlayer! : aiOpponents[random.nextInt(aiOpponents.length)];
-    final totalStake = allPlayers.fold(0, (sum, player) => sum + player.stakeAmount);
-    final winnerReward = arena.calculateWinnings(totalStake ~/ 2); // Winner takes calculated portion
-    
+
+    // Use real players from global battle manager instead of AI opponents
+    final globalManager = GlobalBattleManager();
+    final allPlayers = globalManager.currentRound?.players ?? [_currentPlayer!];
+
+    // If for some reason no players found, add current player at minimum
+    if (allPlayers.isEmpty) {
+      allPlayers.add(_currentPlayer!);
+    }
+
+    // Calculate total stake to determine weighted probabilities
+    final totalStake =
+        allPlayers.fold(0, (sum, player) => sum + player.stakeAmount);
+
+    // Weighted random selection based on stake amounts
+    double randomValue = random.nextDouble() * totalStake;
+    BattlePlayer? winner;
+    double cumulativeWeight = 0;
+
+    for (final player in allPlayers) {
+      cumulativeWeight += player.stakeAmount;
+      if (randomValue <= cumulativeWeight) {
+        winner = player;
+        break;
+      }
+    }
+
+    // Fallback to random player if something goes wrong
+    winner ??= allPlayers[random.nextInt(allPlayers.length)];
+
+    final isPlayerWinner = winner.id == _currentPlayer!.id;
+    final winnerReward =
+        arena.calculateWinnings(totalStake); // Winner takes calculated portion
+
     // Create battle result
     final result = BattleResult(
       battleId: _currentBattle!.sessionId,
@@ -206,56 +229,68 @@ class PlayExtraService extends ChangeNotifier {
       completedAt: DateTime.now(),
       resultType: 'wheel_spin',
     );
-    
+
     // Update player stats and coins if winner
     if (isPlayerWinner) {
       _playerCoins += winnerReward;
       _updatePlayerStats(true, winnerReward, _currentPlayer!.stakeAmount);
-      print('🎉 Victory! Won $winnerReward CNE tokens!');
+      print('🎉 Victory! Won ${winnerReward} CNE tokens!');
     } else {
       _updatePlayerStats(false, 0, _currentPlayer!.stakeAmount);
       print('😞 Defeat! Better luck next time!');
     }
-    
+
     // Add to battle history
-    _battleHistory.insert(0, result); // Add to beginning for recent-first display
+    _battleHistory.insert(
+        0, result); // Add to beginning for recent-first display
     if (_battleHistory.length > 50) {
       _battleHistory = _battleHistory.take(50).toList(); // Keep last 50 battles
     }
-    
+
     // Clear current battle
     _currentBattle = null;
     _currentPlayer = null;
-    
+
     await _savePlayerData();
-    
+
     return result;
   }
 
   // Generate AI Opponents for Battle
   List<BattlePlayer> _generateAIOpponents(String arenaId, int count) {
     final random = Random();
-    final arena = PlayExtraConfig.defaultArenas.firstWhere((a) => a.id == arenaId);
+    final arena =
+        PlayExtraConfig.defaultArenas.firstWhere((a) => a.id == arenaId);
     final opponents = <BattlePlayer>[];
-    
-    final aiNames = ['CryptoBull', 'TradingPro', 'BullRider', 'CoinMaster', 'BlockChamp'];
-    
+
+    final aiNames = [
+      'CryptoBull',
+      'TradingPro',
+      'BullRider',
+      'CoinMaster',
+      'BlockChamp'
+    ];
+
     for (int i = 0; i < count; i++) {
-      final stake = arena.minStake + random.nextInt(arena.maxStake - arena.minStake);
-      final bullType = PlayExtraConfig.bullTypes[random.nextInt(PlayExtraConfig.bullTypes.length)];
-      
+      final stake =
+          arena.minStake + random.nextInt(arena.maxStake - arena.minStake);
+      final bullType = PlayExtraConfig
+          .bullTypes[random.nextInt(PlayExtraConfig.bullTypes.length)];
+
       opponents.add(BattlePlayer(
         id: 'ai_${DateTime.now().millisecondsSinceEpoch}_$i',
-        username: '${aiNames[random.nextInt(aiNames.length)]}${random.nextInt(999)}',
+        username:
+            aiNames[random.nextInt(aiNames.length)] + '${random.nextInt(999)}',
         bullType: bullType,
         stakeAmount: stake,
         arenaId: arenaId,
-        joinedAt: DateTime.now().subtract(Duration(seconds: random.nextInt(60))),
+        joinedAt:
+            DateTime.now().subtract(Duration(seconds: random.nextInt(60))),
         level: 1 + random.nextInt(10),
         totalWins: random.nextInt(100),
       ));
     }
-    
+
     return opponents;
   }
 
@@ -266,15 +301,21 @@ class PlayExtraService extends ChangeNotifier {
       totalBattles: _playerStats.totalBattles + 1,
       totalWins: _playerStats.totalWins + (won ? 1 : 0),
       totalLosses: _playerStats.totalLosses + (won ? 0 : 1),
-      highestWin: won ? max(_playerStats.highestWin, cneEarned) : _playerStats.highestWin,
+      highestWin: won
+          ? max(_playerStats.highestWin, cneEarned)
+          : _playerStats.highestWin,
       totalCNEEarned: _playerStats.totalCNEEarned + cneEarned,
       currentStreak: won ? _playerStats.currentStreak + 1 : 0,
-      bestStreak: won ? max(_playerStats.bestStreak, _playerStats.currentStreak + 1) : _playerStats.bestStreak,
+      bestStreak: won
+          ? max(_playerStats.bestStreak, _playerStats.currentStreak + 1)
+          : _playerStats.bestStreak,
       lastPlayed: DateTime.now(),
       arenaWins: Map<String, int>.from(_playerStats.arenaWins)
-        ..update(_currentBattle?.arenaId ?? 'unknown', (value) => value + (won ? 1 : 0), ifAbsent: () => won ? 1 : 0),
+        ..update(_currentBattle?.arenaId ?? 'unknown',
+            (value) => value + (won ? 1 : 0),
+            ifAbsent: () => won ? 1 : 0),
     );
-    
+
     _playerStats = newStats;
   }
 
@@ -286,7 +327,7 @@ class PlayExtraService extends ChangeNotifier {
         _playerCoins += _currentPlayer!.stakeAmount;
         print('💰 Stake returned: ${_currentPlayer!.stakeAmount} CNE');
       }
-      
+
       _currentBattle = null;
       _currentPlayer = null;
       await _savePlayerData();
@@ -298,11 +339,14 @@ class PlayExtraService extends ChangeNotifier {
     return _battleHistory.map((battle) {
       final isWinner = battle.winnerId == _playerStats.playerId;
       final result = isWinner ? 'WON' : 'LOST';
-      final amount = isWinner ? '+${battle.winnerReward}' : '-${battle.participants.firstWhere((p) => p.id == _playerStats.playerId, orElse: () => BattlePlayer(id: '', username: '', bullType: 'blue_bull', stakeAmount: 0, arenaId: '', joinedAt: DateTime.now())).stakeAmount}';
+      final amount = isWinner
+          ? '+${battle.winnerReward}'
+          : '-${battle.participants.firstWhere((p) => p.id == _playerStats.playerId, orElse: () => BattlePlayer(id: '', username: '', bullType: 'blue_bull', stakeAmount: 0, arenaId: '', joinedAt: DateTime.now())).stakeAmount}';
       final arenaName = PlayExtraConfig.defaultArenas
-          .firstWhere((a) => a.id == battle.participants.first.arenaId, orElse: () => PlayExtraConfig.defaultArenas.first)
+          .firstWhere((a) => a.id == battle.participants.first.arenaId,
+              orElse: () => PlayExtraConfig.defaultArenas.first)
           .name;
-      
+
       return '$result $arenaName: $amount CNE';
     }).toList();
   }
@@ -311,18 +355,27 @@ class PlayExtraService extends ChangeNotifier {
   Future<void> addCoins(int amount) async {
     _playerCoins += amount;
     await _savePlayerData();
-    print('💰 Added $amount CNE tokens');
+    print('💰 Added ${amount} CNE tokens');
   }
 
   // Get Player Rank Color
   Color getPlayerRankColor() {
     switch (_playerStats.playerRank) {
-      case 'Champion': return Colors.amber;
-      case 'Expert': return Colors.purple;
-      case 'Advanced': return Colors.blue;
-      case 'Intermediate': return Colors.green;
-      default: return Colors.grey;
+      case 'Champion':
+        return Colors.amber;
+      case 'Expert':
+        return Colors.purple;
+      case 'Advanced':
+        return Colors.blue;
+      case 'Intermediate':
+        return Colors.green;
+      default:
+        return Colors.grey;
     }
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
 }

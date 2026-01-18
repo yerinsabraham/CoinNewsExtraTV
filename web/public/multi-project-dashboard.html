@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Project Dashboard - CoinNewsExtra TV</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      color: #1e3c72;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .summary-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    
+    .summary-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #1e3c72;
+      margin-bottom: 5px;
+    }
+    
+    .summary-label {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .project-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transition: transform 0.2s;
+    }
+    
+    .project-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .project-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1e3c72;
+    }
+    
+    .project-status {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-active {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status-loading {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .project-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-item {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1e3c72;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .project-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #1e3c72;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #2a5298;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .refresh-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      background: #1e3c72;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+    }
+    
+    .refresh-btn:hover {
+      transform: scale(1.1);
+      background: #2a5298;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: white;
+      font-size: 18px;
+    }
+    
+    .error {
+      background: #f8d7da;
+      border-left: 4px solid #721c24;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      color: #721c24;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1e3c72, #2a5298);
+      transition: width 0.3s;
+    }
+    
+    @media (max-width: 768px) {
+      .projects-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎯 Multi-Project Dashboard</h1>
+      <p class="subtitle">Manage all 5 Firebase batch account projects</p>
+    </div>
+
+    <div class="summary-cards" id="summaryCards">
+      <div class="summary-card">
+        <div class="summary-value" id="totalAccounts">0</div>
+        <div class="summary-label">Total Accounts</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" id="activeProjects">0</div>
+        <div class="summary-label">Active Projects</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" id="todayCreated">0</div>
+        <div class="summary-label">Created Today</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" id="avgQuotaUsed">0%</div>
+        <div class="summary-label">Avg Quota Used</div>
+      </div>
+    </div>
+
+    <div class="projects-grid" id="projectsGrid">
+      <div class="loading">Loading projects...</div>
+    </div>
+  </div>
+
+  <button class="refresh-btn" onclick="loadAllProjects()" title="Refresh">
+    🔄
+  </button>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    // Firebase project configurations
+    const FIREBASE_PROJECTS = [
+      {
+        id: 'batch-01',
+        name: 'Batch Account Creator 01',
+        projectId: 'coinnewsextratv-batch-01',
+        color: '#667eea',
+        config: {
+          // Will be filled when you get the actual config from Firebase Console
+          apiKey: "YOUR_API_KEY_01",
+          authDomain: "coinnewsextratv-batch-01.firebaseapp.com",
+          projectId: "coinnewsextratv-batch-01",
+          storageBucket: "coinnewsextratv-batch-01.firebasestorage.app",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        }
+      },
+      {
+        id: 'batch-02',
+        name: 'Batch Account Creator 02',
+        projectId: 'coinnewsextratv-batch-02',
+        color: '#764ba2',
+        config: {
+          apiKey: "YOUR_API_KEY_02",
+          authDomain: "coinnewsextratv-batch-02.firebaseapp.com",
+          projectId: "coinnewsextratv-batch-02",
+          storageBucket: "coinnewsextratv-batch-02.firebasestorage.app",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        }
+      },
+      {
+        id: 'batch-03',
+        name: 'Batch Account Creator 03',
+        projectId: 'coinnewsextratv-batch-03',
+        color: '#f093fb',
+        config: {
+          apiKey: "YOUR_API_KEY_03",
+          authDomain: "coinnewsextratv-batch-03.firebaseapp.com",
+          projectId: "coinnewsextratv-batch-03",
+          storageBucket: "coinnewsextratv-batch-03.firebasestorage.app",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        }
+      },
+      {
+        id: 'batch-04',
+        name: 'Batch Account Creator 04',
+        projectId: 'coinnewsextratv-batch-04',
+        color: '#4facfe',
+        config: {
+          apiKey: "YOUR_API_KEY_04",
+          authDomain: "coinnewsextratv-batch-04.firebaseapp.com",
+          projectId: "coinnewsextratv-batch-04",
+          storageBucket: "coinnewsextratv-batch-04.firebasestorage.app",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        }
+      },
+      {
+        id: 'batch-05',
+        name: 'Batch Account Creator 05',
+        projectId: 'coinnewsextratv-batch-05',
+        color: '#43e97b',
+        config: {
+          apiKey: "YOUR_API_KEY_05",
+          authDomain: "coinnewsextratv-batch-05.firebaseapp.com",
+          projectId: "coinnewsextratv-batch-05",
+          storageBucket: "coinnewsextratv-batch-05.firebasestorage.app",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        }
+      }
+    ];
+
+    // Load project data
+    async function loadProjectData(project) {
+      try {
+        // Initialize Firebase for this project
+        const app = initializeApp(project.config, project.id);
+        const db = getFirestore(app);
+
+        // Get account count
+        const accountsSnapshot = await getDocs(collection(db, 'admin_created_accounts'));
+        const accountCount = accountsSnapshot.size;
+
+        // Get stats if available
+        let todayCreated = 0;
+        try {
+          const statsDoc = await getDoc(doc(db, 'system_stats', 'admin_accounts'));
+          if (statsDoc.exists()) {
+            const data = statsDoc.data();
+            todayCreated = data.todayCreated || 0;
+          }
+        } catch (e) {
+          console.log('Stats not available for', project.id);
+        }
+
+        // Calculate quota usage (estimate based on account count)
+        const quotaUsed = Math.min(100, Math.round((accountCount / 10000) * 100));
+
+        return {
+          ...project,
+          accountCount,
+          todayCreated,
+          quotaUsed,
+          status: 'active',
+          error: null
+        };
+      } catch (error) {
+        console.error(`Error loading ${project.id}:`, error);
+        return {
+          ...project,
+          accountCount: 0,
+          todayCreated: 0,
+          quotaUsed: 0,
+          status: 'error',
+          error: error.message
+        };
+      }
+    }
+
+    // Render project card
+    function renderProjectCard(projectData) {
+      const statusClass = projectData.status === 'active' ? 'status-active' : 
+                         projectData.status === 'error' ? 'status-error' : 'status-loading';
+      const statusText = projectData.status === 'active' ? 'Active' : 
+                        projectData.status === 'error' ? 'Error' : 'Loading...';
+
+      const bulkCreatorUrl = `https://${projectData.projectId}.web.app/bulk-creator.html`;
+      const consoleUrl = `https://console.firebase.google.com/project/${projectData.projectId}`;
+
+      return `
+        <div class="project-card">
+          <div class="project-header">
+            <div class="project-title">${projectData.name}</div>
+            <div class="project-status ${statusClass}">${statusText}</div>
+          </div>
+          
+          ${projectData.error ? `<div class="error">⚠️ ${projectData.error}</div>` : ''}
+          
+          <div class="project-stats">
+            <div class="stat-item">
+              <div class="stat-value">${projectData.accountCount.toLocaleString()}</div>
+              <div class="stat-label">Total Accounts</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${projectData.todayCreated}</div>
+              <div class="stat-label">Created Today</div>
+            </div>
+          </div>
+          
+          <div class="stat-item">
+            <div class="stat-label">Quota Usage</div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${projectData.quotaUsed}%"></div>
+            </div>
+            <div class="stat-value" style="font-size: 16px; margin-top: 8px;">${projectData.quotaUsed}%</div>
+          </div>
+          
+          <div class="project-actions" style="margin-top: 20px;">
+            <a href="${bulkCreatorUrl}" target="_blank" class="btn btn-primary">
+              Open Creator
+            </a>
+            <a href="${consoleUrl}" target="_blank" class="btn btn-secondary">
+              Firebase Console
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    // Load all projects
+    window.loadAllProjects = async function() {
+      const grid = document.getElementById('projectsGrid');
+      grid.innerHTML = '<div class="loading">Loading projects...</div>';
+
+      try {
+        // Load all projects in parallel
+        const projectDataPromises = FIREBASE_PROJECTS.map(project => loadProjectData(project));
+        const projectsData = await Promise.all(projectDataPromises);
+
+        // Render project cards
+        grid.innerHTML = projectsData.map(data => renderProjectCard(data)).join('');
+
+        // Update summary
+        const totalAccounts = projectsData.reduce((sum, p) => sum + p.accountCount, 0);
+        const activeProjects = projectsData.filter(p => p.status === 'active').length;
+        const todayTotal = projectsData.reduce((sum, p) => sum + p.todayCreated, 0);
+        const avgQuota = Math.round(projectsData.reduce((sum, p) => sum + p.quotaUsed, 0) / projectsData.length);
+
+        document.getElementById('totalAccounts').textContent = totalAccounts.toLocaleString();
+        document.getElementById('activeProjects').textContent = activeProjects;
+        document.getElementById('todayCreated').textContent = todayTotal;
+        document.getElementById('avgQuotaUsed').textContent = avgQuota + '%';
+
+      } catch (error) {
+        grid.innerHTML = `<div class="error">Failed to load projects: ${error.message}</div>`;
+      }
+    };
+
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+      loadAllProjects();
+    }, 5 * 60 * 1000);
+
+    // Initial load
+    // NOTE: This will fail until you add actual Firebase configs above
+    // For now, it will show mock data
+    loadAllProjects();
+  </script>
+</body>
+</html>

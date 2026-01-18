@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'support_chat_screen.dart';
 import 'report_issue_screen.dart';
 import '../../screens/contact_screen.dart';
@@ -59,7 +60,8 @@ class HelpSupportScreen extends StatelessWidget {
               context,
               icon: FeatherIcons.messageCircle,
               title: 'Chat with CNETV Support',
-              description: 'Get instant help from our support team via live chat',
+              description:
+                  'Start a live chat conversation with our support team. Real-time messaging for quick assistance.',
               color: const Color(0xFF006833),
               onTap: () => _openChat(context),
             ),
@@ -68,7 +70,8 @@ class HelpSupportScreen extends StatelessWidget {
               context,
               icon: FeatherIcons.alertCircle,
               title: 'Report an Issue',
-              description: 'Submit a detailed report about a problem or bug',
+              description:
+                  'Submit a detailed bug report or technical issue. Our team will investigate and respond via email.',
               color: Colors.orange,
               onTap: () => _openReportIssue(context),
             ),
@@ -120,21 +123,43 @@ class HelpSupportScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF006833).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF006833).withOpacity(0.3)),
+                border:
+                    Border.all(color: const Color(0xFF006833).withOpacity(0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Need immediate assistance?',
+                    'Contact Information',
                     style: TextStyle(
                       color: Color(0xFF006833),
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Lato',
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
+                  _buildContactItem(
+                    icon: FeatherIcons.messageCircle,
+                    title: 'WhatsApp Support',
+                    value: '+234 906 000 0000',
+                    subtitle: 'Chat with us on WhatsApp',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildContactItem(
+                    icon: FeatherIcons.mail,
+                    title: 'Email Support',
+                    value: 'support@coinnewsextratv.africa',
+                    subtitle: 'We respond within 24 hours',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildContactItem(
+                    icon: FeatherIcons.mapPin,
+                    title: 'Office Address',
+                    value: 'Lekki Phase 2, Lagos, Nigeria',
+                    subtitle: 'Visit our office',
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'Our support team is available 24/7 to help you with any questions or issues.',
                     style: TextStyle(
@@ -169,6 +194,73 @@ class HelpSupportScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildContactItem({
+    required IconData icon,
+    required String title,
+    required String value,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[850],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF006833).withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF006833).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF006833),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: Colors.grey[300],
+                    fontSize: 14,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1178,6 +1178,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
   Widget _buildPlayerCard(BattlePlayer player) {
     final isCurrentPlayer = player.id == 'current_user';
     
+    // Calculate winning probability based on stake
+    final battle = Provider.of<PlayExtraService>(context, listen: false).currentBattle;
+    final totalStake = battle?.players.fold(0, (sum, p) => sum + p.stakeAmount) ?? player.stakeAmount;
+    final winningChance = totalStake > 0 ? (player.stakeAmount / totalStake * 100) : 0;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -1225,19 +1230,59 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
                   PlayExtraConfig.bullNames[player.bullType] ?? 'Unknown Bull',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
+                // Add winning probability indicator
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.trending_up,
+                      color: winningChance > 50 ? Colors.green : Colors.orange,
+                      size: 12,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Win Chance: ${winningChance.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        color: winningChance > 50 ? Colors.green : Colors.orange,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          // Ensure stake amount doesn't overflow the card row
-          Text(
-            '${player.stakeAmount} CNE',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF00B359),
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${player.stakeAmount} CNE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF00B359),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: winningChance > 50 ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${winningChance.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    color: winningChance > 50 ? Colors.green : Colors.orange,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1246,6 +1291,11 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
 
   Widget _buildGlobalPlayerCard(BattlePlayer player, {bool isWinner = false}) {
     final isCurrentPlayer = player.id == 'current_user';
+    
+    // Calculate winning probability based on stake
+    final round = _globalBattleManager.currentRound;
+    final totalStake = round?.players.fold(0, (sum, p) => sum + p.stakeAmount) ?? player.stakeAmount;
+    final winningChance = totalStake > 0 ? (player.stakeAmount / totalStake * 100) : 0;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1290,14 +1340,92 @@ class _PlayExtraMainState extends State<PlayExtraMain> with TickerProviderStateM
               children: [
                 Row(
                   children: [
-                    Text(
-                      isCurrentPlayer ? '${player.username} (You)' : player.username,
-                      style: TextStyle(
-                        color: isWinner 
-                          ? Colors.amber
-                          : (isCurrentPlayer ? const Color(0xFF00B359) : Colors.white),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    Flexible(
+                      child: Text(
+                        isCurrentPlayer ? '${player.username} (You)' : player.username,
+                        style: TextStyle(
+                          color: isWinner 
+                            ? Colors.amber
+                            : (isCurrentPlayer ? const Color(0xFF00B359) : Colors.white),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isWinner) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.emoji_events, color: Colors.amber, size: 16),
+                    ],
+                  ],
+                ),
+                Text(
+                  PlayExtraConfig.bullNames[player.bullType] ?? 'Unknown Bull',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Add winning probability indicator
+                if (!isWinner) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.trending_up,
+                        color: winningChance > 50 ? Colors.green : Colors.orange,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Win Chance: ${winningChance.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          color: winningChance > 50 ? Colors.green : Colors.orange,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${player.stakeAmount} CNE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isWinner ? Colors.amber : const Color(0xFF00B359),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              if (!isWinner) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: winningChance > 50 ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${winningChance.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      color: winningChance > 50 ? Colors.green : Colors.orange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
                       ),
                     ),
                     if (isWinner) ...[
@@ -1858,11 +1986,17 @@ class AccurateBattleWheelPainter extends CustomPainter {
     
     if (players.isEmpty) return;
     
-    final segmentAngle = 2 * math.pi / players.length;
+    // Calculate total stake to determine proportional segments
+    final totalStake = players.fold(0, (sum, player) => sum + player.stakeAmount);
+    
+    double currentAngle = -math.pi / 2 + rotation; // Start at top
     
     for (int i = 0; i < players.length; i++) {
-      final startAngle = (i * segmentAngle - math.pi / 2) + rotation;
       final player = players[i];
+      
+      // Calculate proportional segment angle based on stake amount
+      final stakeRatio = totalStake > 0 ? player.stakeAmount / totalStake : 1.0 / players.length;
+      final segmentAngle = 2 * math.pi * stakeRatio;
       
       // Highlight winner segment
       final isWinner = winner != null && player.id == winner!.id;
@@ -1882,7 +2016,7 @@ class AccurateBattleWheelPainter extends CustomPainter {
       
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
-        startAngle,
+        currentAngle,
         segmentAngle,
         true,
         paint,
@@ -1894,13 +2028,13 @@ class AccurateBattleWheelPainter extends CustomPainter {
         ..strokeWidth = isWinner ? 5 : 3
         ..style = PaintingStyle.stroke;
       
-      final x1 = center.dx + radius * math.cos(startAngle);
-      final y1 = center.dy + radius * math.sin(startAngle);
+      final x1 = center.dx + radius * math.cos(currentAngle);
+      final y1 = center.dy + radius * math.sin(currentAngle);
       
       canvas.drawLine(center, Offset(x1, y1), borderPaint);
       
-      // Draw player indicator
-      final iconAngle = startAngle + segmentAngle / 2;
+      // Draw player indicator with percentage label
+      final iconAngle = currentAngle + segmentAngle / 2;
       final iconRadius = radius * 0.7;
       final iconX = center.dx + iconRadius * math.cos(iconAngle);
       final iconY = center.dy + iconRadius * math.sin(iconAngle);
@@ -1917,6 +2051,39 @@ class AccurateBattleWheelPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
         
       canvas.drawCircle(Offset(iconX, iconY), isWinner ? 8 : 6, accentPaint);
+      
+      // Draw percentage label on segment (if segment is large enough)
+      if (segmentAngle > 0.3) { // Only show if segment is reasonably sized
+        final percentage = (stakeRatio * 100).toStringAsFixed(0);
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: '$percentage%',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: Colors.black,
+                  blurRadius: 2,
+                  offset: Offset(0, 0),
+                ),
+              ],
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+        
+        final textRadius = radius * 0.5;
+        final textX = center.dx + textRadius * math.cos(iconAngle) - textPainter.width / 2;
+        final textY = center.dy + textRadius * math.sin(iconAngle) - textPainter.height / 2;
+        
+        textPainter.paint(canvas, Offset(textX, textY));
+      }
+      
+      // Move to next segment
+      currentAngle += segmentAngle;
     }
     
     // Draw pointer at top (static red arrow)
@@ -1941,22 +2108,33 @@ class AccurateBattleWheelPainter extends CustomPainter {
     canvas.drawPath(pointerPath, pointerBorderPaint);
   }
   
-  // Calculate which player the arrow points to
+  // Calculate which player the arrow points to (proportional segments)
   static BattlePlayer? calculateWinner(List<BattlePlayer> players, double finalRotation) {
     if (players.isEmpty) return null;
     
-    final segmentAngle = 2 * math.pi / players.length;
+    final totalStake = players.fold(0, (sum, player) => sum + player.stakeAmount);
     
     // Normalize rotation (arrow points up/north)
     double normalizedRotation = (finalRotation % (2 * math.pi));
     if (normalizedRotation < 0) normalizedRotation += 2 * math.pi;
     
     // Calculate which segment the arrow points to
-    // Arrow points up (north), so we need to find the segment at the top
     double arrowAngle = (2 * math.pi - normalizedRotation) % (2 * math.pi);
-    int segmentIndex = ((arrowAngle + (segmentAngle / 2)) ~/ segmentAngle) % players.length;
     
-    return players[segmentIndex];
+    // Find the segment based on proportional angles
+    double cumulativeAngle = 0;
+    for (final player in players) {
+      final stakeRatio = totalStake > 0 ? player.stakeAmount / totalStake : 1.0 / players.length;
+      final segmentAngle = 2 * math.pi * stakeRatio;
+      
+      if (arrowAngle >= cumulativeAngle && arrowAngle < cumulativeAngle + segmentAngle) {
+        return player;
+      }
+      
+      cumulativeAngle += segmentAngle;
+    }
+    
+    return players.first; // Fallback
   }
   
   @override
