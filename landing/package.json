@@ -1,0 +1,19 @@
+{
+  "name": "coinnewsextra-landing",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+  "postbuild": "powershell -Command \"if (Test-Path '..\\assets') { Copy-Item -Recurse -Force '..\\assets\\*' '.\\dist\\assets\\' -ErrorAction SilentlyContinue }\"",
+    "preview": "vite preview --port 5000"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^5.1.0",
+    "@vitejs/plugin-react": "^4.0.0"
+  }
+}
